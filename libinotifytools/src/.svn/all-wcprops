@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svnroot/inotify-tools/!svn/ver/56/libinotifytools/src
+END
+test.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/inotify-tools/!svn/ver/52/libinotifytools/src/test.c
+END
+Doxyfile
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/inotify-tools/!svn/ver/16/libinotifytools/src/Doxyfile
+END
+inotifytools.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svnroot/inotify-tools/!svn/ver/54/libinotifytools/src/inotifytools.c
+END
+inotifytools_p.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svnroot/inotify-tools/!svn/ver/46/libinotifytools/src/inotifytools_p.h
+END
+redblack.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/inotify-tools/!svn/ver/46/libinotifytools/src/redblack.c
+END
+Makefile.am
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svnroot/inotify-tools/!svn/ver/56/libinotifytools/src/Makefile.am
+END
+example.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/inotify-tools/!svn/ver/16/libinotifytools/src/example.c
+END
+redblack.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svnroot/inotify-tools/!svn/ver/46/libinotifytools/src/redblack.h
+END

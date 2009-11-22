@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 38
+/svnroot/inotify-tools/!svn/ver/60/man
+END
+inotifywait.1
+K 25
+svn:wc:ra_dav:version-url
+V 52
+/svnroot/inotify-tools/!svn/ver/60/man/inotifywait.1
+END
+inotifywatch.1
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svnroot/inotify-tools/!svn/ver/59/man/inotifywatch.1
+END
+Makefile.am
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svnroot/inotify-tools/!svn/ver/1/man/Makefile.am
+END

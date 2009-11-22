@@ -1,0 +1,11 @@
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svnroot/inotify-tools/!svn/ver/56/libinotifytools
+END
+Makefile.am
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/inotify-tools/!svn/ver/14/libinotifytools/Makefile.am
+END

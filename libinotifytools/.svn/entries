@@ -1,0 +1,43 @@
+8
+
+dir
+62
+https://inotify-tools.svn.sourceforge.net/svnroot/inotify-tools/libinotifytools
+https://inotify-tools.svn.sourceforge.net/svnroot/inotify-tools
+
+
+
+2008-01-01T08:50:22.355792Z
+56
+ro_han
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+b6cd11f5-e217-0410-ac59-a05b115cab0b
+
+src
+dir
+
+Makefile.am
+file
+
+
+
+
+2009-11-22T23:02:33.000000Z
+f85f6f6bb24d4ddb5e8fb49222740c0d
+2006-10-25T11:30:49.658865Z
+14
+ro_han
+
