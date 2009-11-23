@@ -28,10 +28,6 @@
 extern char *optarg;
 extern int optind, opterr, optopt;
 
-#define EXIT_OK 0
-#define EXIT_ERROR 1
-#define EXIT_TIMEOUT 2
-
 #define MAX_STRLEN 4096
 #define EXCLUDE_CHUNK 1024
 
@@ -103,7 +99,7 @@ void validate_format( char * fmt ) {
 	   (struct inotify_event *)malloc(sizeof(struct inotify_event) + 4);
 	if ( !event ) {
 		fprintf( stderr, "Seem to be out of memory... yikes!\n" );
-		exit(EXIT_ERROR);
+		exit(EXIT_FAILURE);
 	}
 	event->wd = 0;
 	event->mask = IN_ALL_EVENTS;
@@ -117,7 +113,7 @@ void validate_format( char * fmt ) {
 	}
 	if ( -1 == inotifytools_fprintf( devnull, event, fmt ) ) {
 		fprintf( stderr, "Something is wrong with your format string.\n" );
-		exit(EXIT_ERROR);
+		exit(EXIT_FAILURE);
 	}
 	free( event );
 	fclose(devnull);
@@ -167,7 +163,7 @@ int main(int argc, char ** argv)
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
 	                 &recursive, &csv, &daemon, &syslog, &format, &timefmt, 
                          &fromfile, &outfile, &regex, &iregex) ) {
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 	if ( !inotifytools_initialize() ) {
@@ -178,7 +174,7 @@ int main(int argc, char ** argv)
 		                "something mysterious has gone wrong.  Please e-mail "
 		                PACKAGE_BUGREPORT "\n"
 		                " and mention that you saw this message.\n");
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 	if ( timefmt ) inotifytools_set_printf_timefmt( timefmt );
@@ -188,7 +184,7 @@ int main(int argc, char ** argv)
 		                                                        REG_ICASE))
 	) {
 		fprintf(stderr, "Error in `exclude' regular expression.\n");
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 
@@ -207,7 +203,7 @@ int main(int argc, char ** argv)
 
 	if (0 == list.watch_files[0]) {
 		fprintf(stderr, "No files specified to watch!\n");
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 
@@ -217,27 +213,27 @@ int main(int argc, char ** argv)
 		pid = fork();
 	        if (pid < 0) {
 			fprintf(stderr, "Failed to fork1 whilst daemonizing!\n");
-	                return EXIT_ERROR;
+	                return EXIT_FAILURE;
 	        } 
 	        if (pid > 0) {
 			_exit(0);
 	        }
 		if (setsid() < 0) {
 			fprintf(stderr, "Failed to setsid whilst daemonizing!\n");
-	                return EXIT_ERROR;
+	                return EXIT_FAILURE;
 	        }
 		signal(SIGHUP,SIG_IGN);
 	        pid = fork();
 	        if (pid < 0) {
 	                fprintf(stderr, "Failed to fork2 whilst daemonizing!\n");
-	                return EXIT_ERROR;
+	                return EXIT_FAILURE;
 	        }
 	        if (pid > 0) {
 	                _exit(0);
 	        }
 		if (chdir("/") < 0) {
 			fprintf(stderr, "Failed to chdir whilst daemonizing!\n");
-	                return EXIT_ERROR;
+	                return EXIT_FAILURE;
 	        }
 
 		// Redirect stdin from /dev/null
@@ -251,7 +247,7 @@ int main(int argc, char ** argv)
 	        fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
 		if (fd < 0) {
                         fprintf( stderr, "Failed to open output file %s\n", outfile );
-                        return EXIT_ERROR;
+                        return EXIT_FAILURE;
                 }
 		if (fd != fileno(stdout)) {
 			dup2(fd, fileno(stdout));
@@ -269,7 +265,7 @@ int main(int argc, char ** argv)
 		fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
 		if (fd < 0) {
 			fprintf( stderr, "Failed to open output file %s\n", outfile );
-			return EXIT_ERROR;
+			return EXIT_FAILURE;
 		}
 		if (fd != fileno(stdout)) {
 			dup2(fd, fileno(stdout));
@@ -309,7 +305,7 @@ int main(int argc, char ** argv)
 				output_error( syslog, "Couldn't watch %s: %s\n", this_file,
 				        strerror( inotifytools_error() ) );
 			}
-			return EXIT_ERROR;
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -329,7 +325,7 @@ int main(int argc, char ** argv)
 			}
 			else {
 				output_error( syslog, "%s\n", strerror( inotifytools_error() ) );
-				return EXIT_ERROR;
+				return EXIT_FAILURE;
 			}
 		}
 
@@ -403,10 +399,10 @@ int main(int argc, char ** argv)
 	// If we weren't trying to listen for this event...
 	if ( (events & event->mask) == 0 ) {
 		// ...then most likely something bad happened, like IGNORE etc.
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
-	return EXIT_OK;
+	return EXIT_SUCCESS;
 }
 
 
@@ -751,9 +747,9 @@ void print_help()
 	       "\t\tlistened for.\n\n");
 	printf("Exit status:\n");
 	printf("\t%d  -  An event you asked to watch for was received.\n",
-	       EXIT_OK );
+	       EXIT_SUCCESS );
 	printf("\t%d  -  An event you did not ask to watch for was received\n",
-	       EXIT_ERROR);
+	       EXIT_FAILURE);
 	printf("\t      (usually delete_self or unmount), or some error "
 	       "occurred.\n");
 	printf("\t%d  -  The --timeout option was given and no events occurred\n",

@@ -30,8 +30,8 @@
 extern char *optarg;
 extern int optind, opterr, optopt;
 
-#define EXIT_OK 0
-#define EXIT_ERROR 1
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
 #define EXIT_TIMEOUT 2
 
 #define EXCLUDE_CHUNK 1024
@@ -104,7 +104,7 @@ int main(int argc, char ** argv)
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts( &argc, &argv, &events, &timeout, &verbose, &zero, &sort,
 	                 &recursive, &fromfile, &regex, &iregex ) ) {
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 	if (
@@ -113,7 +113,7 @@ int main(int argc, char ** argv)
 		                                                        REG_ICASE))
 	) {
 		fprintf(stderr, "Error in `exclude' regular expression.\n");
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 	if ( !inotifytools_initialize() ) {
@@ -124,7 +124,7 @@ int main(int argc, char ** argv)
 		                "something mysterious has gone wrong.  Please e-mail "
 		                PACKAGE_BUGREPORT "\n"
 		                " and mention that you saw this message.\n");
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 	// Attempt to watch file
@@ -136,7 +136,7 @@ int main(int argc, char ** argv)
 
 	if (0 == list.watch_files[0]) {
 		fprintf(stderr, "No files specified to watch!\n");
-		return EXIT_ERROR;
+		return EXIT_FAILURE;
 	}
 
 	unsigned int num_watches = 0;
@@ -169,7 +169,7 @@ int main(int argc, char ** argv)
 				fprintf(stderr, "Failed to watch %s: %s\n", this_file,
 				        strerror( inotifytools_error() ) );
 			}
-			return EXIT_ERROR;
+			return EXIT_FAILURE;
 		}
 		if ( recursive && verbose ) {
 			fprintf( stderr, "OK, %s is now being watched.\n", this_file );
@@ -209,7 +209,7 @@ int main(int argc, char ** argv)
 			}
 			else if ( inotifytools_error() != EINTR ) {
 				fprintf(stderr, "%s\n", strerror( inotifytools_error() ) );
-				return EXIT_ERROR;
+				return EXIT_FAILURE;
 			}
 			else {
 				continue;
@@ -277,7 +277,7 @@ int print_info() {
 
 	if ( !inotifytools_get_stat_total( 0 ) ) {
 		fprintf( stderr, "No events occurred.\n" );
-		return EXIT_OK;
+		return EXIT_SUCCESS;
 	}
 
 	// OK, go through the watches and print stats.
@@ -380,7 +380,7 @@ int print_info() {
 	rbcloselist(rblist);
 	rbdestroy(tree);
 
-	return EXIT_OK;
+	return EXIT_SUCCESS;
 }
 
 
@@ -671,8 +671,8 @@ void print_help()
 	printf("\t-d|--descending <event>\n"
 	       "\t\tSort descending by a particular event, or `total'.\n\n");
 	printf("Exit status:\n");
-	printf("\t%d  -  Exited normally.\n", EXIT_OK);
-	printf("\t%d  -  Some error occurred.\n\n", EXIT_ERROR);
+	printf("\t%d  -  Exited normally.\n", EXIT_SUCCESS);
+	printf("\t%d  -  Some error occurred.\n\n", EXIT_FAILURE);
 	printf("Events:\n");
 	print_event_descriptions();
 }

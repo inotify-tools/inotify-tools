@@ -1,4 +1,3 @@
-
 bin_PROGRAMS = inotifywait inotifywatch
 inotifywait_SOURCES = inotifywait.c common.c common.h
 inotifywatch_SOURCES = inotifywatch.c common.c common.h
@@ -8,4 +7,3 @@ LDADD = ../libinotifytools/src/libinotifytools.la
 
 dist-hook:
 	touch -d '2 days ago' $(distdir)/*
-

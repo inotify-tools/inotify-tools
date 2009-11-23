@@ -1,4 +1,11 @@
-// kate: replace-tabs off; space-indent off;
+#ifndef COMMON_H
+#define COMMON_H
+
+#ifndef EXIT_SUCCESS
+    # define EXIT_SUCCESS 0
+    # define EXIT_FAILURE 1
+#endif
+#define EXIT_TIMEOUT 2
 
 void print_event_descriptions();
 int isdir( char const * path );
@@ -14,3 +21,5 @@ FileList construct_path_list( int argc, char ** argv, char const * filename );
 
 void _niceassert( long cond, int line, char const * file, char const * condstr,
                   char const * mesg );
+
+#endif
