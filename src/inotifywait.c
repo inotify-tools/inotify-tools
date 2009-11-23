@@ -1,5 +1,3 @@
-// kate: replace-tabs off; space-indent off;
-
 #include "../config.h"
 #include "common.h"
 
@@ -56,7 +54,6 @@ bool parse_opts(
 void print_help();
 
 
-
 char * csv_escape( char * string ) {
 	static char csv[MAX_STRLEN+1];
 	static unsigned int i, ind;
@@ -90,7 +87,6 @@ char * csv_escape( char * string ) {
 
 	return csv;
 }
-
 
 
 void validate_format( char * fmt ) {
@@ -128,6 +124,7 @@ void output_event_csv( struct inotify_event * event ) {
 	printf("\n");
 }
 
+
 void output_error( bool syslog, char* fmt, ... ) {
 	va_list va;
 	va_start(va, fmt);
@@ -138,6 +135,7 @@ void output_error( bool syslog, char* fmt, ... ) {
 	}
 	va_end(va);
 }
+
 
 int main(int argc, char ** argv)
 {
@@ -207,7 +205,7 @@ int main(int argc, char ** argv)
 	}
 
 
-        // Daemonize - BSD double-fork approach
+    // Daemonize - BSD double-fork approach
 	if ( daemon ) {
 
 		pid = fork();
@@ -253,8 +251,8 @@ int main(int argc, char ** argv)
 			dup2(fd, fileno(stdout));
 			close(fd);
 		}
-	
-	        // Redirect stderr to /dev/null
+
+        // Redirect stderr to /dev/null
 		fd = open("/dev/null", O_WRONLY);
 	        if (fd != fileno(stderr)) {
 	                dup2(fd, fileno(stderr));
@@ -404,8 +402,6 @@ int main(int argc, char ** argv)
 
 	return EXIT_SUCCESS;
 }
-
-
 
 
 bool parse_opts(
