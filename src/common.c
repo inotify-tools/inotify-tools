@@ -1,16 +1,15 @@
-// kate: replace-tabs off; space-indent off;
-
 #include "../config.h"
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "common.h"
+
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 
 #define MAXLEN 4096
 #define LIST_CHUNK 1024
