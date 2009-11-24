@@ -1,3 +1,4 @@
+#include "../config.h"
 #include "common.h"
 
 #include <sys/types.h>
