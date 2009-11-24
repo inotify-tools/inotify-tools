@@ -1,38 +1,31 @@
-// kate: replace-tabs off; space-indent off;
-
+// FIXME this is cheating!  Make this use only the public API.
+#include "../libinotifytools/src/inotifytools_p.h"
 #include "../config.h"
 #include "common.h"
 
-// FIXME this is cheating!  Make this use only the public API.
-#include "../libinotifytools/src/inotifytools_p.h"
-
-#include <unistd.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/types.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <fcntl.h>
-#include <errno.h>
+#include <sys/types.h>
+
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
 #include <regex.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <inotifytools/inotifytools.h>
 #include <inotifytools/inotify.h>
 
-#define _GNU_SOURCE
-#include <getopt.h>
 
 extern char *optarg;
 extern int optind, opterr, optopt;
-
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE 1
-#define EXIT_TIMEOUT 2
 
 #define EXCLUDE_CHUNK 1024
 
