@@ -1,3 +1,4 @@
+AC_LOCAL_AMFLAGS = -l m4
 
 SUBDIRS = libinotifytools src man
 
