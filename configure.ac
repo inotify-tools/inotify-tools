@@ -45,7 +45,7 @@ AM_CONDITIONAL([DOXYGEN_ENABLE], test x$DOXYGEN != xNO_DOXYGEN )
 AC_CHECK_HEADERS([sys/inotify.h mcheck.h])
 AC_LANG(C)
 AC_MSG_CHECKING([whether sys/inotify.h actually works])
-AC_RUN_IFELSE(
+AC_COMPILE_IFELSE(
   AC_LANG_PROGRAM([[#include <sys/inotify.h>]],
                   [[return (-1 == inotify_init());]]
   ),
