@@ -5,8 +5,8 @@ AC_PREREQ(2.59)
 AC_INIT([inotify-tools], [3.13], [radu.voicilas@gmail.com])
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([src/inotifywait.c])
-AM_CONFIG_HEADER([config.h])
-AM_CONFIG_HEADER([libinotifytools/src/inotifytools/inotify.h])
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_HEADERS([libinotifytools/src/inotifytools/inotify.h])
 AC_DEFINE([_GNU_SOURCE], [], [For a few GNU-specific functions])
 AC_PROG_MAKE_SET
 
