@@ -763,7 +763,9 @@ char * inotifytools_event_to_str_sep(int events, char sep)
 char * inotifytools_filename_from_wd( int wd ) {
 	niceassert( init, "inotifytools_initialize not called yet" );
 	watch *w = watch_from_wd(wd);
-	if (!w) return 0;
+	if (!w)
+        return NULL;
+
 	return w->filename;
 }
 
