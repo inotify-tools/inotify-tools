@@ -78,6 +78,18 @@ too many files to pass in as command line arguments.
 Instead of exiting after receiving a single event, execute indefinitely.  The
 default behaviour is to exit after the first event occurs.
 .TP
+.B \-d, \-\-daemon
+Same as \-\-monitor, except run in the background logging events to a file
+that must be specified by \-\-outfile. Implies \-\-syslog.
+.TP
+.B \-o, \-\-outfile <file>
+Output events to <file> rather than stdout.
+.TP
+.B \-s, \-\-syslog
+Output errors to
+.BR syslog(3)
+system log module rather than stderr.
+.TP
 .B \-r, \-\-recursive
 Watch all subdirectories of any directories passed as arguments.  Watches
 will be set up recursively to an unlimited depth.  Symbolic links are not
