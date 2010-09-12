@@ -63,6 +63,7 @@ AC_C_INLINE
 
 
 # Checks for library functions.
+AC_CHECK_FUNCS([daemon])
 
 
 
