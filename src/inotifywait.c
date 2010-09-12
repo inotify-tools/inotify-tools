@@ -308,12 +308,17 @@ int main(int argc, char ** argv)
 				output_error( syslog, "Please increase the amount of inotify watches "
 				        "allowed per user via `/proc/sys/fs/inotify/"
 				        "max_user_watches'.\n");
+                return EXIT_FAILURE;
 			}
+            else if ( inotifytools_error() == ENOENT ) {
+                output_error( syslog, "Failed to watch '%s'; %s. continuing.\n",
+                        this_file, strerror( inotifytools_error() ) );
+            }
 			else {
 				output_error( syslog, "Couldn't watch %s: %s\n", this_file,
 				        strerror( inotifytools_error() ) );
+                return EXIT_FAILURE;
 			}
-			return EXIT_FAILURE;
 		}
 	}
 
