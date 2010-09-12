@@ -430,101 +430,35 @@ bool parse_opts(
 	assert( syslog ); assert( format ); assert( timefmt ); assert( fromfile ); 
 	assert( outfile ); assert( regex ); assert( iregex );
 
-	// Short options
-	char * opt_string = "mrhcdsqt:fo:e:";
-
-	// Construct array
-	struct option long_opts[17];
-
-	// --help
-	long_opts[0].name = "help";
-	long_opts[0].has_arg = 0;
-	long_opts[0].flag = NULL;
-	long_opts[0].val = (int)'h';
-	// --event
-	long_opts[1].name = "event";
-	long_opts[1].has_arg = 1;
-	long_opts[1].flag = NULL;
-	long_opts[1].val = (int)'e';
+	// Settings for options
 	int new_event;
-	// --monitor
-	long_opts[2].name = "monitor";
-	long_opts[2].has_arg = 0;
-	long_opts[2].flag = NULL;
-	long_opts[2].val = (int)'m';
-	// --quiet
-	long_opts[3].name = "quiet";
-	long_opts[3].has_arg = 0;
-	long_opts[3].flag = NULL;
-	long_opts[3].val = (int)'q';
-	// --timeout
-	long_opts[4].name = "timeout";
-	long_opts[4].has_arg = 1;
-	long_opts[4].flag = NULL;
-	long_opts[4].val = (int)'t';
 	char * timeout_end = NULL;
-	// --filename
-	long_opts[5].name = "filename";
-	long_opts[5].has_arg = 0;
-	long_opts[5].flag = NULL;
-	long_opts[5].val = (int)'f';
-	// --recursive
-	long_opts[6].name = "recursive";
-	long_opts[6].has_arg = 0;
-	long_opts[6].flag = NULL;
-	long_opts[6].val = (int)'r';
-	// --csv
-	long_opts[7].name = "csv";
-	long_opts[7].has_arg = 0;
-	long_opts[7].flag = NULL;
-	long_opts[7].val = (int)'c';
-	// --daemon
-	long_opts[8].name = "daemon";
-	long_opts[8].has_arg = 0;
-	long_opts[8].flag = NULL;
-	long_opts[8].val = (int)'d';
-	// --syslog
-	long_opts[9].name = "syslog";
-	long_opts[9].has_arg = 0;
-	long_opts[9].flag = NULL;
-	long_opts[9].val = (int)'s';
-	// --format
-	long_opts[10].name = "format";
-	long_opts[10].has_arg = 1;
-	long_opts[10].flag = NULL;
-	long_opts[10].val = (int)'n';
 	// format with trailing newline
 	static char * newlineformat;
-	// --timefmt
-	long_opts[11].name = "timefmt";
-	long_opts[11].has_arg = 1;
-	long_opts[11].flag = NULL;
-	long_opts[11].val = (int)'i';
-	// --fromfile
-	long_opts[12].name = "fromfile";
-	long_opts[12].has_arg = 1;
-	long_opts[12].flag = NULL;
-	long_opts[12].val = (int)'z';
-	// --outfile
-	long_opts[13].name = "outfile";
-	long_opts[13].has_arg = 1;
-	long_opts[13].flag = NULL;
-	long_opts[13].val = (int)'o';
-	// --exclude
-	long_opts[14].name = "exclude";
-	long_opts[14].has_arg = 1;
-	long_opts[14].flag = NULL;
-	long_opts[14].val = (int)'a';
-	// --excludei
-	long_opts[15].name = "excludei";
-	long_opts[15].has_arg = 1;
-	long_opts[15].flag = NULL;
-	long_opts[15].val = (int)'b';
-	// Empty last element
-	long_opts[16].name = 0;
-	long_opts[16].has_arg = 0;
-	long_opts[16].flag = 0;
-	long_opts[16].val = 0;
+
+	// Short options
+	static const char opt_string[] = "mrhcdsqt:fo:e:";
+
+	// Long options
+	static const struct option long_opts[] = {
+		{"help",              no_argument, NULL, 'h'},
+		{"event",       required_argument, NULL, 'e'},
+		{"monitor",           no_argument, NULL, 'm'},
+		{"quiet",             no_argument, NULL, 'q'},
+		{"timeout",     required_argument, NULL, 't'},
+		{"filename",          no_argument, NULL, 'f'},
+		{"recursive",         no_argument, NULL, 'r'},
+		{"csv",               no_argument, NULL, 'c'},
+		{"daemon",            no_argument, NULL, 'd'},
+		{"syslog",            no_argument, NULL, 's'},
+		{"format",      required_argument, NULL, 'n'},
+		{"timefmt",     required_argument, NULL, 'i'},
+		{"fromfile",    required_argument, NULL, 'z'},
+		{"outfile",     required_argument, NULL, 'o'},
+		{"exclude",     required_argument, NULL, 'a'},
+		{"excludei",    required_argument, NULL, 'b'},
+		{NULL, 0, 0, 0},
+	};
 
 	// Get first option
 	char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);

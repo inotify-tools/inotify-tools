@@ -396,75 +396,29 @@ bool parse_opts(
 	assert( verbose ); assert( zero ); assert( sort ); assert( recursive );
 	assert( fromfile ); assert( regex ); assert( iregex );
 
+	// Settings for options
+	int new_event;
+	char * timeout_end = NULL;
+	bool sort_set = false;
+
 	// Short options
-	char * opt_string = "hra:d:zve:t:";
+	static const char opt_string[] = "hra:d:zve:t:";
 
 	// Construct array
-	struct option long_opts[12];
-
-	// --help
-	long_opts[0].name = "help";
-	long_opts[0].has_arg = 0;
-	long_opts[0].flag = NULL;
-	long_opts[0].val = (int)'h';
-	// --event
-	long_opts[1].name = "event";
-	long_opts[1].has_arg = 1;
-	long_opts[1].flag = NULL;
-	long_opts[1].val = (int)'e';
-	int new_event;
-	// --timeout
-	long_opts[2].name = "timeout";
-	long_opts[2].has_arg = 1;
-	long_opts[2].flag = NULL;
-	long_opts[2].val = (int)'t';
-	char * timeout_end = NULL;
-	// --verbose
-	long_opts[3].name = "verbose";
-	long_opts[3].has_arg = 0;
-	long_opts[3].flag = NULL;
-	long_opts[3].val = (int)'v';
-	// --nonzero
-	long_opts[4].name = "zero";
-	long_opts[4].has_arg = 0;
-	long_opts[4].flag = NULL;
-	long_opts[4].val = (int)'z';
-	// --ascending
-	long_opts[5].name = "ascending";
-	long_opts[5].has_arg = 1;
-	long_opts[5].flag = NULL;
-	long_opts[5].val = (int)'a';
-	bool sort_set = false;
-	// --descending
-	long_opts[6].name = "descending";
-	long_opts[6].has_arg = 1;
-	long_opts[6].flag = NULL;
-	long_opts[6].val = (int)'d';
-	// --recursive
-	long_opts[7].name = "recursive";
-	long_opts[7].has_arg = 0;
-	long_opts[7].flag = NULL;
-	long_opts[7].val = (int)'r';
-	// --fromfile
-	long_opts[8].name = "fromfile";
-	long_opts[8].has_arg = 1;
-	long_opts[8].flag = NULL;
-	long_opts[8].val = (int)'o';
-	// --exclude
-	long_opts[9].name = "exclude";
-	long_opts[9].has_arg = 1;
-	long_opts[9].flag = NULL;
-	long_opts[9].val = (int)'c';
-	// --excludei
-	long_opts[10].name = "excludei";
-	long_opts[10].has_arg = 1;
-	long_opts[10].flag = NULL;
-	long_opts[10].val = (int)'b';
-	// Empty last element
-	long_opts[11].name = 0;
-	long_opts[11].has_arg = 0;
-	long_opts[11].flag = 0;
-	long_opts[11].val = 0;
+	static const struct option long_opts[] = {
+		{"help",              no_argument, NULL, 'h'},
+		{"event",       required_argument, NULL, 'e'},
+		{"timeout",     required_argument, NULL, 't'},
+		{"verbose",           no_argument, NULL, 'v'},
+		{"zero",              no_argument, NULL, 'z'},
+		{"ascending",   required_argument, NULL, 'a'},
+		{"descending",  required_argument, NULL, 'd'},
+		{"recursive",         no_argument, NULL, 'r'},
+		{"fromfile",    required_argument, NULL, 'o'},
+		{"exclude",     required_argument, NULL, 'c'},
+		{"excludei",    required_argument, NULL, 'b'},
+		{NULL, 0, 0, 0},
+	};
 
 	// Get first option
 	char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
