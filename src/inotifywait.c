@@ -48,7 +48,8 @@ bool parse_opts(
   char ** fromfile,
   char ** outfile,
   char ** regex,
-  char ** iregex
+  char ** iregex,
+  char ** execute
 );
 
 void print_help();
@@ -157,12 +158,13 @@ int main(int argc, char ** argv)
 	char * outfile = NULL;
 	char * regex = NULL;
 	char * iregex = NULL;
+	char * execute = NULL;
     int fd;
 
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
 	                 &recursive, &csv, &dodaemon, &syslog, &format, &timefmt,
-                         &fromfile, &outfile, &regex, &iregex) ) {
+	                 &fromfile, &outfile, &regex, &iregex, &execute) ) {
 		return EXIT_FAILURE;
 	}
 
@@ -398,6 +400,18 @@ int main(int argc, char ** argv)
 			}
 		}
 
+		// If user wants us to run something, do it now
+		if ( execute ) {
+			pid_t pid = fork();
+			if (pid == -1) {
+				output_error( syslog, "Error forking child: %s\n",
+				         strerror(errno) );
+			} else if (pid == 0) {
+				char *argv[] = { execute, inotifytools_filename_from_wd(event->wd), NULL, };
+				exit(execvp(execute, argv));
+			}
+		}
+
 		fflush( NULL );
 
 	} while ( monitor );
@@ -428,7 +442,8 @@ bool parse_opts(
   char ** fromfile,
   char ** outfile,
   char ** regex,
-  char ** iregex
+  char ** iregex,
+  char ** execute
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( monitor );
 	assert( quiet ); assert( timeout ); assert( csv ); assert( daemon );
@@ -462,6 +477,7 @@ bool parse_opts(
 		{"outfile",     required_argument, NULL, 'o'},
 		{"exclude",     required_argument, NULL, 'a'},
 		{"excludei",    required_argument, NULL, 'b'},
+		{"execute",     required_argument, NULL, 'x'},
 		{NULL, 0, 0, 0},
 	};
 
@@ -593,7 +609,10 @@ bool parse_opts(
 
 				break;
 
-
+			// --execute
+			case 'x':
+				(*execute) = optarg;
+				break;
 		}
 
 		curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
@@ -682,7 +701,10 @@ void print_help()
 	       "out.\n");
 	printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
 	       "\t\tListen for specific event(s).  If omitted, all events are \n"
-	       "\t\tlistened for.\n\n");
+	       "\t\tlistened for.\n");
+	printf("\t--execute <program>\n"
+	       "\t              \tExecute specified program.  argv[1] will be\n"
+	       "\t              \tthe full path of the event.\n\n");
 	printf("Exit status:\n");
 	printf("\t%d  -  An event you asked to watch for was received.\n",
 	       EXIT_SUCCESS );
