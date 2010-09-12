@@ -43,6 +43,7 @@ bool parse_opts(
   bool * csv,
   bool * daemon,
   bool * syslog,
+  bool * verbose,
   char ** format,
   char ** timefmt,
   char ** fromfile,
@@ -152,6 +153,7 @@ int main(int argc, char ** argv)
 	bool csv = false;
 	bool dodaemon = false;
 	bool syslog = false;
+    bool verbose = false;
 	char * format = NULL;
 	char * timefmt = NULL;
 	char * fromfile = NULL;
@@ -163,10 +165,13 @@ int main(int argc, char ** argv)
 
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
-	                 &recursive, &csv, &dodaemon, &syslog, &format, &timefmt,
+	                 &recursive, &csv, &dodaemon, &syslog, &verbose, &format, &timefmt,
 	                 &fromfile, &outfile, &regex, &iregex, &execute) ) {
 		return EXIT_FAILURE;
 	}
+
+    if (verbose)
+        fprintf(stderr, "Running verbosely. \n");
 
 	if ( !inotifytools_initialize() ) {
 		fprintf(stderr, "Couldn't initialize inotify.  Are you running Linux "
@@ -442,6 +447,7 @@ bool parse_opts(
   bool * csv,
   bool * daemon,
   bool * syslog,
+  bool * verbose,
   char ** format,
   char ** timefmt,
   char ** fromfile,
@@ -452,7 +458,7 @@ bool parse_opts(
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( monitor );
 	assert( quiet ); assert( timeout ); assert( csv ); assert( daemon );
-	assert( syslog ); assert( format ); assert( timefmt ); assert( fromfile ); 
+	assert( syslog ); assert(verboes); assert( format ); assert( timefmt ); assert( fromfile ); 
 	assert( outfile ); assert( regex ); assert( iregex );
 
 	// Settings for options
@@ -462,7 +468,7 @@ bool parse_opts(
 	static char * newlineformat;
 
 	// Short options
-	static const char opt_string[] = "mrhcdsqt:fo:e:";
+	static const char opt_string[] = "mrhcdsvqt:fo:e:";
 
 	// Long options
 	static const struct option long_opts[] = {
@@ -476,6 +482,7 @@ bool parse_opts(
 		{"csv",               no_argument, NULL, 'c'},
 		{"daemon",            no_argument, NULL, 'd'},
 		{"syslog",            no_argument, NULL, 's'},
+        {"verbose",           no_argument, NULL, 'v'},
 		{"format",      required_argument, NULL, 'n'},
 		{"timefmt",     required_argument, NULL, 'i'},
 		{"fromfile",    required_argument, NULL, 'z'},
@@ -532,6 +539,11 @@ bool parse_opts(
 			case 's':
 				(*syslog) = true;
 				break;
+
+            // --verbose or -v
+            case 'v':
+                (*verbose) = true;
+                break;
 
 			// --filename or -f
 			case 'f':
@@ -691,6 +703,7 @@ void print_help()
 	printf("\t-o|--outfile <file>\n"
 	       "\t              \tPrint events to <file> rather than stdout.\n");
 	printf("\t-s|--syslog   \tSend errors to syslog rather than stderr.\n");
+    printf("\t-v|--verbose  \tPrint more (print some diagnostics to stderr).\n");
 	printf("\t-q|--quiet    \tPrint less (only print events).\n");
 	printf("\t-qq           \tPrint nothing (not even events).\n");
 	printf("\t--format <fmt>\tPrint using a specified printf-like format\n"
