@@ -458,7 +458,7 @@ bool parse_opts(
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( monitor );
 	assert( quiet ); assert( timeout ); assert( csv ); assert( daemon );
-	assert( syslog ); assert(verboes); assert( format ); assert( timefmt ); assert( fromfile ); 
+	assert( syslog ); assert(verbose); assert( format ); assert( timefmt ); assert( fromfile ); 
 	assert( outfile ); assert( regex ); assert( iregex );
 
 	// Settings for options
