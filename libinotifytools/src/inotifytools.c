@@ -150,7 +150,7 @@ static int init = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
 
-int isdir( char const * path );
+static int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
 int onestr_to_event(char const * event);
 
@@ -193,8 +193,8 @@ int onestr_to_event(char const * event);
  *
  * @param  mesg  A human-readable error message shown if assertion fails.
  */
-void _niceassert( long cond, int line, char const * file, char const * condstr,
-                  char const * mesg ) {
+static void _niceassert( long cond, int line, char const * file,
+                  char const * condstr, char const * mesg ) {
 	if ( cond ) return;
 
 	if ( mesg ) {
@@ -1594,7 +1594,7 @@ int inotifytools_error() {
 /**
  * @internal
  */
-int isdir( char const * path ) {
+static int isdir( char const * path ) {
 	static struct stat64 my_stat;
 
 	if ( -1 == lstat64( path, &my_stat ) ) {

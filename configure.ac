@@ -36,6 +36,11 @@ if test "$DOXYGEN_ENABLE" = "no"; then
 fi
 AM_CONDITIONAL([DOXYGEN_ENABLE], test x$DOXYGEN != xNO_DOXYGEN )
 
+AC_ARG_ENABLE(static-binary,
+    AS_HELP_STRING([--enable-static-binary],[enable static linking of binaries]),
+    STATIC_BINARY_ENABLE=$enableval, STATIC_BINARY_ENABLE=no)
+AM_CONDITIONAL([STATIC_BINARY_ENABLE], test "$STATIC_BINARY_ENABLE" = "yes")
+
 
 # Checks for libraries.
 
