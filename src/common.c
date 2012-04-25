@@ -34,6 +34,7 @@ void print_event_descriptions() {
 	printf("\tmoved_to\tfile or directory moved to watched directory\n");
 	printf("\tmoved_from\tfile or directory moved from watched directory\n");
 	printf("\tmove\t\tfile or directory moved to or from watched directory\n");
+	printf("\tmove_self\t\tA watched file or directory was moved.\n");
 	printf("\tcreate\t\tfile or directory created within watched directory\n");
 	printf("\tdelete\t\tfile or directory deleted within watched directory\n");
 	printf("\tdelete_self\tfile or directory was deleted\n");
