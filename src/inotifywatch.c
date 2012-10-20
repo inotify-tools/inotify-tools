@@ -42,8 +42,10 @@ bool parse_opts(
   int * sort,
   int * recursive,
   char ** fromfile,
-  char ** regex,
-  char ** iregex
+  char ** exc_regex,
+  char ** exc_iregex,
+  char ** inc_regex,
+  char ** inc_iregex
 );
 
 void print_help();
@@ -89,23 +91,35 @@ int main(int argc, char ** argv)
 	char * fromfile = 0;
 	sort = -1;
 	done = false;
-	char * regex = NULL;
-	char * iregex = NULL;
+	char * exc_regex = NULL;
+	char * exc_iregex = NULL;
+	char * inc_regex = NULL;
+	char * inc_iregex = NULL;
 
 	signal( SIGINT, handle_impatient_user );
 
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts( &argc, &argv, &events, &timeout, &verbose, &zero, &sort,
-	                 &recursive, &fromfile, &regex, &iregex ) ) {
+	                 &recursive, &fromfile, &exc_regex, &exc_iregex,
+	                 &inc_regex, &inc_iregex ) ) {
 		return EXIT_FAILURE;
 	}
 
 	if (
-		(regex && !inotifytools_ignore_events_by_regex(regex, REG_EXTENDED) ) ||
-		(iregex && !inotifytools_ignore_events_by_regex(iregex, REG_EXTENDED|
+		(exc_regex && !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED) ) ||
+		(exc_iregex && !inotifytools_ignore_events_by_regex(exc_iregex, REG_EXTENDED|
 		                                                        REG_ICASE))
 	) {
 		fprintf(stderr, "Error in `exclude' regular expression.\n");
+		return EXIT_FAILURE;
+	}
+
+	if (
+		(inc_regex && !inotifytools_ignore_events_by_inverted_regex(inc_regex, REG_EXTENDED) ) ||
+		(inc_iregex && !inotifytools_ignore_events_by_inverted_regex(inc_iregex, REG_EXTENDED|
+		                                                        REG_ICASE))
+	) {
+		fprintf(stderr, "Error in `include' regular expression.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -389,18 +403,21 @@ bool parse_opts(
   int * sort,
   int * recursive,
   char ** fromfile,
-  char ** regex,
-  char ** iregex
+  char ** exc_regex,
+  char ** exc_iregex,
+  char ** inc_regex,
+  char ** inc_iregex
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( timeout );
 	assert( verbose ); assert( zero ); assert( sort ); assert( recursive );
-	assert( fromfile ); assert( regex ); assert( iregex );
+	assert( fromfile ); assert( exc_regex ); assert( exc_iregex );
+	assert( inc_regex ); assert( inc_iregex );
 
 	// Short options
 	char * opt_string = "hra:d:zve:t:";
 
 	// Construct array
-	struct option long_opts[12];
+	struct option long_opts[14];
 
 	// --help
 	long_opts[0].name = "help";
@@ -460,11 +477,21 @@ bool parse_opts(
 	long_opts[10].has_arg = 1;
 	long_opts[10].flag = NULL;
 	long_opts[10].val = (int)'b';
+	// --include
+	long_opts[11].name = "include";
+	long_opts[11].has_arg = 1;
+	long_opts[11].flag = NULL;
+	long_opts[11].val = (int)'j';
+	// --includei
+	long_opts[12].name = "includei";
+	long_opts[12].has_arg = 1;
+	long_opts[12].flag = NULL;
+	long_opts[12].val = (int)'k';
 	// Empty last element
-	long_opts[11].name = 0;
-	long_opts[11].has_arg = 0;
-	long_opts[11].flag = 0;
-	long_opts[11].val = 0;
+	long_opts[13].name = 0;
+	long_opts[13].has_arg = 0;
+	long_opts[13].flag = 0;
+	long_opts[13].val = 0;
 
 	// Get first option
 	char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
@@ -498,12 +525,22 @@ bool parse_opts(
 
 			// --exclude
 			case 'c':
-				(*regex) = optarg;
+				(*exc_regex) = optarg;
 				break;
 
 			// --excludei
 			case 'b':
-				(*iregex) = optarg;
+				(*exc_iregex) = optarg;
+				break;
+
+			// --include
+			case 'j':
+				(*inc_regex) = optarg;
+				break;
+
+			// --includei
+			case 'k':
+				(*inc_iregex) = optarg;
 				break;
 
 			// --fromfile
@@ -620,8 +657,17 @@ bool parse_opts(
 		return false;
 	}
 
-	if ( *regex && *iregex ) {
+	if ( *exc_regex && *exc_iregex ) {
 		fprintf(stderr, "--exclude and --excludei cannot both be specified.\n");
+		return false;
+	}
+	if ( *inc_regex && *inc_iregex ) {
+		fprintf(stderr, "--include and --includei cannot both be specified.\n");
+		return false;
+	}
+	if ( *inc_regex && *exc_regex || *inc_regex && *exc_iregex ||
+			*inc_iregex && *exc_regex || *inc_iregex && *exc_iregex) {
+		fprintf(stderr, "include and exclude regexp cannot both be specified.\n");
 		return false;
 	}
 
@@ -647,6 +693,12 @@ void print_help()
 	       "\t\texpression <pattern>.\n");
 	printf("\t--excludei <pattern>\n"
 	       "\t\tLike --exclude but case insensitive.\n");
+	printf("\t--include <pattern>\n"
+	       "\t\tExclude all events on files except the ones\n"
+	       "\t\tmatching the extended regular expression\n"
+	       "\t\t<pattern>.\n");
+	printf("\t--includei <pattern>\n"
+	       "\t\tLike --include but case insensitive.\n");
 	printf("\t-z|--zero\n"
 	       "\t\tIn the final table of results, output rows and columns even\n"
 	       "\t\tif they consist only of zeros (the default is to not output\n"
