@@ -149,6 +149,8 @@ static int error = 0;
 static int init = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
+/* 0: --exclude[i], 1: --include[i] */
+static int invert_regexp = 0;
 
 static int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
@@ -1108,7 +1110,11 @@ struct inotify_event * inotifytools_next_events( int timeout, int num_events ) {
 	if (regex) {\
 		inotifytools_snprintf(match_name, MAX_STRLEN, A, "%w%f");\
 		if (0 == regexec(regex, match_name, 0, 0, 0)) {\
-			longjmp(jmp,0);\
+			if (!invert_regexp)\
+				longjmp(jmp,0);\
+		} else {\
+			if (invert_regexp)\
+				longjmp(jmp,0);\
 		}\
 	}\
 	if ( collect_stats ) {\
@@ -1992,14 +1998,16 @@ int inotifytools_get_max_user_watches() {
  * Ignore inotify events matching a particular regular expression.
  *
  * @a pattern is a regular expression and @a flags is a bitwise combination of
- * POSIX regular expression flags.
+ * POSIX regular expression flags. @a invert determines the type of filtering:
+ * 0 (--exclude[i]): exclude all files matching @a pattern
+ * 1 (--include[i]): exclude all files except those matching @a pattern
  *
  * On future calls to inotifytools_next_events() or inotifytools_next_event(),
  * the regular expression is executed on the filename of files on which
  * events occur.  If the regular expression matches, the matched event will be
  * ignored.
  */
-int inotifytools_ignore_events_by_regex( char const *pattern, int flags ) {
+static int do_ignore_events_by_regex( char const *pattern, int flags, int invert ) {
 	if (!pattern) {
 		if (regex) {
 			regfree(regex);
@@ -2012,6 +2020,7 @@ int inotifytools_ignore_events_by_regex( char const *pattern, int flags ) {
 	if (regex) { regfree(regex); }
 	else       { regex = (regex_t *)malloc(sizeof(regex_t)); }
 
+	invert_regexp = invert;
 	int ret = regcomp(regex, pattern, flags | REG_NOSUB);
 	if (0 == ret) return 1;
 
@@ -2020,6 +2029,36 @@ int inotifytools_ignore_events_by_regex( char const *pattern, int flags ) {
 	regex = 0;
 	error = EINVAL;
 	return 0;
+}
+
+/**
+ * Ignore inotify events matching a particular regular expression.
+ *
+ * @a pattern is a regular expression and @a flags is a bitwise combination of
+ * POSIX regular expression flags.
+ *
+ * On future calls to inotifytools_next_events() or inotifytools_next_event(),
+ * the regular expression is executed on the filename of files on which
+ * events occur.  If the regular expression matches, the matched event will be
+ * ignored.
+ */
+int inotifytools_ignore_events_by_regex( char const *pattern, int flags ) {
+	return do_ignore_events_by_regex(pattern, flags, 0);
+}
+
+/**
+ * Ignore inotify events NOT matching a particular regular expression.
+ *
+ * @a pattern is a regular expression and @a flags is a bitwise combination of
+ * POSIX regular expression flags.
+ *
+ * On future calls to inotifytools_next_events() or inotifytools_next_event(),
+ * the regular expression is executed on the filename of files on which
+ * events occur.  If the regular expression matches, the matched event will be
+ * ignored.
+ */
+int inotifytools_ignore_events_by_inverted_regex( char const *pattern, int flags ) {
+	return do_ignore_events_by_regex(pattern, flags, 1);
 }
 
 int event_compare(const void *p1, const void *p2, const void *config)
