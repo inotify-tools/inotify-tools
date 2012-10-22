@@ -452,6 +452,14 @@ bool parse_opts(
 	// Construct array
 	struct option long_opts[19];
 
+	// How many times --exclude has been specified
+	unsigned int exclude_count = 0;
+
+	// How many times --excludei has been specified
+	unsigned int excludei_count = 0;
+
+	const char *regex_warning = "only the last option will be taken into consideration.\n";
+
 	// --help
 	long_opts[0].name = "help";
 	long_opts[0].has_arg = 0;
@@ -623,11 +631,13 @@ bool parse_opts(
 			// --exclude
 			case 'a':
 				(*exc_regex) = optarg;
+				exclude_count++;
 				break;
 
 			// --excludei
 			case 'b':
 				(*exc_iregex) = optarg;
+				excludei_count++;
 				break;
 
 			// --include
@@ -739,6 +749,14 @@ bool parse_opts(
 		return false;
 	}
 
+	if (exclude_count > 1) {
+	  fprintf(stderr, "--exclude: %s", regex_warning);
+	}
+
+	if (excludei_count > 1) {
+	  fprintf(stderr, "--excludei: %s", regex_warning);
+	}
+
 	(*argc) -= optind;
 	*argv = &(*argv)[optind];
 
@@ -759,7 +777,9 @@ void print_help()
 	       "watched.\n");
 	printf("\t--exclude <pattern>\n"
 	       "\t              \tExclude all events on files matching the\n"
-	       "\t              \textended regular expression <pattern>.\n");
+	       "\t              \textended regular expression <pattern>.\n"
+	       "\t              \tOnly the last --exclude option will be\n"
+	       "\t              \ttaken into consideration.\n");
 	printf("\t--excludei <pattern>\n"
 	       "\t              \tLike --exclude but case insensitive.\n");
 	printf("\t--include <pattern>\n"
