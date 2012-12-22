@@ -707,11 +707,6 @@ bool parse_opts(
 
 	}
 
-	if ( *monitor && *timeout != 0 ) {
-		fprintf(stderr, "-m and -t cannot both be specified.\n");
-		return false;
-	}
-
 	if ( *exc_regex && *exc_iregex ) {
 		fprintf(stderr, "--exclude and --excludei cannot both be specified.\n");
 		return false;
