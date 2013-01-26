@@ -173,13 +173,7 @@ int main(int argc, char ** argv)
 	}
 
 	if ( !inotifytools_initialize() ) {
-		fprintf(stderr, "Couldn't initialize inotify.  Are you running Linux "
-		                "2.6.13 or later, and was the\n"
-		                "CONFIG_INOTIFY option enabled when your kernel was "
-		                "compiled?  If so, \n"
-		                "something mysterious has gone wrong.  Please e-mail "
-		                PACKAGE_BUGREPORT "\n"
-		                " and mention that you saw this message.\n");
+		warn_inotify_init_error();
 		return EXIT_FAILURE;
 	}
 
