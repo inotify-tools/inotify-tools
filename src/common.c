@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <inotifytools/inotifytools.h>
 
 #define MAXLEN 4096
 #define LIST_CHUNK 1024
@@ -118,5 +119,14 @@ void _niceassert( long cond, int line, char const * file, char const * condstr,
 	}
 	else {
 		fprintf(stderr, "%s:%d assertion ( %s ) failed.\n", file, line, condstr);
+	}
+}
+
+void warn_inotify_init_error()
+{
+	int error = inotifytools_error();
+	fprintf(stderr, "Couldn't initialize inotify: %s\n", strerror(error));
+	if (error == EMFILE) {
+		fprintf(stderr, "Try increasing the value of /proc/sys/fs/inotify/max_user_instances\n");
 	}
 }

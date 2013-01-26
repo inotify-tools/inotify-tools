@@ -22,4 +22,6 @@ FileList construct_path_list( int argc, char ** argv, char const * filename );
 void _niceassert( long cond, int line, char const * file, char const * condstr,
                   char const * mesg );
 
+void warn_inotify_init_error();
+
 #endif

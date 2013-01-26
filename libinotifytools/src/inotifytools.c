@@ -287,7 +287,7 @@ int inotifytools_initialize() {
 	// Try to initialise inotify
 	inotify_fd = inotify_init();
 	if (inotify_fd < 0)	{
-		error = inotify_fd;
+		error = errno;
 		return 0;
 	}
 
