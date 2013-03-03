@@ -769,9 +769,8 @@ void print_help()
 	       "\t              \t<pattern>.\n");
 	printf("\t--includei <pattern>\n"
 	       "\t              \tLike --include but case insensitive.\n");
-	printf("\t-m|--monitor  \tKeep listening for events forever.  Without\n"
-	       "\t              \tthis option, inotifywait will exit after one\n"
-	       "\t              \tevent is received.\n");
+	printf("\t-m|--monitor  \tKeep listening for events forever or until --timeout expires.\n"
+	       "\t              \tWithout this option, inotifywait will exit after one event is received.\n");
 	printf("\t-d|--daemon   \tSame as --monitor, except run in the background\n"
                "\t              \tlogging events to a file specified by --outfile.\n"
                "\t              \tImplies --syslog.\n");
