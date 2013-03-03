@@ -429,7 +429,6 @@ bool parse_opts(
 	long_opts[2].has_arg = 1;
 	long_opts[2].flag = NULL;
 	long_opts[2].val = (int)'t';
-	char * timeout_end = NULL;
 	// --verbose
 	long_opts[3].name = "verbose";
 	long_opts[3].has_arg = 0;
@@ -548,16 +547,10 @@ bool parse_opts(
 
 			// --timeout or -t
 			case 't':
-				*timeout = strtoul(optarg, &timeout_end, 10);
-				if ( *timeout_end != '\0' || *timeout < 0)
-				{
-					fprintf(stderr, "'%s' is not a valid timeout value.\n"
-					        "Please specify an integer of value 0 or "
-					        "greater.\n",
-					        optarg);
-					return false;
-				}
-				break;
+			  if (!handle_timeout_option(timeout, optarg)) {
+			    return false;
+			  }
+			  break;
 
 			// --event or -e
 			case 'e':

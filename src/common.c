@@ -130,3 +130,31 @@ void warn_inotify_init_error()
 		fprintf(stderr, "Try increasing the value of /proc/sys/fs/inotify/max_user_instances\n");
 	}
 }
+
+bool handle_timeout_option(unsigned long int *timeout, char *optarg)
+{
+  char *timeout_end = NULL;
+
+  errno = 0;
+  *timeout = strtoul(optarg, &timeout_end, 10);
+
+  if (errno != 0) {
+    if (errno == ERANGE) {
+      fprintf(stderr, "The timeout value you provided is "
+	      "not in the representable range.\n");
+    } else {
+      fprintf(stderr, "Something went wrong with the timeout "
+	      "value you provided.\n");
+    }
+    return false;
+  }
+
+  if (*timeout_end != '\0') {
+    fprintf(stderr, "'%s' is not a valid timeout value.\n"
+	    "Please specify an integer of value 0 or "
+	    "greater.\n", optarg);
+    return false;
+  }
+
+  return true;
+}
