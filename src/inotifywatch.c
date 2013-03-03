@@ -34,7 +34,7 @@ bool parse_opts(
   int * argc,
   char *** argv,
   int * events,
-  int * timeout,
+  unsigned long int * timeout,
   int * verbose,
   int * zero,
   int * sort,
@@ -82,7 +82,7 @@ int zero;
 int main(int argc, char ** argv)
 {
 	events = 0;
-	int timeout = 0;
+	unsigned long int timeout = 0;
 	int verbose = 0;
 	zero = 0;
 	int recursive = 0;
@@ -389,7 +389,7 @@ bool parse_opts(
   int * argc,
   char *** argv,
   int * events,
-  int * timeout,
+  unsigned long int * timeout,
   int * verbose,
   int * zero,
   int * sort,
