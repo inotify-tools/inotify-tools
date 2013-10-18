@@ -50,7 +50,9 @@ bool parse_opts(
   char ** outfile,
   char ** regex,
   char ** iregex,
-  char ** execute
+  char ** execute,
+  char ** include_regex,
+  char ** include_iregex
 );
 
 void print_help();
@@ -145,7 +147,7 @@ void output_error( bool syslog, char* fmt, ... ) {
 int main(int argc, char ** argv)
 {
 	int events = 0;
-        int orig_events;
+    int orig_events;
 	bool monitor = false;
 	int quiet = 0;
 	unsigned long int timeout = 0;
@@ -160,18 +162,32 @@ int main(int argc, char ** argv)
 	char * outfile = NULL;
 	char * regex = NULL;
 	char * iregex = NULL;
+	char * include_regex = NULL;
+	char * include_iregex = NULL;
 	char * execute = NULL;
+	bool invert_regex = false;
     int fd;
 
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
-	                 &recursive, &csv, &dodaemon, &syslog, &verbose, &format, &timefmt,
-	                 &fromfile, &outfile, &regex, &iregex, &execute) ) {
+	                 &recursive, &csv, &dodaemon, &syslog, &verbose,
+					 &format, &timefmt, &fromfile, &outfile, &regex,
+					 &iregex, &include_regex, &include_iregex, &execute) ) {
 		return EXIT_FAILURE;
 	}
 
     if (verbose)
         fprintf(stderr, "Running verbosely. \n");
+
+	if (include_regex) {
+		regex = include_regex;
+		invert_regex = true;
+	}
+    
+	if (include_iregex) {
+		iregex = include_iregex;
+		invert_regex = true;
+	}
 
 	if ( !inotifytools_initialize() ) {
 		fprintf(stderr, "Couldn't initialize inotify.  Are you running Linux "
@@ -186,11 +202,14 @@ int main(int argc, char ** argv)
 
 	if ( timefmt ) inotifytools_set_printf_timefmt( timefmt );
 	if (
-		(regex && !inotifytools_ignore_events_by_regex(regex, REG_EXTENDED) ) ||
-		(iregex && !inotifytools_ignore_events_by_regex(iregex, REG_EXTENDED|
-		                                                        REG_ICASE))
+		(regex && !inotifytools_ignore_events_by_regex(regex,
+                                                       REG_EXTENDED,
+                                                       invert_regex) ) ||
+		(iregex && !inotifytools_ignore_events_by_regex(iregex,
+                                                        REG_EXTENDED|REG_ICASE,
+                                                        invert_regex))
 	) {
-		fprintf(stderr, "Error in `exclude' regular expression.\n");
+		fprintf(stderr, "Error in `exclude' or `include' regular expression.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -454,6 +473,8 @@ bool parse_opts(
   char ** outfile,
   char ** regex,
   char ** iregex,
+  char ** include_regex,
+  char ** include_iregex,
   char ** execute
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( monitor );
@@ -489,6 +510,8 @@ bool parse_opts(
 		{"outfile",     required_argument, NULL, 'o'},
 		{"exclude",     required_argument, NULL, 'a'},
 		{"excludei",    required_argument, NULL, 'b'},
+		{"include",     required_argument, NULL, 'j'},
+		{"includei",    required_argument, NULL, 'k'},
 		{"execute",     required_argument, NULL, 'x'},
 		{NULL, 0, 0, 0},
 	};
@@ -576,6 +599,16 @@ bool parse_opts(
 				(*iregex) = optarg;
 				break;
 
+			// --include
+			case 'j':
+				(*include_regex) = optarg;
+				break;
+
+			// --includei
+			case 'k':
+				(*include_iregex) = optarg;
+				break;
+
 			// --fromfile
 			case 'z':
 				if (*fromfile) {
@@ -646,6 +679,16 @@ bool parse_opts(
 		return false;
 	}
 
+	if ( *include_regex && *include_iregex ) {
+		fprintf(stderr, "--include and --includei cannot both be specified.\n");
+		return false;
+	}
+
+	if ( ( *include_regex || *include_iregex ) && ( *regex || *iregex ) ) {
+		fprintf(stderr, "Cannot use include and exclude options simultaneously.\n");
+		return false;
+	}
+
 	if ( *format && *csv ) {
 		fprintf(stderr, "-c and --format cannot both be specified.\n");
 		return false;
@@ -690,6 +733,11 @@ void print_help()
 	       "\t              \textended regular expression <pattern>.\n");
 	printf("\t--excludei <pattern>\n"
 	       "\t              \tLike --exclude but case insensitive.\n");
+	printf("\t--include <pattern>\n"
+	       "\t              \tInclude all events on only those files matching\n"
+	       "\t              \tthe extended regular expression <pattern>.\n");
+	printf("\t--includei <pattern>\n"
+	       "\t              \tLike --include but case insensitive.\n");
 	printf("\t-m|--monitor  \tKeep listening for events forever.  Without\n"
 	       "\t              \tthis option, inotifywait will exit after one\n"
 	       "\t              \tevent is received.\n");

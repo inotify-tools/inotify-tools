@@ -149,6 +149,7 @@ static int error = 0;
 static int init = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
+static int invert_regex = 0;
 
 int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
@@ -1103,12 +1104,14 @@ struct inotify_event * inotifytools_next_events( int timeout, int num_events ) {
 	static ssize_t bytes;
 	static jmp_buf jmp;
 	static char match_name[MAX_STRLEN];
+	static int rv;
 
 #define RETURN(A) {\
 	if (regex) {\
 		inotifytools_snprintf(match_name, MAX_STRLEN, A, "%w%f");\
-		if (0 == regexec(regex, match_name, 0, 0, 0)) {\
-			longjmp(jmp,0);\
+		rv = regexec(regex, match_name, 0, 0, 0); \
+		if ((!invert_regex && 0 == rv) || (invert_regex && 0 != rv)) { \
+			longjmp(jmp,0); \
 		}\
 	}\
 	if ( collect_stats ) {\
@@ -1999,7 +2002,8 @@ int inotifytools_get_max_user_watches() {
  * events occur.  If the regular expression matches, the matched event will be
  * ignored.
  */
-int inotifytools_ignore_events_by_regex( char const *pattern, int flags ) {
+int inotifytools_ignore_events_by_regex( char const *pattern,
+                                         int flags, int invert ) {
 	if (!pattern) {
 		if (regex) {
 			regfree(regex);
@@ -2013,7 +2017,11 @@ int inotifytools_ignore_events_by_regex( char const *pattern, int flags ) {
 	else       { regex = (regex_t *)malloc(sizeof(regex_t)); }
 
 	int ret = regcomp(regex, pattern, flags | REG_NOSUB);
-	if (0 == ret) return 1;
+
+	if (0 == ret) {
+        invert_regex = invert;
+        return 1;
+    }
 
 	regfree(regex);
 	free(regex);
