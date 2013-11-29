@@ -1173,7 +1173,7 @@ struct inotify_event * inotifytools_next_events( int timeout, int num_events ) {
 	read_timeout.tv_sec = timeout;
 	read_timeout.tv_usec = 0;
 	static struct timeval * read_timeout_ptr;
-	read_timeout_ptr = ( timeout <= 0 ? NULL : &read_timeout );
+	read_timeout_ptr = ( timeout < 0 ? NULL : &read_timeout );
 
 	FD_ZERO(&read_fds);
 	FD_SET(inotify_fd, &read_fds);
