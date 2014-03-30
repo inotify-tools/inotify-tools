@@ -1083,10 +1083,9 @@ struct inotify_event * inotifytools_next_event( int timeout ) {
  *       occurrences) you must call this function with @a num_events = 1, or
  *       simply use inotifytools_next_event().
  *
- * @note Your program should call this function or
- *       inotifytools_next_events() frequently; between calls to this function,
- *       inotify events will be queued in the kernel, and eventually the queue
- *       will overflow and you will miss some events.
+ * @note Your program should call this function frequently; between calls to this
+ *       function, inotify events will be queued in the kernel, and eventually
+ *       the queue will overflow and you will miss some events.
  *
  * @note If the function inotifytools_ignore_events_by_regex() has been called
  *       with a non-NULL parameter, this function will not return on events
