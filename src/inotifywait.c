@@ -151,7 +151,7 @@ int main(int argc, char ** argv)
         int orig_events;
 	bool monitor = false;
 	int quiet = 0;
-	unsigned long int timeout = 0;
+	unsigned long int timeout = BLOCKING_TIMEOUT;
 	int recursive = 0;
 	bool csv = false;
 	bool daemon = false;
@@ -796,7 +796,7 @@ void print_help()
 	       "\t              \tWhen listening for a single event, time out "
 	       "after\n"
 	       "\t              \twaiting for an event for <seconds> seconds.\n"
-	       "\t              \tIf <seconds> is 0, inotifywait will never time "
+	       "\t              \tIf <seconds> is negative, inotifywait will never time "
 	       "out.\n");
 	printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
 	       "\t\tListen for specific event(s).  If omitted, all events are \n"

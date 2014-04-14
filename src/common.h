@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define BLOCKING_TIMEOUT -1
+
 #ifndef EXIT_SUCCESS
     #define EXIT_SUCCESS 0
     #define EXIT_FAILURE 1

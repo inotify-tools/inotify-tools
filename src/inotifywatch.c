@@ -201,7 +201,7 @@ int main(int argc, char ** argv)
 	char * moved_from = 0;
 
 	do {
-		event = inotifytools_next_event( 0 );
+		event = inotifytools_next_event(BLOCKING_TIMEOUT);
 		if ( !event ) {
 			if ( !inotifytools_error() ) {
 				return EXIT_TIMEOUT;
@@ -691,7 +691,7 @@ void print_help()
 	printf("\t-r|--recursive\tWatch directories recursively.\n");
 	printf("\t-t|--timeout <seconds>\n"
 	       "\t\tListen only for specified amount of time in seconds; if\n"
-	       "\t\tomitted or 0, inotifywatch will execute until receiving an\n"
+	       "\t\tomitted or negative, inotifywatch will execute until receiving an\n"
 	       "\t\tinterrupt signal.\n");
 	printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
 	       "\t\tListen for specific event(s).  If omitted, all events are \n"
