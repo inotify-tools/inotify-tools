@@ -120,7 +120,7 @@ void validate_format( char * fmt ) {
 void output_event_csv( struct inotify_event * event ) {
     char *filename = csv_escape(inotifytools_filename_from_wd(event->wd));
     if (filename != NULL)
-        printf("%s,", csv_escape(filename));
+        printf("%s,", filename);
 
 	printf("%s,", csv_escape( inotifytools_event_to_str( event->mask ) ) );
 	if ( event->len > 0 )
