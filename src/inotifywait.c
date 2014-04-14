@@ -59,6 +59,10 @@ char * csv_escape( char * string ) {
 	static char csv[MAX_STRLEN+1];
 	static unsigned int i, ind;
 
+	if (string == NULL) {
+	  return NULL;
+	}
+
 	if ( strlen(string) > MAX_STRLEN ) {
 		return NULL;
 	}
