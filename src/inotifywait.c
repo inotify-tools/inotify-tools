@@ -707,8 +707,8 @@ bool parse_opts(
 		return false;
 	}
 
-	if ( *inc_regex && *exc_regex || *inc_regex && *exc_iregex ||
-			*inc_iregex && *exc_regex || *inc_iregex && *exc_iregex) {
+	if ( (*inc_regex && *exc_regex) || (*inc_regex && *exc_iregex) ||
+		 (*inc_iregex && *exc_regex) || (*inc_iregex && *exc_iregex)) {
 		fprintf(stderr, "include and exclude regexp cannot both be specified.\n");
 		return false;
 	}

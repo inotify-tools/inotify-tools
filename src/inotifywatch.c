@@ -271,9 +271,6 @@ int main(int argc, char ** argv)
 }
 
 int print_info() {
-        unsigned int num_watches = 0;
-        num_watches = inotifytools_get_num_watches();
-
 	if ( !inotifytools_get_stat_total( 0 ) ) {
 		fprintf( stderr, "No events occurred.\n" );
 		return EXIT_SUCCESS;
@@ -650,8 +647,8 @@ bool parse_opts(
 		fprintf(stderr, "--include and --includei cannot both be specified.\n");
 		return false;
 	}
-	if ( *inc_regex && *exc_regex || *inc_regex && *exc_iregex ||
-			*inc_iregex && *exc_regex || *inc_iregex && *exc_iregex) {
+	if ( (*inc_regex && *exc_regex) || (*inc_regex && *exc_iregex) ||
+		 (*inc_iregex && *exc_regex) || (*inc_iregex && *exc_iregex) ) {
 		fprintf(stderr, "include and exclude regexp cannot both be specified.\n");
 		return false;
 	}
