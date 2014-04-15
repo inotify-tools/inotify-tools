@@ -28,6 +28,6 @@ void _niceassert( long cond, int line, char const * file, char const * condstr,
 
 void warn_inotify_init_error();
 
-bool handle_timeout_option(unsigned long int *timeout, char *optarg);
+bool is_timeout_option_valid(long int *timeout, char *optarg);
 
 #endif

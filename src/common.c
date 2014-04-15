@@ -5,6 +5,7 @@
 #include <sys/types.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,30 +132,45 @@ void warn_inotify_init_error()
 	}
 }
 
-bool handle_timeout_option(unsigned long int *timeout, char *optarg)
+bool is_timeout_option_valid(long int *timeout, char *optarg)
 {
-  char *timeout_end = NULL;
+	if ((optarg == NULL) || (*optarg == '\0')) {
+		fprintf(stderr, "The provided value is not a valid timeout value.\n"
+				"Please specify a long int value.\n");
+		return false;
+	}
 
-  errno = 0;
-  *timeout = strtoul(optarg, &timeout_end, 10);
+	char *timeout_end = NULL;
+	errno = 0;
+	*timeout = strtol(optarg, &timeout_end, 10);
 
-  if (errno != 0) {
-    if (errno == ERANGE) {
-      fprintf(stderr, "The timeout value you provided is "
-	      "not in the representable range.\n");
-    } else {
-      fprintf(stderr, "Something went wrong with the timeout "
-	      "value you provided.\n");
-    }
-    return false;
-  }
+	const int err = errno;
+	if (err != 0) {
+		if (err == ERANGE) {
+			// Figure out on which side it overflows.
+			if (*timeout == LONG_MAX) {
+				fprintf(stderr, "The timeout value you provided is "
+						"not in the representable range "
+						"(higher than LONG_MAX).\n");
+			} else {
+				fprintf(stderr, "The timeout value you provided is "
+						"not in the representable range "
+						"(lower than LONG_MIN).\n");
+			}
 
-  if (*timeout_end != '\0') {
-    fprintf(stderr, "'%s' is not a valid timeout value.\n"
-	    "Please specify an integer of value 0 or "
-	    "greater.\n", optarg);
-    return false;
-  }
+		} else {
+			fprintf(stderr, "Something went wrong with the timeout "
+					"value you provided.\n");
+			fprintf(stderr, "%s\n", strerror(err));
+		}
+		return false;
+	}
 
-  return true;
+	if (*timeout_end != '\0') {
+		fprintf(stderr, "'%s' is not a valid timeout value.\n"
+				"Please specify a long int value.\n", optarg);
+		return false;
+	}
+
+	return true;
 }

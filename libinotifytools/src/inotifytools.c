@@ -1020,8 +1020,8 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
  * be used.
  *
  * @param timeout maximum amount of time, in seconds, to wait for an event.
- *                If @a timeout is 0, the function is non-blocking.  If
- *                @a timeout is negative, the function will block until an
+ *                If @a timeout is non-negative, the function is non-blocking.
+ *                If @a timeout is negative, the function will block until an
  *                event occurs.
  *
  * @return pointer to an inotify event, or NULL if function timed out before
@@ -1039,7 +1039,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
  *       which match the regular expression passed to that function.  However,
  *       the @a timeout period begins again each time a matching event occurs.
  */
-struct inotify_event * inotifytools_next_event( int timeout ) {
+struct inotify_event * inotifytools_next_event( long int timeout ) {
 	return inotifytools_next_events( timeout, 1 );
 }
 
@@ -1051,8 +1051,8 @@ struct inotify_event * inotifytools_next_event( int timeout ) {
  * be used.
  *
  * @param timeout maximum amount of time, in seconds, to wait for an event.
- *                If @a timeout is 0, the function is non-blocking.  If
- *                @a timeout is negative, the function will block until an
+ *                If @a timeout is non-negative, the function is non-blocking.
+ *                If @a timeout is negative, the function will block until an
  *                event occurs.
  *
  * @param num_events approximate number of inotify events to wait for until
@@ -1092,7 +1092,7 @@ struct inotify_event * inotifytools_next_event( int timeout ) {
  *       which match the regular expression passed to that function.  However,
  *       the @a timeout period begins again each time a matching event occurs.
  */
-struct inotify_event * inotifytools_next_events( int timeout, int num_events ) {
+struct inotify_event * inotifytools_next_events( long int timeout, int num_events ) {
 	niceassert( init, "inotifytools_initialize not called yet" );
 	niceassert( num_events <= MAX_EVENTS, "too many events requested" );
 

@@ -30,8 +30,8 @@ int inotifytools_watch_recursively_with_exclude( char const * path,
                                                  // [UH]
 int inotifytools_ignore_events_by_regex( char const *pattern, int flags );
 int inotifytools_ignore_events_by_inverted_regex( char const *pattern, int flags );
-struct inotify_event * inotifytools_next_event( int timeout );
-struct inotify_event * inotifytools_next_events( int timeout, int num_events );
+struct inotify_event * inotifytools_next_event( long int timeout );
+struct inotify_event * inotifytools_next_events( long int timeout, int num_events );
 int inotifytools_error();
 int inotifytools_get_stat_by_wd( int wd, int event );
 int inotifytools_get_stat_total( int event );

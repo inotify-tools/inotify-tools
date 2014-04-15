@@ -34,7 +34,7 @@ bool parse_opts(
   int * argc,
   char *** argv,
   int * events,
-  unsigned long int * timeout,
+  long int * timeout,
   int * verbose,
   int * zero,
   int * sort,
@@ -82,7 +82,7 @@ int zero;
 int main(int argc, char ** argv)
 {
 	events = 0;
-	unsigned long int timeout = 0;
+	long int timeout = BLOCKING_TIMEOUT;
 	int verbose = 0;
 	zero = 0;
 	int recursive = 0;
@@ -183,7 +183,7 @@ int main(int argc, char ** argv)
 	fprintf( stderr, "Finished establishing watches, now collecting statistics.\n" );
 
 	if ( timeout && verbose ) {
-		fprintf( stderr, "Will listen for events for %d seconds.\n", timeout );
+		fprintf( stderr, "Will listen for events for %ld seconds.\n", timeout );
 	}
 
 	signal( SIGINT, handle_signal );
@@ -389,7 +389,7 @@ bool parse_opts(
   int * argc,
   char *** argv,
   int * events,
-  unsigned long int * timeout,
+  long int * timeout,
   int * verbose,
   int * zero,
   int * sort,
@@ -545,7 +545,7 @@ bool parse_opts(
 
 			// --timeout or -t
 			case 't':
-			  if (!handle_timeout_option(timeout, optarg)) {
+			  if (!is_timeout_option_valid(timeout, optarg)) {
 			    return false;
 			  }
 			  break;

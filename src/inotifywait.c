@@ -37,7 +37,7 @@ bool parse_opts(
   int * events,
   bool * monitor,
   int * quiet,
-  unsigned long int * timeout,
+  long int * timeout,
   int * recursive,
   bool * csv,
   bool * daemon,
@@ -151,7 +151,7 @@ int main(int argc, char ** argv)
         int orig_events;
 	bool monitor = false;
 	int quiet = 0;
-	unsigned long int timeout = BLOCKING_TIMEOUT;
+	long int timeout = BLOCKING_TIMEOUT;
 	int recursive = 0;
 	bool csv = false;
 	bool daemon = false;
@@ -423,7 +423,7 @@ bool parse_opts(
   int * events,
   bool * monitor,
   int * quiet,
-  unsigned long int * timeout,
+  long int * timeout,
   int * recursive,
   bool * csv,
   bool * daemon,
@@ -666,7 +666,7 @@ bool parse_opts(
 
 			// --timeout or -t
 			case 't':
-			  if (!handle_timeout_option(timeout, optarg)) {
+			  if (!is_timeout_option_valid(timeout, optarg)) {
 			    return false;
 			  }
 			  break;
