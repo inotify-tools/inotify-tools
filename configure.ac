@@ -63,11 +63,19 @@ AC_C_INLINE
 
 # Checks for library functions.
 
+# Set variables used in man page templates
+MAN_DATE=$(date +'%B %d, %Y')
+MAN_PACKAGE_VERSION=$PACKAGE_VERSION
+AC_SUBST([MAN_DATE])
+AC_SUBST([MAN_PACKAGE_VERSION])
+
 # Output...
 AC_CONFIG_FILES([
   Makefile
   src/Makefile
   man/Makefile
+  man/inotifywait.1
+  man/inotifywatch.1
   libinotifytools/Makefile
   libinotifytools/src/Makefile
   libinotifytools/src/inotifytools/Makefile

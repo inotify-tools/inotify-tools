@@ -1,4 +1,4 @@
-.TH inotifywatch 1 "_DATE_" "inotifywatch _PACKAGE_VERSION_"
+.TH inotifywatch 1 "@MAN_DATE@" "inotifywatch @MAN_PACKAGE_VERSION@"
 
 .SH NAME
 inotifywatch \- gather filesystem access statistics using inotify
