@@ -9,6 +9,3 @@ LDADD = ../libinotifytools/src/libinotifytools.la
 if STATIC_BINARY_ENABLE
 AM_LDFLAGS = -static-libtool-libs
 endif
-
-dist-hook:
-	touch -d '2 days ago' $(distdir)/*
