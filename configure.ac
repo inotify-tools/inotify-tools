@@ -3,7 +3,7 @@
 
 AC_PREREQ(2.59)
 AC_INIT([inotify-tools], [3.14], [rvoicilas@gmail.com])
-AM_INIT_AUTOMAKE
+AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([src/inotifywait.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([libinotifytools/src/inotifytools/inotify.h])
@@ -13,6 +13,7 @@ AC_PROG_MAKE_SET
 
 # Checks for programs.
 AC_PROG_CC
+AM_INIT_AUTOMAKE
 LT_INIT
 
 AC_PATH_PROG(DOXYGEN, doxygen, NO_DOXYGEN)
@@ -44,32 +45,23 @@ AM_CONDITIONAL([STATIC_BINARY_ENABLE], test "$STATIC_BINARY_ENABLE" = "yes")
 
 # Checks for libraries.
 
-
-
-
 # Checks for header files.
 AC_CHECK_HEADERS([sys/inotify.h mcheck.h])
 AC_LANG(C)
 AC_MSG_CHECKING([whether sys/inotify.h actually works])
 AC_COMPILE_IFELSE(
-  AC_LANG_PROGRAM([[#include <sys/inotify.h>]],
+  [AC_LANG_PROGRAM([[#include <sys/inotify.h>]],
                   [[return (-1 == inotify_init());]]
-  ),
+  )],
   [AC_MSG_RESULT([yup]); AC_DEFINE([SYS_INOTIFY_H_EXISTS_AND_WORKS],[1],[sys/inotify.h exists and works correctly])],
   [AC_MSG_RESULT([nope, using own inotify headers])]
 )
-
-
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
 
-
-
 # Checks for library functions.
-
-
 
 # Output...
 AC_CONFIG_FILES([
