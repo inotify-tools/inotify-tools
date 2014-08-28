@@ -23,7 +23,6 @@ doc/html/*: inotifytools.c Doxyfile
 	$(DOXYGEN)
 
 shareddocdir = $(datadir)/doc
-docdir = $(shareddocdir)/libinotifytools/html
 doc_DATA = doc/html/*
 
 clean-local:
