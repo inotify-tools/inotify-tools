@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([inotify-tools], [3.14], [rvoicilas@gmail.com])
+AC_INIT([inotify-tools], [3.14], [radu.voicilas@gmail.com])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([src/inotifywait.c])
 AC_CONFIG_HEADERS([config.h])
