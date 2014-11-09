@@ -13,21 +13,11 @@
 Makefile
 Makefile.in
 
+config/
+
 /aclocal.m4
 /autom4te.cache
-/config.guess
-/config.h
-/config.h.in
-/config.log
-/config.status
-/config.sub
 /configure
-/depcomp
-/install-sh
-/libtool
-/ltmain.sh
-/missing
-/stamp-h1
 
 /libinotifytools/src/doc
 /libinotifytools/src/inotifytools/inotify.h
@@ -35,4 +25,3 @@ Makefile.in
 
 /src/inotifywait
 /src/inotifywatch
-

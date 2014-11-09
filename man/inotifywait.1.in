@@ -1,4 +1,4 @@
-.TH inotifywait 1 "_DATE_" "inotifywait _PACKAGE_VERSION_"
+.TH inotifywait 1 "@MAN_DATE@" "inotifywait @MAN_PACKAGE_VERSION@"
 
 .SH NAME
 inotifywait \- wait for changes to files using inotify
