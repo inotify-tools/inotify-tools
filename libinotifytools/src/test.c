@@ -5,7 +5,6 @@
 
 #include "../../config.h"
 
-#define __USE_MISC
 #include <unistd.h>
 
 #include <stdio.h>
