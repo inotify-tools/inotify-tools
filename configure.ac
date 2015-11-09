@@ -62,6 +62,7 @@ AC_C_CONST
 AC_C_INLINE
 
 # Checks for library functions.
+AC_CHECK_FUNCS(stat64, [], [CPPFLAGS="$CPPFLAGS -Dstat64=stat -Dlstat64=lstat"])
 
 # Set variables used in man page templates
 MAN_DATE=$(date +'%B %d, %Y')
