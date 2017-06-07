@@ -100,8 +100,8 @@ struct inotify_event {
 # endif
 # if _MIPS_SIM == _MIPS_SIM_ABI64
 #  define __NR_inotify_init (__NR_Linux + 243)
-#  define __NR_inotify_add_watch (__NR_Linux + 243)
-#  define __NR_inotify_rm_watch (__NR_Linux + 243)
+#  define __NR_inotify_add_watch (__NR_Linux + 244)
+#  define __NR_inotify_rm_watch (__NR_Linux + 245)
 # endif
 # if _MIPS_SIM == _MIPS_SIM_NABI32
 #  define __NR_inotify_init (__NR_Linux + 247)
