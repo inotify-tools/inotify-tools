@@ -43,7 +43,8 @@ bool parse_opts(
   char ** exc_regex,
   char ** exc_iregex,
   char ** inc_regex,
-  char ** inc_iregex
+  char ** inc_iregex,
+  int * unfollow_links
 );
 
 void print_help();
@@ -85,6 +86,7 @@ int main(int argc, char ** argv)
 	long int timeout = BLOCKING_TIMEOUT;
 	int verbose = 0;
 	zero = 0;
+	int unfollow_links = 0;
 	int recursive = 0;
 	char * fromfile = 0;
 	sort = -1;
@@ -99,7 +101,7 @@ int main(int argc, char ** argv)
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts( &argc, &argv, &events, &timeout, &verbose, &zero, &sort,
 	                 &recursive, &fromfile, &exc_regex, &exc_iregex,
-	                 &inc_regex, &inc_iregex ) ) {
+	                 &inc_regex, &inc_iregex, &unfollow_links ) ) {
 		return EXIT_FAILURE;
 	}
 
@@ -130,6 +132,9 @@ int main(int argc, char ** argv)
 	// If events is still 0, make it all events.
 	if ( !events )
 		events = IN_ALL_EVENTS;
+
+	if ( unfollow_links )
+		events |= IN_DONT_FOLLOW;
 
 	FileList list = construct_path_list( argc, argv, fromfile );
 
@@ -395,18 +400,20 @@ bool parse_opts(
   char ** exc_regex,
   char ** exc_iregex,
   char ** inc_regex,
-  char ** inc_iregex
+  char ** inc_iregex,
+  int * unfollow_links
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( timeout );
 	assert( verbose ); assert( zero ); assert( sort ); assert( recursive );
 	assert( fromfile ); assert( exc_regex ); assert( exc_iregex );
-	assert( inc_regex ); assert( inc_iregex );
+	assert( inc_regex ); assert( inc_iregex ); assert( unfollow_links );
 
 	// Short options
-	char * opt_string = "hra:d:zve:t:";
+	char * opt_string = "hra:d:zve:t:u";
 
+#define NUM_OPTIONS	15
 	// Construct array
-	struct option long_opts[14];
+	struct option long_opts[NUM_OPTIONS];
 
 	// --help
 	long_opts[0].name = "help";
@@ -475,11 +482,16 @@ bool parse_opts(
 	long_opts[12].has_arg = 1;
 	long_opts[12].flag = NULL;
 	long_opts[12].val = (int)'k';
+        // --unfollow-links
+        long_opts[13].name = "unfollow-links";
+        long_opts[13].has_arg = 0;
+        long_opts[13].flag = NULL;
+        long_opts[13].val = (int)'u';
 	// Empty last element
-	long_opts[13].name = 0;
-	long_opts[13].has_arg = 0;
-	long_opts[13].flag = 0;
-	long_opts[13].val = 0;
+	long_opts[14].name = 0;
+	long_opts[14].has_arg = 0;
+	long_opts[14].flag = 0;
+	long_opts[14].val = 0;
 
 	// Get first option
 	char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
@@ -546,6 +558,11 @@ bool parse_opts(
 			    return false;
 			  }
 			  break;
+
+			// --unfollow-links or -u
+			case 'u':
+				++(*unfollow_links);
+				break;
 
 			// --event or -e
 			case 'e':
@@ -696,7 +713,9 @@ void print_help()
 	printf("\t-a|--ascending <event>\n"
 	       "\t\tSort ascending by a particular event, or `total'.\n");
 	printf("\t-d|--descending <event>\n"
-	       "\t\tSort descending by a particular event, or `total'.\n\n");
+	       "\t\tSort descending by a particular event, or `total'.\n");
+	printf("\t-u|--unfollow-links\n"
+	       "\t\tDon't follow symbolic links (allows users to watch events on symlinks).\n\n");
 	printf("Exit status:\n");
 	printf("\t%d  -  Exited normally.\n", EXIT_SUCCESS);
 	printf("\t%d  -  Some error occurred.\n\n", EXIT_FAILURE);

@@ -49,7 +49,8 @@ bool parse_opts(
   char ** exc_regex,
   char ** exc_iregex,
   char ** inc_regex,
-  char ** inc_iregex
+  char ** inc_iregex,
+  int * unfollow_links
 );
 
 void print_help();
@@ -152,6 +153,7 @@ int main(int argc, char ** argv)
 	bool monitor = false;
 	int quiet = 0;
 	long int timeout = BLOCKING_TIMEOUT;
+	int unfollow_links = 0;
 	int recursive = 0;
 	bool csv = false;
 	bool daemon = false;
@@ -171,7 +173,7 @@ int main(int argc, char ** argv)
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
 	                 &recursive, &csv, &daemon, &syslog, &format, &timefmt, 
                          &fromfile, &outfile,
-                         &exc_regex, &exc_iregex, &inc_regex, &inc_iregex) ) {
+                         &exc_regex, &exc_iregex, &inc_regex, &inc_iregex, &unfollow_links) ) {
 		return EXIT_FAILURE;
 	}
 
@@ -205,6 +207,10 @@ int main(int argc, char ** argv)
 	// If events is still 0, make it all events.
 	if (events == 0)
 		events = IN_ALL_EVENTS;
+
+	if ( unfollow_links )
+		events |= IN_DONT_FOLLOW;
+
         orig_events = events;
         if ( monitor && recursive ) {
                 events = events | IN_CREATE | IN_MOVED_TO | IN_MOVED_FROM;
@@ -435,19 +441,21 @@ bool parse_opts(
   char ** exc_regex,
   char ** exc_iregex,
   char ** inc_regex,
-  char ** inc_iregex
+  char ** inc_iregex,
+  int * unfollow_links
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( monitor );
 	assert( quiet ); assert( timeout ); assert( csv ); assert( daemon );
 	assert( syslog ); assert( format ); assert( timefmt ); assert( fromfile ); 
 	assert( outfile ); assert( exc_regex ); assert( exc_iregex );
-	assert( inc_regex ); assert( inc_iregex );
+	assert( inc_regex ); assert( inc_iregex ); assert( unfollow_links );
 
 	// Short options
-	char * opt_string = "mrhcdsqt:fo:e:";
+	char * opt_string = "mrhcdsqt:fo:e:u";
 
+#define NUM_OPTIONS	20
 	// Construct array
-	struct option long_opts[19];
+	struct option long_opts[NUM_OPTIONS];
 
 	// How many times --exclude has been specified
 	unsigned int exclude_count = 0;
@@ -550,11 +558,16 @@ bool parse_opts(
 	long_opts[17].has_arg = 1;
 	long_opts[17].flag = NULL;
 	long_opts[17].val = (int)'k';
+        // --unfollow-links
+        long_opts[18].name = "unfollow-links";
+        long_opts[18].has_arg = 0;
+        long_opts[18].flag = NULL;
+        long_opts[18].val = (int)'u';
 	// Empty last element
-	long_opts[18].name = 0;
-	long_opts[18].has_arg = 0;
-	long_opts[18].flag = 0;
-	long_opts[18].val = 0;
+	long_opts[19].name = 0;
+	long_opts[19].has_arg = 0;
+	long_opts[19].flag = 0;
+	long_opts[19].val = 0;
 
 	// Get first option
 	char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
@@ -670,6 +683,11 @@ bool parse_opts(
 			    return false;
 			  }
 			  break;
+
+			// --unfollow-links or -u
+			case 'u':
+				++(*unfollow_links);
+				break;
 
 			// --event or -e
 			case 'e':
@@ -800,7 +818,9 @@ void print_help()
 	       "out.\n");
 	printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
 	       "\t\tListen for specific event(s).  If omitted, all events are \n"
-	       "\t\tlistened for.\n\n");
+	       "\t\tlistened for.\n");
+	printf("\t-u|--unfollow-links\n"
+	       "\t\tDon't follow symbolic links (allows users to watch events on symlinks).\n\n");
 	printf("Exit status:\n");
 	printf("\t%d  -  An event you asked to watch for was received.\n",
 	       EXIT_SUCCESS );
