@@ -40,6 +40,7 @@ bool parse_opts(
   long int * timeout,
   int * recursive,
   bool * csv,
+  bool * zero,
   bool * daemon,
   bool * syslog,
   char ** format,
@@ -133,6 +134,20 @@ void output_event_csv( struct inotify_event * event ) {
 }
 
 
+void output_event_zero( struct inotify_event * event ) {
+    char *filename = inotifytools_filename_from_wd(event->wd);
+    if (filename != NULL)
+	printf("%s%c", filename, '\0');
+
+	printf("%s%c", inotifytools_event_to_str( event->mask ), '\0' );
+
+	if ( event->len > 0 )
+		printf("%s%c", event->name, '\0' );
+	else
+		printf("%c", '\0');
+}
+
+
 void output_error( bool syslog, char* fmt, ... ) {
 	va_list va;
 	va_start(va, fmt);
@@ -154,6 +169,7 @@ int main(int argc, char ** argv)
 	long int timeout = BLOCKING_TIMEOUT;
 	int recursive = 0;
 	bool csv = false;
+	bool zero = false;
 	bool daemon = false;
 	bool syslog = false;
 	char * format = NULL;
@@ -169,7 +185,7 @@ int main(int argc, char ** argv)
 
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
-	                 &recursive, &csv, &daemon, &syslog, &format, &timefmt, 
+	                 &recursive, &csv, &zero, &daemon, &syslog, &format, &timefmt,
                          &fromfile, &outfile,
                          &exc_regex, &exc_iregex, &inc_regex, &inc_iregex) ) {
 		return EXIT_FAILURE;
@@ -344,6 +360,9 @@ int main(int argc, char ** argv)
 			if ( csv ) {
 				output_event_csv( event );
 			}
+			else if ( zero ) {
+				output_event_zero( event );
+			}
 			else if ( format ) {
 				inotifytools_printf( event, format );
 			}
@@ -426,6 +445,7 @@ bool parse_opts(
   long int * timeout,
   int * recursive,
   bool * csv,
+  bool * zero,
   bool * daemon,
   bool * syslog,
   char ** format,
@@ -438,13 +458,13 @@ bool parse_opts(
   char ** inc_iregex
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( monitor );
-	assert( quiet ); assert( timeout ); assert( csv ); assert( daemon );
+	assert( quiet ); assert( timeout ); assert( csv ); assert( zero ); assert( daemon );
 	assert( syslog ); assert( format ); assert( timefmt ); assert( fromfile ); 
 	assert( outfile ); assert( exc_regex ); assert( exc_iregex );
 	assert( inc_regex ); assert( inc_iregex );
 
 	// Short options
-	char * opt_string = "mrhcdsqt:fo:e:";
+	char * opt_string = "mrhc0dsqt:fo:e:";
 
 	// Construct array
 	struct option long_opts[19];
@@ -498,6 +518,11 @@ bool parse_opts(
 	long_opts[7].has_arg = 0;
 	long_opts[7].flag = NULL;
 	long_opts[7].val = (int)'c';
+	// --zero
+	long_opts[7].name = "zero";
+	long_opts[7].has_arg = 0;
+	long_opts[7].flag = NULL;
+	long_opts[7].val = (int)'0';
 	// --daemon
 	long_opts[8].name = "daemon";
 	long_opts[8].has_arg = 0;
@@ -589,6 +614,11 @@ bool parse_opts(
 			// --csv or -c
 			case 'c':
 				(*csv) = true;
+				break;
+
+			// --zero or -0
+			case '0':
+				(*zero) = true;
 				break;
 
 			// --daemon or -d
@@ -713,6 +743,16 @@ bool parse_opts(
 		return false;
 	}
 
+	if ( *csv && *zero ) {
+		fprintf(stderr, "-c and -0 cannot both be specified..\n");
+		return false;
+	}
+
+	if ( *format && *zero ) {
+		fprintf(stderr, "-0 and --format cannot both be specified..\n");
+		return false;
+	}
+
 	if ( *format && *csv ) {
 		fprintf(stderr, "-c and --format cannot both be specified.\n");
 		return false;
@@ -792,6 +832,7 @@ void print_help()
 	printf("\t--timefmt <fmt>\tstrftime-compatible format string for use with\n"
 	       "\t              \t%%T in --format string.\n");
 	printf("\t-c|--csv      \tPrint events in CSV format.\n");
+	printf("\t-0|--zero     \tPrint events separated by null character (\\0).\n");
 	printf("\t-t|--timeout <seconds>\n"
 	       "\t              \tWhen listening for a single event, time out "
 	       "after\n"
