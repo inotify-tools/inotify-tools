@@ -154,7 +154,7 @@ int main(int argc, char ** argv)
 	long int timeout = BLOCKING_TIMEOUT;
 	int recursive = 0;
 	bool csv = false;
-	bool daemon = false;
+	bool dodaemon = false;
 	bool syslog = false;
 	char * format = NULL;
 	char * timefmt = NULL;
@@ -164,12 +164,11 @@ int main(int argc, char ** argv)
 	char * exc_iregex = NULL;
 	char * inc_regex = NULL;
 	char * inc_iregex = NULL;
-	pid_t pid;
     int fd;
 
 	// Parse commandline options, aborting if something goes wrong
 	if ( !parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
-	                 &recursive, &csv, &daemon, &syslog, &format, &timefmt, 
+	                 &recursive, &csv, &dodaemon, &syslog, &format, &timefmt,
                          &fromfile, &outfile,
                          &exc_regex, &exc_iregex, &inc_regex, &inc_iregex) ) {
 		return EXIT_FAILURE;
@@ -219,9 +218,14 @@ int main(int argc, char ** argv)
 
 
     // Daemonize - BSD double-fork approach
-	if ( daemon ) {
-
-		pid = fork();
+	if ( dodaemon ) {
+#ifdef HAVE_DAEMON
+        if (daemon(0, 0)) {
+            fprintf(stderr, "Failed to daemonize!\n");
+            return EXIT_FAILURE;
+        }
+#else
+            pid_t pid = fork();
 	        if (pid < 0) {
 			fprintf(stderr, "Failed to fork1 whilst daemonizing!\n");
 	                return EXIT_FAILURE;
@@ -246,6 +250,7 @@ int main(int argc, char ** argv)
 			fprintf(stderr, "Failed to chdir whilst daemonizing!\n");
 	                return EXIT_FAILURE;
 	        }
+#endif
 
 		// Redirect stdin from /dev/null
 	        fd = open("/dev/null", O_RDONLY);
