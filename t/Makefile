@@ -42,7 +42,7 @@ pre-clean:
 	$(RM) -r test-results
 
 clean-except-prove-cache:
-	$(RM) -r 'trash directory'.* test-results
+	$(RM) -r 'trash.directory'.* test-results
 
 clean: clean-except-prove-cache
 	$(RM) .prove

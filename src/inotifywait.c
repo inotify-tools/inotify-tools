@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <limits.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -199,6 +200,13 @@ int main(int argc, char **argv) {
 
     // Daemonize - BSD double-fork approach
     if (dodaemon) {
+        // Absolute path for outfile before entering the child.
+        char *logfile = calloc(PATH_MAX + 1, sizeof(char));
+        if (realpath(outfile, logfile) == NULL) {
+            fprintf(stderr, "%s: %s\n", strerror(errno), outfile);
+            return EXIT_FAILURE;
+        }
+
 #ifdef HAVE_DAEMON
         if (daemon(0, 0)) {
             fprintf(stderr, "Failed to daemonize!\n");
@@ -240,11 +248,13 @@ int main(int argc, char **argv) {
         }
 
         // Redirect stdout to a file
-        fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
+        fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
         if (fd < 0) {
-            fprintf(stderr, "Failed to open output file %s\n", outfile);
+            fprintf(stderr, "Failed to open output file %s\n", logfile);
+            free(logfile);
             return EXIT_FAILURE;
         }
+        free(logfile);
         if (fd != fileno(stdout)) {
             dup2(fd, fileno(stdout));
             close(fd);
