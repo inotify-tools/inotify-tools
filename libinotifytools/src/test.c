@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +26,7 @@
     if (!_verify((int)(A), B, __FILE__, __LINE__, __PRETTY_FUNCTION__))        \
         return;
 #define compare(A, B)                                                          \
-    if (!_compare((int)(A), (int)(B), #A, #B, __FILE__, __LINE__,              \
+    if (!_compare((uintptr_t)(A), (int)(B), #A, #B, __FILE__, __LINE__,        \
                   __PRETTY_FUNCTION__))                                        \
         return;
 
