@@ -1,5 +1,3 @@
-// kate: replace-tabs off; space-indent off;
-
 #include "inotifytools/inotify.h"
 #include "inotifytools/inotifytools.h"
 
