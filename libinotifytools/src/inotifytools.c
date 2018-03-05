@@ -894,6 +894,7 @@ watch *create_watch(int wd, char *filename) {
 	w->filename = strdup(filename);
 	rbsearch(w, tree_wd);
 	rbsearch(w, tree_filename);
+    return NULL;
 }
 
 /**
