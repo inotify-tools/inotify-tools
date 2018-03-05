@@ -19,6 +19,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
 #include <sys/select.h>
@@ -2086,7 +2087,7 @@ int event_compare(const void *p1, const void *p2, const void *config)
 
 struct rbtree *inotifytools_wd_sorted_by_event(int sort_event)
 {
-	struct rbtree *ret = rbinit(event_compare, (void*)sort_event);
+	struct rbtree *ret = rbinit(event_compare, (void*)(uintptr_t)sort_event);
 	RBLIST *all = rbopenlist(tree_wd);
 	void const *p = rbreadlist(all);
 	while (p) {
