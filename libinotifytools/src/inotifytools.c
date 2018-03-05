@@ -1453,7 +1453,7 @@ void record_stats( struct inotify_event const * event ) {
 
 }
 
-int *stat_ptr(watch *w, int event)
+unsigned int *stat_ptr(watch *w, int event)
 {
 	if ( IN_ACCESS == event )
 		return &w->hit_access;
@@ -1506,7 +1506,7 @@ int inotifytools_get_stat_by_wd( int wd, int event ) {
 
 	watch *w = watch_from_wd(wd);
 	if (!w) return -1;
-	int *i = stat_ptr(w, event);
+	unsigned int *i = stat_ptr(w, event);
 	if (!i) return -1;
 	return *i;
 }
@@ -2074,8 +2074,8 @@ int event_compare(const void *p1, const void *p2, const void *config)
 		sort_event = -sort_event;
 		asc = 0;
 	}
-	int *i1 = stat_ptr((watch*)p1, sort_event);
-	int *i2 = stat_ptr((watch*)p2, sort_event);
+	unsigned int *i1 = stat_ptr((watch*)p1, sort_event);
+	unsigned int *i2 = stat_ptr((watch*)p2, sort_event);
 	if (0 == *i1 - *i2) {
 		return ((watch*)p1)->wd - ((watch*)p2)->wd;
 	}
