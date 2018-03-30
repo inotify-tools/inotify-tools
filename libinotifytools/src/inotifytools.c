@@ -1115,9 +1115,9 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 
 #define RETURN(A) {\
 	if (regex) {\
-		inotifytools_snprintf(&match_name, MAX_STRLEN, A, "%w%f%0");\
+		inotifytools_snprintf(&match_name, MAX_STRLEN, A, "%w%f");\
 		memcpy(&match_name_string,&match_name.buf,match_name.len);\
-		match_name_string[match_name.len+1]=NULL;\
+		match_name_string[match_name.len]='\0';\
 		if (0 == regexec(regex, match_name_string, 0, 0, 0)) {\
 			if (!invert_regexp)\
 				longjmp(jmp,0);\
@@ -1879,7 +1879,7 @@ int inotifytools_snprintf( struct nstring * out, int size,
 		}
 
 		if ( ch1 == '0' ) {
-			out->buf[ind++] = (int)NULL;
+			out->buf[ind++] = '\0';
 			++i;
 			continue;
 		}
@@ -1953,7 +1953,7 @@ int inotifytools_snprintf( struct nstring * out, int size,
 		if ( ind < MAX_STRLEN ) out->buf[ind++] = ch1;
 		++i;
 	}
-	out->len = ind - 1;
+	out->len = ind;
 
 	return ind - 1;
 }
