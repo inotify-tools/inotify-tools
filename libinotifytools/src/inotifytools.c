@@ -157,7 +157,15 @@ static int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
 int onestr_to_event(char const * event);
 
-typedef struct nstring{
+
+/** @struct nstring
+ *  @brief This structure holds string that can contain any charater including NULL.
+ *  @var nstring::buf
+ *  Member 'buf' contains character buffer.  It can hold up to 4096 characters.
+ *  @var nstring::len
+ *  Member 'len' contains number of characters in buffer.
+ */
+typedef struct nstring {
 	char buf[MAX_STRLEN];
 	unsigned int len;
 };
@@ -1116,8 +1124,8 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 #define RETURN(A) {\
 	if (regex) {\
 		inotifytools_snprintf(&match_name, MAX_STRLEN, A, "%w%f");\
-		memcpy(&match_name_string,&match_name.buf,match_name.len);\
-		match_name_string[match_name.len]='\0';\
+		memcpy(&match_name_string, &match_name.buf, match_name.len);\
+		match_name_string[match_name.len] = '\0';\
 		if (0 == regexec(regex, match_name_string, 0, 0, 0)) {\
 			if (!invert_regexp)\
 				longjmp(jmp,0);\
@@ -1659,6 +1667,8 @@ int inotifytools_get_num_watches() {
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1704,6 +1714,8 @@ int inotifytools_printf( struct inotify_event* event, char* fmt ) {
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1736,11 +1748,11 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  * may crash.
  * inotifytools_snprintf() is safer and you should use it where possible.
  *
- * @param out location in which to store string.
+ * @param out location in which to store nstring.
  *
- * @param event the event to use to construct a string.
+ * @param event the event to use to construct a nstring.
  *
- * @param fmt the format string used to construct a string.
+ * @param fmt the format string used to construct a nstring.
  *
  * @return number of characters written, or -1 if an error occurs.
  *
@@ -1758,6 +1770,8 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1767,11 +1781,9 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  * // wait until an event occurs
  * struct inotify_event * event = inotifytools_next_event( -1 );
  *
- * char mystring[1024];
- * // hope this doesn't crash - if filename is really long, might not fit into
- * // mystring!
- * inotifytools_sprintf(mystring, event, "in %w, file %f had event(s): %.e\n");
- * printf( mystring );
+ * nstring mynstring;
+ * inotifytools_sprintf(mynstring, event, "in %w, file %f had event(s): %.e\n");
+ * fwrite( mynstring.buf, sizeof(char), mynstring.len, stdout );
  * // suppose the file 'myfile' in mydir was written to and closed.  Then,
  * // this prints something like:
  * // "in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n"
@@ -1786,13 +1798,13 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  * Construct a string using an inotify_event and a printf-like syntax.
  * The string can only ever be up to 4096 characters in length.
  *
- * @param out location in which to store string.
+ * @param out location in which to store nstring.
  *
  * @param size maximum amount of characters to write.
  *
- * @param event the event to use to construct a string.
+ * @param event the event to use to construct a nstring.
  *
- * @param fmt the format string used to construct a string.
+ * @param fmt the format string used to construct a nstring.
  *
  * @return number of characters written, or -1 if an error occurs.
  *
@@ -1810,6 +1822,8 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1819,10 +1833,10 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  * // wait until an event occurs
  * struct inotify_event * event = inotifytools_next_event( -1 );
  *
- * char mystring[1024];
- * inotifytools_snprintf( mystring, 1024, event,
+ * struct nstring mynstring;
+ * inotifytools_snprintf( mynstring, 1024, event,
  *                        "in %w, file %f had event(s): %.e\n" );
- * printf( mystring );
+ * fwrite( mynstring.buf, sizeof(char), mynstring.len, stdout );
  * // suppose the file 'myfile' in mydir was written to and closed.  Then,
  * // this prints something like:
  * // "in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n"
