@@ -8,6 +8,8 @@ extern "C"
 
 #include <stdio.h>
 
+struct nstring;
+
 int inotifytools_str_to_event(char const * event);
 int inotifytools_str_to_event_sep(char const * event, char sep);
 char * inotifytools_event_to_str(int events);
@@ -44,8 +46,8 @@ int inotifytools_get_num_watches();
 
 int inotifytools_printf( struct inotify_event* event, char* fmt );
 int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt );
-int inotifytools_sprintf( char * out, struct inotify_event* event, char* fmt );
-int inotifytools_snprintf( char * out, int size, struct inotify_event* event,
+int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, char* fmt );
+int inotifytools_snprintf( struct nstring * out, int size, struct inotify_event* event,
                            char* fmt );
 void inotifytools_set_printf_timefmt( char * fmt );
 

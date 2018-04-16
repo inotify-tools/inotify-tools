@@ -529,9 +529,8 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
 
         // --format
         case 'n':
-            newlineformat = (char *)malloc(strlen(optarg) + 2);
+            newlineformat = (char *)malloc(strlen(optarg) + 1);
             strcpy(newlineformat, optarg);
-            strcat(newlineformat, "\n");
             (*format) = newlineformat;
             break;
 
