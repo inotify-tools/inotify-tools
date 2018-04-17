@@ -176,6 +176,14 @@ in the place of `X'.
 Replaced with the current Time in the format specified by the \-\-timefmt option,
 which should be a format string suitable for passing to strftime(3).
 
+.TP
+%0
+Replaced with NUL.
+
+.TP
+%n
+Replaced with Line Feed.
+
 
 
 .SH "EXIT STATUS"
@@ -330,6 +338,17 @@ OPEN goodfile
 ATTRIB goodfile
 CLOSE_WRITE:CLOSE goodfile
 DELETE badfile
+.fi
+
+.SS Example 4
+Enforce file permissions in directory `~/test'
+
+.nf
+inotifywait -qmr -e 'moved_to,create' --format '%w%f%0' ~/test |\\
+    while IFS= read -r -d '' file
+    do
+	  chmod -v a+rX "$file"
+    done
 .fi
 
 
