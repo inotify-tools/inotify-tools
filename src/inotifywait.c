@@ -445,8 +445,8 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     const char *regex_warning =
         "only the last option will be taken into consideration.\n";
 
-    // format with trailing newline
-    static char *newlineformat;
+    // format provided by the user
+    static char *customformat;
 
     // Short options
     static const char opt_string[] = "mrhcdsqt:fo:e:";
@@ -529,9 +529,9 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
 
         // --format
         case 'n':
-            newlineformat = (char *)malloc(strlen(optarg) + 1);
-            strcpy(newlineformat, optarg);
-            (*format) = newlineformat;
+            customformat = (char *)malloc(strlen(optarg) + 1);
+            strcpy(customformat, optarg);
+            (*format) = customformat;
             break;
 
         // --timefmt
