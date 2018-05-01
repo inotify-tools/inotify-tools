@@ -7,3 +7,5 @@ dist-hook:
 # are not writable.
 	chmod u+w $(distdir)/ChangeLog
 	git log --pretty=format:'%s' > $(distdir)/ChangeLog
+
+README: README.md
