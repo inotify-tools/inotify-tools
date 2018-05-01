@@ -1,5 +1,4 @@
 # inotify-tools
-=============
 
 This is a package of some commandline utilities relating to inotify.
 
