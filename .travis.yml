@@ -1,0 +1,3 @@
+language: c
+compiler: gcc
+script: ./autogen.sh && ./configure && make && cd ./libinotifytools/src/ && make test && ./test
