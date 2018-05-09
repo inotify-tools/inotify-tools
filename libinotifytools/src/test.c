@@ -51,8 +51,18 @@
 
 #define TEST_DIR "/tmp/inotifytools_test"
 
-#define INFO(...)                                                              \
+#define IN_TEST_DIR(e) TEST_DIR"/"#e
+
+#define touch(file)                                                            \
     do {                                                                       \
+        FILE * f;                                                              \
+	f = fopen(IN_TEST_DIR(file), "w+");                                    \
+	verify(f);                                                             \
+	verify(!fclose(f));                                                    \
+    } while (0)
+
+#define INFO(...)                                                              \
+    do {						                       \
         printf("%s: ", __PRETTY_FUNCTION__);                                   \
         printf(__VA_ARGS__);                                                   \
     } while (0)
@@ -259,6 +269,33 @@ void tst_inotifytools_snprintf() {
     EXIT
 }
 
+void tst_inotifytools_watch_recursively_with_exclude() {
+    ENTER
+    verify((0 == mkdir(TEST_DIR, 0700)) || (EEXIST == errno));
+
+    verify((0 == mkdir(IN_TEST_DIR(d1), 0700)) || (EEXIST == errno));
+    verify((0 == mkdir(IN_TEST_DIR(d2), 0700)) || (EEXIST == errno));
+
+    verify(inotifytools_initialize());
+
+    char* excl[2];
+    excl[0] = IN_TEST_DIR(d2);
+    excl[1] = 0;
+    
+    verify(inotifytools_watch_recursively_with_exclude(TEST_DIR, IN_CLOSE, excl));
+
+    touch(d1/1);
+    touch(d2/2);
+
+    struct inotify_event * wd = inotifytools_next_event(1);
+    verify(wd);
+    
+    verify(0 == strcmp(wd->name,"1"));
+    verify(!inotifytools_next_event(1)); //only one event should appear
+    
+    EXIT
+}
+
 void watch_limit() {
     ENTER
     verify((0 == mkdir(TEST_DIR, 0700)) || (EEXIST == errno));
@@ -337,6 +374,9 @@ int main() {
     cleanup();
 
     tst_inotifytools_snprintf();
+    cleanup();
+
+    tst_inotifytools_watch_recursively_with_exclude();
     cleanup();
 
     printf("Out of %d tests, %d succeeded and %d failed.\n",
