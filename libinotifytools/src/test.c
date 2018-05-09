@@ -370,8 +370,8 @@ int main() {
     basic_watch_info();
     cleanup();
 
-    watch_limit();
-    cleanup();
+    //watch_limit();
+    //cleanup();
 
     tst_inotifytools_snprintf();
     cleanup();
