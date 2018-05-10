@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/813gan/inotify-tools.svg?branch=master)](https://travis-ci.org/813gan/inotify-tools)
 # inotify-tools
 
 This is a package of some commandline utilities relating to inotify.
