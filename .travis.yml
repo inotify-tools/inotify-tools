@@ -1,3 +1,4 @@
 language: c
 compiler: gcc
+install: true
 script: ./autogen.sh && ./configure && make && cd ./libinotifytools/src/ && make test && ./test
