@@ -256,7 +256,7 @@ actually implemented simply by listening for both
 .B moved_to
 and
 .B moved_from,
-hence all close events received will be output as one or both of these, not
+hence all move events received will be output as one or both of these, not
 .B MOVE.
 
 .TP
