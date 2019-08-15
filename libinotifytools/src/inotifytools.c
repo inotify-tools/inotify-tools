@@ -373,18 +373,24 @@ void empty_stats(const void *nodep,
 /**
  * @internal
  */
+struct replace_filename_data {
+	char *old_name, *new_name;
+	size_t old_len;
+};
+
+/**
+ * @internal
+ */
 void replace_filename(const void *nodep,
                       const VISIT which,
                       const int depth, void *arg) {
     if (which != endorder && which != leaf) return;
 	watch *w = (watch*)nodep;
-	char *old_name = ((char**)arg)[0];
-	char *new_name = ((char**)arg)[1];
-	int old_len = *((int*)&((char**)arg)[2]);
+	const struct replace_filename_data *data = arg;
 	char *name;
-	if ( 0 == strncmp( old_name, w->filename, old_len ) ) {
-		nasprintf( &name, "%s%s", new_name, &(w->filename[old_len]) );
-		if (!strcmp( w->filename, new_name )) {
+	if ( 0 == strncmp( data->old_name, w->filename, data->old_len ) ) {
+		nasprintf( &name, "%s%s", data->new_name, &(w->filename[data->old_len]) );
+		if (!strcmp( w->filename, data->new_name )) {
 			free(name);
 		} else {
 			rbdelete(w, tree_filename);
@@ -862,11 +868,11 @@ void inotifytools_set_filename_by_filename( char const * oldname,
 void inotifytools_replace_filename( char const * oldname,
                                     char const * newname ) {
 	if ( !oldname || !newname ) return;
-	char *names[2+sizeof(int)/sizeof(char*)];
-	names[0] = (char*)oldname;
-	names[1] = (char*)newname;
-	*((int*)&names[2]) = strlen(oldname);
-	rbwalk(tree_filename, replace_filename, (void*)names);
+	struct replace_filename_data data;
+	data.old_name = oldname;
+	data.new_name = newname;
+	data.old_len = strlen(oldname);
+	rbwalk(tree_filename, replace_filename, (void*)&data);
 }
 
 /**
