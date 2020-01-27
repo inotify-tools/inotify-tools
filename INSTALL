@@ -9,6 +9,26 @@ are permitted in any medium without royalty provided the copyright
 notice and this notice are preserved.  This file is offered as-is,
 without warranty of any kind.
 
+Pre-requisites
+==============
+Install autoconf, on Ubuntu:
+
+ sudo apt-get install autoconf
+
+then install automake, on Ubuntu:
+
+ sudo apt-get install autotools-dev
+ sudo apt-get install automake
+
+then install libtool, on Ubuntu:
+
+ sudo apt-get install libtool
+
+Now you can proceed with basic intallation: 
+./configure 
+make
+sudo make install
+
 Basic Installation
 ==================
 
