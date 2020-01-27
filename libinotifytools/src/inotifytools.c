@@ -374,8 +374,9 @@ void empty_stats(const void *nodep,
  * @internal
  */
 struct replace_filename_data {
-	char *old_name, *new_name;
-	size_t old_len;
+    char const *old_name;
+    char const *new_name;
+    size_t old_len;
 };
 
 /**
@@ -870,7 +871,7 @@ void inotifytools_replace_filename( char const * oldname,
 	data.old_name = oldname;
 	data.new_name = newname;
 	data.old_len = strlen(oldname);
-	rbwalk(tree_filename, replace_filename, (void*)&data);
+        rbwalk(tree_filename, (void *)replace_filename, (void *)&data);
 }
 
 /**
