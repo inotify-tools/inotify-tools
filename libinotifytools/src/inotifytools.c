@@ -381,12 +381,10 @@ struct replace_filename_data {
 /**
  * @internal
  */
-void replace_filename(const void *nodep,
-                      const VISIT which,
-                      const int depth, void *arg) {
+void replace_filename(const void *nodep, const VISIT which, const int depth,
+                      const struct replace_filename_data *data) {
     if (which != endorder && which != leaf) return;
 	watch *w = (watch*)nodep;
-	const struct replace_filename_data *data = arg;
 	char *name;
 	if ( 0 == strncmp( data->old_name, w->filename, data->old_len ) ) {
 		nasprintf( &name, "%s%s", data->new_name, &(w->filename[data->old_len]) );
