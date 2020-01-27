@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: C CI
 
 on: [push]
 
@@ -9,9 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-    - name: autogen.sh
-      run: ./autogen.sh
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
+    - name: gcc build
+      run: git clean -fdx && export CC=gcc && ./autogen.sh && ./configure && make
+    - name: clang build
+      run: git clean -fdx && export CC=clang && ./autogen.sh && ./configure && make
+
