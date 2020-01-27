@@ -3,10 +3,21 @@ name: C CI
 on: [push]
 
 jobs:
-  build:
+  build-1604:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     
+    steps:
+    - uses: actions/checkout@v1
+    - name: gcc build
+      run: git clean -fdx && export CC=gcc && ./autogen.sh && ./configure && make
+    - name: clang build
+      run: git clean -fdx && export CC=clang && ./autogen.sh && ./configure && make
+
+  build-1804:
+
+    runs-on: ubuntu-18.04
+
     steps:
     - uses: actions/checkout@v1
     - name: gcc build
