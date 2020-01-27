@@ -65,7 +65,7 @@ AC_C_INLINE
 AC_CHECK_FUNCS([daemon])
 
 # Set variables used in man page templates
-MAN_DATE=$(date +'%B %d, %Y')
+MAN_DATE=$(date -u -r ChangeLog +'%B %d, %Y')
 MAN_PACKAGE_VERSION=$PACKAGE_VERSION
 AC_SUBST([MAN_DATE])
 AC_SUBST([MAN_PACKAGE_VERSION])
