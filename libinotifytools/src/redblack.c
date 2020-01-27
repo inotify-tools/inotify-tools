@@ -361,7 +361,7 @@ RB_ENTRY(_traverse)(int insert, const RB_ENTRY(data_t) *key, struct RB_ENTRY(tre
 	x=z;
 
 	/* While we are not at the top and our parent node is red
-	** N.B. Since the root node is garanteed black, then we
+	** N.B. Since the root node is guaranteed black, then we
 	** are also going to stop if we are the child of the root
 	*/
 
