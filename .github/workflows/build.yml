@@ -9,18 +9,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-    - name: gcc build
-      run: git clean -fdx && export CC=gcc && ./autogen.sh && ./configure && make -j2
-    - name: unit test
-      run: cd ./libinotifytools/src/ && make -j2 test && ./test
-    - name: integration test
-      run: cd t && make -j2
-    - name: clang build
-      run: git clean -fdx && export CC=clang && ./autogen.sh && ./configure && make -j2
-    - name: unit test
-      run: cd ./libinotifytools/src/ && make -j2 test && ./test
-    - name: integration test
-      run: cd t && make -j2
+    - name: build_and_test
+      run: ./build_and_test.sh
 
   build-1804:
 
@@ -28,16 +18,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: gcc build
-      run: git clean -fdx && export CC=gcc && ./autogen.sh && ./configure && make -j2
-    - name: unit test
-      run: cd ./libinotifytools/src/ && make -j2 test && ./test
-    - name: integration test
-      run: cd t && make -j2
-    - name: clang build
-      run: git clean -fdx && export CC=clang && ./autogen.sh && ./configure && make -j2
-    - name: unit test
-      run: cd ./libinotifytools/src/ && make -j2 test && ./test
-    - name: integration test
-      run: cd t && make -j2
+    - name: build_and_test
+      run: ./build_and_test.sh
 
