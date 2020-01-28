@@ -265,7 +265,7 @@ It is assumed the inotify event queue will never overflow.
 inotifywatch is written by Rohan McGovern <rohan@mcgovern.id.au>.
 
 inotifywatch is part of inotify-tools.  The inotify-tools website is located at:
-.I http://inotify-tools.sourceforge.net/
+.I https://github.com/inotify-tools/inotify-tools/wiki
 
 .SH "SEE ALSO"
 inotifywait(1), inotify(7)

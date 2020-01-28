@@ -344,7 +344,7 @@ It is assumed the inotify event queue will never overflow.
 inotifywait is written and maintained by Rohan McGovern <rohan@mcgovern.id.au>.
 
 inotifywait is part of inotify-tools.  The inotify-tools website is located at:
-.I http://inotify-tools.sourceforge.net/
+.I https://github.com/inotify-tools/inotify-tools/wiki
 
 .SH "SEE ALSO"
 inotifywatch(1), strftime(3), inotify(7)
