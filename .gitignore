@@ -35,4 +35,5 @@ libtool
 man/inotifywait.1
 man/inotifywatch.1
 stamp-h1
+README
 

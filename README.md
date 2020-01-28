@@ -1,4 +1,4 @@
-![](https://github.com/rvoicilas/inotify-tools/workflows/.github/workflows/ccpp.yml/badge.svg)
+![](https://github.com/inotify-tools/inotify-tools/workflows/build/badge.svg)
 
 inotify-tools
 =============
@@ -7,3 +7,4 @@ This is a package of some commandline utilities relating to inotify.
 
 The general purpose of this package is to allow inotify's features to be used
 from within shell scripts.  Read the man pages for further details.
+
