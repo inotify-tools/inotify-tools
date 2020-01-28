@@ -1,5 +1,3 @@
-static char rcsid[]="$Id: redblack.c,v 1.9 2003/10/24 01:31:21 damo Exp $";
-
 /*
    Redblack balanced tree algorithm
    Copyright (C) Damian Ivereigh 2000
@@ -442,7 +440,7 @@ static struct RB_ENTRY(node) *
 RB_ENTRY(_lookup)(int mode, const RB_ENTRY(data_t) *key, struct RB_ENTRY(tree) *rbinfo)
 {
 	struct RB_ENTRY(node) *x,*y;
-	int cmp;
+	int cmp=0;
 	int found=0;
 
 	y=RBNULL; /* points to the parent of x */
