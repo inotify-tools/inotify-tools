@@ -29,7 +29,7 @@ struct inotify_event {
 	uint32_t		mask;		/* watch mask */
 	uint32_t		cookie;		/* cookie to synchronize two events */
 	uint32_t		len;		/* length (including nulls) of name */
-	char		name __flexarr;	/* stub for possible name */
+	char		name[];	/* stub for possible name */
 };
 
 /* the following are legal, implemented events that user-space can watch for */
