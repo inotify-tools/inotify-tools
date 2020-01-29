@@ -500,8 +500,14 @@ int inotifytools_str_to_event_sep(char const * event, char sep) {
 			len = strlen(event1);
 		}
 		if ( len > 4095 ) len = 4095;
-		strncpy( eventstr, event1, len );
-		eventstr[len] = 0;
+
+                if (event2) {
+                    strncpy(eventstr, event1, len);
+                } else {
+                    strcpy(eventstr, event1);
+                }
+
+                eventstr[len] = 0;
 
 		ret1 = onestr_to_event( eventstr );
 		if ( 0 == ret1 || -1 == ret1 ) {

@@ -245,9 +245,9 @@ void tst_inotifytools_snprintf() {
     inotifytools_set_printf_timefmt("%D%% %H:%M");
     {
         char expected[1024];
-        char timestr[1024];
+        char timestr[512];
         time_t now = time(0);
-        strftime(timestr, 1024, "%D%% %H:%M", localtime(&now));
+        strftime(timestr, 512, "%D%% %H:%M", localtime(&now));
         snprintf(expected, 1024, "Event ACCESS ACCESS on %s/  %s", TEST_DIR,
                  timestr);
         inotifytools_snprintf(buf, 1024, test_event,
