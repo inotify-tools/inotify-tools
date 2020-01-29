@@ -341,7 +341,8 @@ after that directory is created.  This is probably not fixable.
 It is assumed the inotify event queue will never overflow.
 
 .SH AUTHORS
-inotifywait is written and maintained by Rohan McGovern <rohan@mcgovern.id.au>.
+inotifywait was started by Rohan McGovern, and is currently maintained by Eric Curtin and Radu Voicilas.
+https://www.openhub.net/p/inotify-tools/contributors/summary gives you a more complete list of contributors.
 
 inotifywait is part of inotify-tools.  The inotify-tools website is located at:
 .I https://github.com/inotify-tools/inotify-tools/wiki
