@@ -1,6 +1,11 @@
 #ifndef _inotifytools_H
 #define _inotifytools_H
 
+#ifdef __FreeBSD__
+#define stat64 stat
+#define lstat64 lstat
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {

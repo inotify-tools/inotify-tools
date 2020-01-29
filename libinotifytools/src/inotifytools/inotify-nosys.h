@@ -13,7 +13,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#ifndef stat64
+#ifdef __FreeBSD__
 #define stat64 stat
 #define lstat64 lstat
 #endif
