@@ -13,6 +13,11 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#ifndef stat64
+#define stat64 stat
+#define lstat64 lstat
+#endif
+
 /*
  * struct inotify_event - structure read from the inotify device for each event
  *
