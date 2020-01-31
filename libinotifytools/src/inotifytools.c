@@ -484,8 +484,9 @@ int inotifytools_str_to_event_sep(char const * event, char sep) {
 
 	int ret, ret1, len;
 	char * event1, * event2;
-	char eventstr[4096];
-	ret = 0;
+        static const size_t eventstr_size = 4096;
+        char eventstr[eventstr_size];
+        ret = 0;
 
 	if ( !event || !event[0] ) return 0;
 
@@ -494,14 +495,16 @@ int inotifytools_str_to_event_sep(char const * event, char sep) {
 	while ( event1 && event1[0] ) {
 		if ( event2 ) {
 			len = event2 - event1;
-			niceassert( len < 4096, "malformed event string (very long)" );
-		}
+                        niceassert(len < eventstr_size,
+                                   "malformed event string (very long)");
+                }
 		else {
 			len = strlen(event1);
 		}
-		if ( len > 4095 ) len = 4095;
+                if (len > eventstr_size - 1)
+                    len = eventstr_size - 1;
 
-                if (event2) {
+                if (event2 || len == eventstr_size - 1) {
                     strncpy(eventstr, event1, len);
                 } else {
                     strcpy(eventstr, event1);

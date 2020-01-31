@@ -37,3 +37,5 @@ man/inotifywatch.1
 stamp-h1
 README
 
+libinotifytools/src/test
+
