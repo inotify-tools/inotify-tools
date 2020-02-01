@@ -28,7 +28,8 @@ int inotifytools_watch_recursively_with_exclude( char const * path,
                                                  int events,
                                                  char const ** exclude_list );
                                                  // [UH]
-int inotifytools_ignore_events_by_regex( char const *pattern, int flags );
+int inotifytools_ignore_events_by_regex( char const *pattern,
+                                         int flags, int invert );
 struct inotify_event * inotifytools_next_event( int timeout );
 struct inotify_event * inotifytools_next_events( int timeout, int num_events );
 int inotifytools_error();

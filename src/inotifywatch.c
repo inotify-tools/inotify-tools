@@ -43,7 +43,9 @@ bool parse_opts(
   int * recursive,
   char ** fromfile,
   char ** regex,
-  char ** iregex
+  char ** iregex,
+  char ** include_regex,
+  char ** include_iregex
 );
 
 void print_help();
@@ -91,21 +93,37 @@ int main(int argc, char ** argv)
 	done = false;
 	char * regex = NULL;
 	char * iregex = NULL;
+	char * include_regex = NULL;
+	char * include_iregex = NULL;
+    bool invert_regex = false;
 
 	signal( SIGINT, handle_impatient_user );
 
 	// Parse commandline options, aborting if something goes wrong
-	if ( !parse_opts( &argc, &argv, &events, &timeout, &verbose, &zero, &sort,
-	                 &recursive, &fromfile, &regex, &iregex ) ) {
+	if ( !parse_opts( &argc, &argv, &events, &timeout,
+                      &verbose, &zero, &sort, &recursive, &fromfile,
+                      &regex, &iregex, &include_regex, &include_iregex ) ) {
 		return EXIT_FAILURE;
 	}
 
+    if (include_regex) {
+        regex = include_regex;
+        invert_regex = true;
+    }
+    
+    if (include_iregex) {
+        iregex = include_iregex;
+        invert_regex = true;
+    }
 	if (
-		(regex && !inotifytools_ignore_events_by_regex(regex, REG_EXTENDED) ) ||
-		(iregex && !inotifytools_ignore_events_by_regex(iregex, REG_EXTENDED|
-		                                                        REG_ICASE))
+		(regex && !inotifytools_ignore_events_by_regex(regex,
+                                                       REG_EXTENDED,
+                                                       invert_regex) ) ||
+		(iregex && !inotifytools_ignore_events_by_regex(iregex,
+                                                        REG_EXTENDED|REG_ICASE,
+                                                        invert_regex))
 	) {
-		fprintf(stderr, "Error in `exclude' regular expression.\n");
+		fprintf(stderr, "Error in `exclude' or `include' regular expression.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -390,7 +408,9 @@ bool parse_opts(
   int * recursive,
   char ** fromfile,
   char ** regex,
-  char ** iregex
+  char ** iregex,
+  char ** include_regex,
+  char ** include_iregex
 ) {
 	assert( argc ); assert( argv ); assert( events ); assert( timeout );
 	assert( verbose ); assert( zero ); assert( sort ); assert( recursive );
@@ -417,6 +437,8 @@ bool parse_opts(
 		{"fromfile",    required_argument, NULL, 'o'},
 		{"exclude",     required_argument, NULL, 'c'},
 		{"excludei",    required_argument, NULL, 'b'},
+		{"include",     required_argument, NULL, 'j'},
+		{"includei",    required_argument, NULL, 'k'},
 		{NULL, 0, 0, 0},
 	};
 
@@ -458,6 +480,16 @@ bool parse_opts(
 			// --excludei
 			case 'b':
 				(*iregex) = optarg;
+				break;
+
+			// --include
+			case 'j':
+				(*include_regex) = optarg;
+				break;
+
+			// --includei
+			case 'k':
+				(*include_iregex) = optarg;
 				break;
 
 			// --fromfile
@@ -579,6 +611,15 @@ bool parse_opts(
 		return false;
 	}
 
+	if ( *include_regex && *include_iregex ) {
+		fprintf(stderr, "--include and --includei cannot both be specified.\n");
+		return false;
+	}
+
+	if ( ( *include_regex || *include_iregex ) && ( *regex || *iregex ) ) {
+		fprintf(stderr, "Cannot use include and exclude options simultaneously.\n");
+		return false;
+	}
 	// If ? returned, invalid option
 	return (curr_opt != '?');
 }
@@ -601,6 +642,11 @@ void print_help()
 	       "\t\texpression <pattern>.\n");
 	printf("\t--excludei <pattern>\n"
 	       "\t\tLike --exclude but case insensitive.\n");
+	printf("\t--include <pattern>\n"
+	       "\t\tInclude all events only those files matching the extended\n"
+	       "\t\tregular expression <pattern>.\n");
+	printf("\t--includei <pattern>\n"
+	       "\t\tLike --include but case insensitive.\n");
 	printf("\t-z|--zero\n"
 	       "\t\tIn the final table of results, output rows and columns even\n"
 	       "\t\tif they consist only of zeros (the default is to not output\n"
