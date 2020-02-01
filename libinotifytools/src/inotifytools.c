@@ -2080,7 +2080,7 @@ int event_compare(const void *p1, const void *p2, const void *config)
 {
 	if (!p1 || !p2) return p1 - p2;
 	char asc = 1;
-	int sort_event = *(int*)config;
+	long sort_event = (long)config;
 	if (sort_event == -1) {
 		sort_event = 0;
 		asc = 0;
