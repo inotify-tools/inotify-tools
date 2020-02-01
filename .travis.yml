@@ -1,0 +1,11 @@
+language: c
+sudo: required
+matrix:
+    include:
+        - os: linux
+          arch: arm64
+          compiler: gcc
+          dist: xenial
+script:
+ - ./build_and_test.sh
+

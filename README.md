@@ -1,4 +1,5 @@
-![](https://github.com/inotify-tools/inotify-tools/workflows/build/badge.svg)
+![GitHub Build Status](https://github.com/inotify-tools/inotify-tools/workflows/build/badge.svg)
+[![Travis Build Status](https://travis-ci.org/inotify-tools/inotify-tools.svg?branch=master)](https://travis-ci.org/inotify-tools/inotify-tools)
 
 inotify-tools
 =============
