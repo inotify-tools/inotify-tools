@@ -62,11 +62,12 @@ FileList construct_path_list(int argc, char **argv, char const *filename) {
     list.exclude_files = 0;
     FILE *file = 0;
 
-    if (!filename) {
-    } else if (!strcmp(filename, "-")) {
-        file = stdin;
-    } else {
-        file = fopen(filename, "r");
+    if (filename) {
+        if (!strcmp(filename, "-")) {
+            file = stdin;
+        } else {
+            file = fopen(filename, "r");
+        }
     }
 
     int watch_len = LIST_CHUNK;
@@ -136,8 +137,8 @@ void warn_inotify_init_error() {
     }
 }
 
-bool is_timeout_option_valid(long int *timeout, char *optarg) {
-    if ((optarg == NULL) || (*optarg == '\0')) {
+bool is_timeout_option_valid(long int *timeout, char *o) {
+    if ((o == NULL) || (*o == '\0')) {
         fprintf(stderr, "The provided value is not a valid timeout value.\n"
                         "Please specify a long int value.\n");
         return false;
@@ -145,7 +146,7 @@ bool is_timeout_option_valid(long int *timeout, char *optarg) {
 
     char *timeout_end = NULL;
     errno = 0;
-    *timeout = strtol(optarg, &timeout_end, 10);
+    *timeout = strtol(o, &timeout_end, 10);
 
     const int err = errno;
     if (err != 0) {
@@ -172,7 +173,7 @@ bool is_timeout_option_valid(long int *timeout, char *optarg) {
     if (*timeout_end != '\0') {
         fprintf(stderr, "'%s' is not a valid timeout value.\n"
                         "Please specify a long int value.\n",
-                optarg);
+                o);
         return false;
     }
 

@@ -1,4 +1,3 @@
-// FIXME this is cheating!  Make this use only the public API.
 #include "../config.h"
 #include "../libinotifytools/src/inotifytools_p.h"
 #include "common.h"
@@ -362,17 +361,17 @@ int print_info() {
     return EXIT_SUCCESS;
 }
 
-bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
-                int *verbose, int *zero, int *sort, int *recursive,
+bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
+                int *verbose, int *z, int *s, int *recursive,
                 char **fromfile, char **exc_regex, char **exc_iregex,
                 char **inc_regex, char **inc_iregex) {
     assert(argc);
     assert(argv);
-    assert(events);
+    assert(e);
     assert(timeout);
     assert(verbose);
-    assert(zero);
-    assert(sort);
+    assert(z);
+    assert(s);
     assert(recursive);
     assert(fromfile);
     assert(exc_regex);
@@ -430,7 +429,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
 
         // --zero or -z
         case 'z':
-            ++(*zero);
+            ++(*z);
             break;
 
         // --exclude
@@ -484,7 +483,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
             }
 
             // Add the new event to the event mask
-            (*events) = ((*events) | new_event);
+            (*e) = ((*e) | new_event);
 
             break;
 
@@ -495,7 +494,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
                 return false;
             }
             if (0 == strcasecmp(optarg, "total")) {
-                (*sort) = 0;
+                (*s) = 0;
             } else if (0 == strcasecmp(optarg, "move")) {
                 fprintf(stderr, "Cannot sort by `move' event; please use "
                                 "`moved_from' or `moved_to'.\n");
@@ -515,7 +514,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
                     return false;
                 }
 
-                (*sort) = event;
+                (*s) = event;
             }
             sort_set = true;
             break;
@@ -527,7 +526,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
                 return false;
             }
             if (0 == strcasecmp(optarg, "total")) {
-                (*sort) = -1;
+                (*s) = -1;
             } else {
                 int event = inotifytools_str_to_event(optarg);
 
@@ -539,7 +538,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
                     return false;
                 }
 
-                (*sort) = -event;
+                (*s) = -event;
             }
             break;
         }
@@ -550,8 +549,8 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
     (*argc) -= optind;
     *argv = &(*argv)[optind];
 
-    if ((*sort) != 0 && (*sort) != -1 &&
-        !(abs(*sort) & ((*events) ? (*events) : IN_ALL_EVENTS))) {
+    if ((*s) != 0 && (*s) != -1 &&
+        !(abs(*s) & ((*e) ? (*e) : IN_ALL_EVENTS))) {
         fprintf(stderr, "Can't sort by an event which isn't being watched "
                         "for!\n");
         return false;

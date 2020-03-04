@@ -292,7 +292,6 @@ RB_ENTRY(_traverse)(int insert, const RB_ENTRY(data_t) *key, struct RB_ENTRY(tre
 	struct RB_ENTRY(node) *x,*y,*z;
 	int cmp;
 	int found=0;
-	int cmpmods();
 
 	y=RBNULL; /* points to the parent of x */
 	x=rbinfo->rb_root;

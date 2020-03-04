@@ -14,7 +14,7 @@ EXTRA_DIST = example.c Doxyfile
 
 nobase_include_HEADERS = inotifytools/inotifytools.h inotifytools/inotify-nosys.h inotifytools/inotify.h
 
-AM_CFLAGS = -std=c99 -Wall -Werror
+AM_CFLAGS = -std=c99 -Wall -Wshadow -Werror
 
 if DOXYGEN_ENABLE
 

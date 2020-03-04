@@ -27,6 +27,7 @@
  
 /* Stop multiple includes */
 #ifndef _REDBLACK_H
+#define _REDBLACK_H
 
 #ifndef RB_CUSTOMIZE
 /*
@@ -132,7 +133,6 @@ RB_STATIC void RB_ENTRY(closelist)(RBLIST *);
 #define rbmin(rbinfo) RB_ENTRY(lookup)(RB_LUFIRST, NULL, (rbinfo))
 #define rbmax(rbinfo) RB_ENTRY(lookup)(RB_LULAST, NULL, (rbinfo))
 
-#define _REDBLACK_H
 #endif /* _REDBLACK_H */
 
 /*
