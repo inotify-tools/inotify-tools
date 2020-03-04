@@ -2,8 +2,7 @@ task:
   name: FreeBSD
   freebsd_instance:
     matrix:
-      # There isn't a stable 13.0 image yet (2019-12)
-      image_family: freebsd-13-0-snap
+      image_family: freebsd-11-3-snap
       image_family: freebsd-12-1
 
   pkginstall_script:
