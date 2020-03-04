@@ -17,8 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/ .
 
-SHELL_PATH ?= $(SHELL)
-SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
+SHELL_PATH ?= /bin/bash
 RM ?= rm -f
 PROVE ?= prove
 AGGREGATE_SCRIPT ?= aggregate-results.sh
@@ -32,11 +31,11 @@ test: pre-clean
 	$(MAKE) aggregate-results-and-cleanup
 
 prove: pre-clean
-	@echo "*** prove ***"; $(PROVE) --exec '$(SHELL_PATH_SQ)' $(PROVE_OPTS) $(T) :: $(TEST_OPTS)
+	@echo "*** prove ***"; $(PROVE) --exec '$(SHELL_PATH)' $(PROVE_OPTS) $(T) :: $(TEST_OPTS)
 	$(MAKE) clean-except-prove-cache
 
 $(T):
-	@echo "*** $@ ***"; '$(SHELL_PATH_SQ)' $@ $(TEST_OPTS)
+	@echo "*** $@ ***"; '$(SHELL_PATH)' $@ $(TEST_OPTS)
 
 pre-clean:
 	$(RM) -r test-results
@@ -54,7 +53,7 @@ aggregate-results-and-cleanup: $(T)
 aggregate-results:
 	for f in test-results/*.counts; do \
 		echo "$$f"; \
-	done | '$(SHELL_PATH_SQ)' '$(AGGREGATE_SCRIPT)'
+	done | '$(SHELL_PATH)' '$(AGGREGATE_SCRIPT)'
 
 .PHONY: all test prove $(T) pre-clean clean
 .PHONY: aggregate-results-and-cleanup aggregate-results

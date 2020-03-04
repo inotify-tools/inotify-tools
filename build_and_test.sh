@@ -11,11 +11,15 @@ export CC=gcc
 ./configure
 make -j$j
 
-printf "\nunit test\n"
-cd libinotifytools/src/
-make -j$j test
-./test
-cd -
+os=$(uname -o)
+
+if [ "$os" != "FreeBSD" ]; then
+  printf "\nunit test\n"
+  cd libinotifytools/src/
+  make -j$j test
+  ./test
+  cd -
+fi
 
 printf "\nintegration test\n"
 cd t
@@ -29,11 +33,13 @@ export CC=clang
 ./configure
 make -j$j
 
-printf "\nunit test\n"
-cd libinotifytools/src/
-make -j$j test
-./test
-cd -
+if [ "$os" != "FreeBSD" ]; then
+  printf "\nunit test\n"
+  cd libinotifytools/src/
+  make -j$j test
+  ./test
+  cd -
+fi
 
 printf "\nintegration test\n"
 cd t
