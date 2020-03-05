@@ -1840,10 +1840,9 @@ int inotifytools_snprintf( char * out, int size,
 	static unsigned int i, ind;
 	static char ch1;
 	static char timestr[MAX_STRLEN];
-	static time_t now;
+        static time_t now;
 
-
-	if ( event->len > 0 ) {
+        if ( event->len > 0 ) {
 		eventname = event->name;
 	}
 	else {
@@ -1913,14 +1912,14 @@ int inotifytools_snprintf( char * out, int size,
 		if ( ch1 == 'T' ) {
 
 			if ( timefmt ) {
-
 				now = time(0);
-				if ( 0 >= strftime( timestr, MAX_STRLEN-1, timefmt,
-				                    localtime( &now ) ) ) {
-
-					// time format probably invalid
-					error = EINVAL;
-					return ind;
+                                struct tm now_tm;
+                                if (0 >= strftime(timestr, MAX_STRLEN - 1,
+                                                  timefmt,
+                                                  localtime_r(&now, &now_tm))) {
+                                    // time format probably invalid
+                                    error = EINVAL;
+                                    return ind;
 				}
 			}
 			else {
