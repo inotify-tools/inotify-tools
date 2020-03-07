@@ -34,9 +34,10 @@ extern int optind, opterr, optopt;
 // METHODS
 bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 long int *timeout, int *recursive, bool *csv, bool *daemon,
-                bool *syslog, char **format, char **timefmt, char **fromfile,
-                char **outfile, char **exc_regex, char **exc_iregex,
-                char **inc_regex, char **inc_iregex);
+                bool *syslog, bool *no_dereference, char **format,
+                char **timefmt, char **fromfile, char **outfile,
+                char **exc_regex, char **exc_iregex, char **inc_regex,
+                char **inc_iregex);
 
 void print_help();
 
@@ -136,6 +137,7 @@ int main(int argc, char **argv) {
     bool csv = false;
     bool dodaemon = false;
     bool syslog = false;
+    bool no_dereference = false;
     char *format = NULL;
     char *timefmt = NULL;
     char *fromfile = NULL;
@@ -148,9 +150,9 @@ int main(int argc, char **argv) {
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
-                    &recursive, &csv, &dodaemon, &syslog, &format, &timefmt,
-                    &fromfile, &outfile, &exc_regex, &exc_iregex, &inc_regex,
-                    &inc_iregex)) {
+                    &recursive, &csv, &dodaemon, &syslog, &no_dereference,
+                    &format, &timefmt, &fromfile, &outfile, &exc_regex,
+                    &exc_iregex, &inc_regex, &inc_iregex)) {
         return EXIT_FAILURE;
     }
 
@@ -189,6 +191,9 @@ int main(int argc, char **argv) {
     orig_events = events;
     if (monitor && recursive) {
         events = events | IN_CREATE | IN_MOVED_TO | IN_MOVED_FROM;
+    }
+    if (no_dereference) {
+        events = events | IN_DONT_FOLLOW;
     }
 
     FileList list = construct_path_list(argc, argv, fromfile);
@@ -412,9 +417,10 @@ int main(int argc, char **argv) {
 
 bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 long int *timeout, int *recursive, bool *csv, bool *daemon,
-                bool *syslog, char **format, char **timefmt, char **fromfile,
-                char **outfile, char **exc_regex, char **exc_iregex,
-                char **inc_regex, char **inc_iregex) {
+                bool *syslog, bool *no_dereference, char **format,
+                char **timefmt, char **fromfile, char **outfile,
+                char **exc_regex, char **exc_iregex, char **inc_regex,
+                char **inc_iregex) {
     assert(argc);
     assert(argv);
     assert(events);
@@ -424,6 +430,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     assert(csv);
     assert(daemon);
     assert(syslog);
+    assert(no_dereference);
     assert(format);
     assert(timefmt);
     assert(fromfile);
@@ -449,7 +456,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     static char *newlineformat;
 
     // Short options
-    static const char opt_string[] = "mrhcdsqt:fo:e:";
+    static const char opt_string[] = "mrhcdsPqt:fo:e:";
 
     // Long options
     static const struct option long_opts[] = {
@@ -463,6 +470,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         {"csv", no_argument, NULL, 'c'},
         {"daemon", no_argument, NULL, 'd'},
         {"syslog", no_argument, NULL, 's'},
+        {"no-dereference", no_argument, NULL, 'P'},
         {"format", required_argument, NULL, 'n'},
         {"timefmt", required_argument, NULL, 'i'},
         {"fromfile", required_argument, NULL, 'z'},
@@ -517,6 +525,11 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         // --syslog or -s
         case 's':
             (*syslog) = true;
+            break;
+
+        // --no-dereference or -P
+        case 'P':
+            (*no_dereference) = true;
             break;
 
         // --filename or -f
@@ -693,6 +706,8 @@ void print_help() {
         "\t-d|--daemon   \tSame as --monitor, except run in the background\n"
         "\t              \tlogging events to a file specified by --outfile.\n"
         "\t              \tImplies --syslog.\n");
+    printf("\t-P|--no-dereference\n"
+           "\t              \tDo not follow symlinks.\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
     printf("\t--fromfile <file>\n"
            "\t              \tRead files to watch from <file> or `-' for "

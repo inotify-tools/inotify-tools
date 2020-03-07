@@ -30,8 +30,8 @@ extern int optind, opterr, optopt;
 // METHODS
 bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
                 int *verbose, int *zero, int *sort, int *recursive,
-                char **fromfile, char **exc_regex, char **exc_iregex,
-                char **inc_regex, char **inc_iregex);
+                int *no_dereference, char **fromfile, char **exc_regex,
+                char **exc_iregex, char **inc_regex, char **inc_iregex);
 
 void print_help();
 
@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
     int verbose = 0;
     zero = 0;
     int recursive = 0;
+    int no_dereference = 0;
     char *fromfile = 0;
     sort = -1;
     done = false;
@@ -85,8 +86,8 @@ int main(int argc, char **argv) {
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &timeout, &verbose, &zero, &sort,
-                    &recursive, &fromfile, &exc_regex, &exc_iregex, &inc_regex,
-                    &inc_iregex)) {
+                    &recursive, &no_dereference, &fromfile, &exc_regex,
+                    &exc_iregex, &inc_regex, &inc_iregex)) {
         return EXIT_FAILURE;
     }
 
@@ -118,6 +119,8 @@ int main(int argc, char **argv) {
     // If events is still 0, make it all events.
     if (!events)
         events = IN_ALL_EVENTS;
+    if (no_dereference)
+        events = events | IN_DONT_FOLLOW;
 
     FileList list = construct_path_list(argc, argv, fromfile);
 
@@ -363,8 +366,8 @@ int print_info() {
 
 bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
                 int *verbose, int *z, int *s, int *recursive,
-                char **fromfile, char **exc_regex, char **exc_iregex,
-                char **inc_regex, char **inc_iregex) {
+                int *no_dereference, char **fromfile, char **exc_regex,
+                char **exc_iregex, char **inc_regex, char **inc_iregex) {
     assert(argc);
     assert(argv);
     assert(e);
@@ -373,6 +376,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
     assert(z);
     assert(s);
     assert(recursive);
+    assert(no_dereference);
     assert(fromfile);
     assert(exc_regex);
     assert(exc_iregex);
@@ -384,7 +388,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
     bool sort_set = false;
 
     // Short options
-    static const char opt_string[] = "hra:d:zve:t:";
+    static const char opt_string[] = "hrPa:d:zve:t:";
 
     // Construct array
     static const struct option long_opts[] = {
@@ -396,6 +400,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
         {"ascending", required_argument, NULL, 'a'},
         {"descending", required_argument, NULL, 'd'},
         {"recursive", no_argument, NULL, 'r'},
+        {"no-dereference", no_argument, NULL, 'P'},
         {"fromfile", required_argument, NULL, 'o'},
         {"exclude", required_argument, NULL, 'c'},
         {"excludei", required_argument, NULL, 'b'},
@@ -425,6 +430,9 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
         // --recursive or -r
         case 'r':
             ++(*recursive);
+            break;
+        case 'P':
+            ++(*no_dereference);
             break;
 
         // --zero or -z
@@ -602,6 +610,8 @@ void print_help() {
            "\t\tif they consist only of zeros (the default is to not output\n"
            "\t\tthese rows and columns).\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+    printf("\t-P|--no-dereference\n"
+           "\t\tDo not follow symlinks.\n");
     printf("\t-t|--timeout <seconds>\n"
            "\t\tListen only for specified amount of time in seconds; if\n"
            "\t\tomitted or negative, inotifywatch will execute until receiving "
