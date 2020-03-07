@@ -610,6 +610,8 @@ void print_help() {
            "\t\tif they consist only of zeros (the default is to not output\n"
            "\t\tthese rows and columns).\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+    printf("\t-P|--no-dereference\n"
+           "\t\tDo not follow symlinks.\n");
     printf("\t-t|--timeout <seconds>\n"
            "\t\tListen only for specified amount of time in seconds; if\n"
            "\t\tomitted or negative, inotifywatch will execute until receiving "

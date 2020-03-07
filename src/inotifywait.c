@@ -706,6 +706,8 @@ void print_help() {
         "\t-d|--daemon   \tSame as --monitor, except run in the background\n"
         "\t              \tlogging events to a file specified by --outfile.\n"
         "\t              \tImplies --syslog.\n");
+    printf("\t-P|--no-dereference\n"
+           "\t              \tDo not follow symlinks.\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
     printf("\t--fromfile <file>\n"
            "\t              \tRead files to watch from <file> or `-' for "
