@@ -5,7 +5,7 @@ inotifywatch \- gather filesystem access statistics using inotify
 
 .SH SYNOPSIS
 .B inotifywatch
-.RB [ \-hvzrqf ]
+.RB [ \-hvzrPqf ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -95,6 +95,10 @@ inotify watch will be established per subdirectory, it is possible that the
 maximum amount of inotify watches per user will be reached.  The default
 maximum is 8192; it can be increased by writing to
 .BR /proc/sys/fs/inotify/max_user_watches .
+
+.TP
+.B \-P, \-\-no\-dereference
+Do not follow symlinks.
 
 .TP
 .B \-t <seconds>, \-\-timeout <seconds>

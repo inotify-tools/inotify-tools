@@ -5,7 +5,7 @@ inotifywait \- wait for changes to files using inotify
 
 .SH SYNOPSIS
 .B inotifywait
-.RB [ \-hcmrq ]
+.RB [ \-hcmrPq ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -89,6 +89,9 @@ Output events to <file> rather than stdout.
 Output errors to
 .BR syslog(3)
 system log module rather than stderr.
+.TP
+.B \-P, \-\-no\-dereference
+Do not follow symlinks.
 .TP
 .B \-r, \-\-recursive
 Watch all subdirectories of any directories passed as arguments.  Watches
