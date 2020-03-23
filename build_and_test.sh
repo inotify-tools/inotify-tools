@@ -2,10 +2,13 @@
 
 set -e
 
-j=3
+j=10
 
 printf "gcc build\n"
-git clean -fdx 2>&1
+if [ "$1" == "clean" ]; then
+  git clean -fdx 2>&1
+fi
+
 export CC=gcc
 ./autogen.sh
 ./configure
@@ -27,7 +30,10 @@ make -j$j
 cd -
 
 printf "\nclang build\n"
-git clean -fdx 2>&1
+if [ "$1" == "clean" ]; then
+  git clean -fdx 2>&1
+fi
+
 export CC=clang
 ./autogen.sh
 ./configure
