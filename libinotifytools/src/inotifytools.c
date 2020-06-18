@@ -1901,6 +1901,12 @@ int inotifytools_snprintf( char * out, int size,
 			continue;
 		}
 
+		if ( ch1 == 'c' ) {
+			ind += snprintf( &out[ind], size-ind, "%x", event->cookie);
+			++i;
+			continue;
+		}
+
 		if ( ch1 == 'e' ) {
 			eventstr = inotifytools_event_to_str( event->mask );
 			strncpy( &out[ind], eventstr, size - ind );
