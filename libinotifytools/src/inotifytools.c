@@ -1812,6 +1812,9 @@ int inotifytools_sprintf( char * out, struct inotify_event* event, char* fmt ) {
  *  \li \c \%e - Replaced with the Event(s) which occurred, comma-separated.
  *  \li \c \%Xe - Replaced with the Event(s) which occurred, separated by
  *                whichever character is in the place of `X'.
+ *  \li \c \%c - This will be replaced with the unique identifier (cookie)
+ *               of the Watched file on which an event occurred. This allows
+ *               two events to work together potentially (moved_from->moved_to).
  *  \li \c \%T - Replaced by the current Time in the format specified by the
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
