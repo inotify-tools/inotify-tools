@@ -15,7 +15,7 @@ run_() {
     # inotifywait has been set up.
     timeout=2 &&
     touch $logfile test-file &&
-    {(sleep 1 && chown $USER test-file)&} &&
+    {(sleep 1 && chown $(id -u) test-file)&} &&
 
     export LD_LIBRARY_PATH="../../libinotifytools/src/.libs/"
     ../../src/.libs/inotifywait \
