@@ -1655,6 +1655,8 @@ int inotifytools_get_num_watches() {
  * The following tokens will be replaced with the specified string:
  *  \li \c \%w - This will be replaced with the name of the Watched file on
  *               which an event occurred.
+ *  \li \c \%c - This will be replaced with the cookie of the Watched file on
+ *               which an event occurred.
  *  \li \c \%f - When an event occurs within a directory, this will be replaced
  *               with the name of the File which caused the event to occur.
  *               Otherwise, this will be replaced with an empty string.
@@ -1699,6 +1701,8 @@ int inotifytools_printf( struct inotify_event* event, char* fmt ) {
  * @section syntax Format string syntax
  * The following tokens will be replaced with the specified string:
  *  \li \c \%w - This will be replaced with the name of the Watched file on
+ *               which an event occurred.
+ *  \li \c \%c - This will be replaced with the cookie of the Watched file on
  *               which an event occurred.
  *  \li \c \%f - When an event occurs within a directory, this will be replaced
  *               with the name of the File which caused the event to occur.
@@ -1754,6 +1758,8 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  * The following tokens will be replaced with the specified string:
  *  \li \c \%w - This will be replaced with the name of the Watched file on
  *               which an event occurred.
+ *  \li \c \%c - This will be replaced with the cookie of the Watched file on
+ *               which an event occurred.
  *  \li \c \%f - When an event occurs within a directory, this will be replaced
  *               with the name of the File which caused the event to occur.
  *               Otherwise, this will be replaced with an empty string.
@@ -1805,6 +1811,8 @@ int inotifytools_sprintf( char * out, struct inotify_event* event, char* fmt ) {
  * @section syntax Format string syntax
  * The following tokens will be replaced with the specified string:
  *  \li \c \%w - This will be replaced with the name of the Watched file on
+ *               which an event occurred.
+ *  \li \c \%c - This will be replaced with cookie of the Watched file on
  *               which an event occurred.
  *  \li \c \%f - When an event occurs within a directory, this will be replaced
  *               with the name of the File which caused the event to occur.
@@ -1897,6 +1905,12 @@ int inotifytools_snprintf( char * out, int size,
 				strncpy( &out[ind], eventname, size - ind );
 				ind += strlen(eventname);
 			}
+			++i;
+			continue;
+		}
+
+		if ( ch1 == 'c' ) {
+			ind += snprintf( &out[ind], size-ind, "%x", event->cookie);
 			++i;
 			continue;
 		}
