@@ -121,7 +121,6 @@
  */
 
 #define MAX_EVENTS 4096
-#define MAX_STRLEN 4096
 #define INOTIFY_PROCDIR "/proc/sys/fs/inotify/"
 #define WATCHES_SIZE_PATH INOTIFY_PROCDIR "max_user_watches"
 #define QUEUE_SIZE_PATH   INOTIFY_PROCDIR "max_queued_watches"
@@ -1119,12 +1118,15 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	static int first_byte = 0;
 	static ssize_t bytes;
 	static jmp_buf jmp;
-	static char match_name[MAX_STRLEN];
+	static struct nstring match_name;
+	static char match_name_string[MAX_STRLEN+1];
 
 #define RETURN(A) {\
 	if (regex) {\
-		inotifytools_snprintf(match_name, MAX_STRLEN, A, "%w%f");\
-		if (0 == regexec(regex, match_name, 0, 0, 0)) {\
+		inotifytools_snprintf(&match_name, MAX_STRLEN, A, "%w%f");\
+		memcpy(&match_name_string, &match_name.buf, match_name.len);\
+		match_name_string[match_name.len] = '\0';\
+		if (0 == regexec(regex, match_name_string, 0, 0, 0)) {\
 			if (!invert_regexp)\
 				longjmp(jmp,0);\
 		} else {\
@@ -1730,10 +1732,10 @@ int inotifytools_printf( struct inotify_event* event, char* fmt ) {
  * @endcode
  */
 int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
-	static char out[MAX_STRLEN+1];
+	static struct nstring out;
 	static int ret;
-	ret = inotifytools_sprintf( out, event, fmt );
-	if ( -1 != ret ) fprintf( file, "%s", out );
+	ret = inotifytools_sprintf( &out, event, fmt );
+	if ( -1 != ret ) fwrite( out.buf, sizeof(char), out.len, file );
 	return ret;
 }
 
@@ -1746,11 +1748,11 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  * may crash.
  * inotifytools_snprintf() is safer and you should use it where possible.
  *
- * @param out location in which to store string.
+ * @param out location in which to store nstring.
  *
- * @param event the event to use to construct a string.
+ * @param event the event to use to construct a nstring.
  *
- * @param fmt the format string used to construct a string.
+ * @param fmt the format string used to construct a nstring.
  *
  * @return number of characters written, or -1 if an error occurs.
  *
@@ -1779,17 +1781,15 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  * // wait until an event occurs
  * struct inotify_event * event = inotifytools_next_event( -1 );
  *
- * char mystring[1024];
- * // hope this doesn't crash - if filename is really long, might not fit into
- * // mystring!
- * inotifytools_sprintf(mystring, event, "in %w, file %f had event(s): %.e\n");
- * printf( mystring );
+ * nstring mynstring;
+ * inotifytools_sprintf(mynstring, event, "in %w, file %f had event(s): %.e\n");
+ * fwrite( mynstring.buf, sizeof(char), mynstring.len, stdout );
  * // suppose the file 'myfile' in mydir was written to and closed.  Then,
  * // this prints something like:
  * // "in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n"
  * @endcode
  */
-int inotifytools_sprintf( char * out, struct inotify_event* event, char* fmt ) {
+int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, char* fmt ) {
 	return inotifytools_snprintf( out, MAX_STRLEN, event, fmt );
 }
 
@@ -1798,13 +1798,13 @@ int inotifytools_sprintf( char * out, struct inotify_event* event, char* fmt ) {
  * Construct a string using an inotify_event and a printf-like syntax.
  * The string can only ever be up to 4096 characters in length.
  *
- * @param out location in which to store string.
+ * @param out location in which to store nstring.
  *
  * @param size maximum amount of characters to write.
  *
- * @param event the event to use to construct a string.
+ * @param event the event to use to construct a nstring.
  *
- * @param fmt the format string used to construct a string.
+ * @param fmt the format string used to construct a nstring.
  *
  * @return number of characters written, or -1 if an error occurs.
  *
@@ -1833,16 +1833,16 @@ int inotifytools_sprintf( char * out, struct inotify_event* event, char* fmt ) {
  * // wait until an event occurs
  * struct inotify_event * event = inotifytools_next_event( -1 );
  *
- * char mystring[1024];
- * inotifytools_snprintf( mystring, 1024, event,
+ * struct nstring mynstring;
+ * inotifytools_snprintf( mynstring, MAX_STRLEN, event,
  *                        "in %w, file %f had event(s): %.e\n" );
- * printf( mystring );
+ * fwrite( mynstring.buf, sizeof(char), mynstring.len, stdout );
  * // suppose the file 'myfile' in mydir was written to and closed.  Then,
  * // this prints something like:
  * // "in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n"
  * @endcode
  */
-int inotifytools_snprintf( char * out, int size,
+int inotifytools_snprintf( struct nstring * out, int size,
                            struct inotify_event* event, char* fmt ) {
 	static char * filename, * eventname, * eventstr;
 	static unsigned int i, ind;
@@ -1873,7 +1873,7 @@ int inotifytools_snprintf( char * out, int size,
 	for ( i = 0; i < strlen(fmt) &&
 	             (int)ind < size - 1; ++i ) {
 		if ( fmt[i] != '%' ) {
-			out[ind++] = fmt[i];
+			out->buf[ind++] = fmt[i];
 			continue;
 		}
 
@@ -1886,14 +1886,14 @@ int inotifytools_snprintf( char * out, int size,
 		ch1 = fmt[i+1];
 
 		if ( ch1 == '%' ) {
-			out[ind++] = '%';
+			out->buf[ind++] = '%';
 			++i;
 			continue;
 		}
 
 		if ( ch1 == 'w' ) {
 			if ( filename ) {
-				strncpy( &out[ind], filename, size - ind );
+				strncpy( &out->buf[ind], filename, size - ind );
 				ind += strlen(filename);
 			}
 			++i;
@@ -1902,7 +1902,7 @@ int inotifytools_snprintf( char * out, int size,
 
 		if ( ch1 == 'f' ) {
 			if ( eventname ) {
-				strncpy( &out[ind], eventname, size - ind );
+				strncpy( &out->buf[ind], eventname, size - ind );
 				ind += strlen(eventname);
 			}
 			++i;
@@ -1910,14 +1910,14 @@ int inotifytools_snprintf( char * out, int size,
 		}
 
 		if ( ch1 == 'c' ) {
-			ind += snprintf( &out[ind], size-ind, "%x", event->cookie);
+			ind += snprintf( &out->buf[ind], size-ind, "%x", event->cookie);
 			++i;
 			continue;
 		}
 
 		if ( ch1 == 'e' ) {
 			eventstr = inotifytools_event_to_str( event->mask );
-			strncpy( &out[ind], eventstr, size - ind );
+			strncpy( &out->buf[ind], eventstr, size - ind );
 			ind += strlen(eventstr);
 			++i;
 			continue;
@@ -1940,7 +1940,7 @@ int inotifytools_snprintf( char * out, int size,
 				timestr[0] = 0;
 			}
 
-			strncpy( &out[ind], timestr, size - ind );
+			strncpy( &out->buf[ind], timestr, size - ind );
 			ind += strlen(timestr);
 			++i;
 			continue;
@@ -1949,18 +1949,18 @@ int inotifytools_snprintf( char * out, int size,
 		// Check if next char in fmt is e
 		if ( i < strlen(fmt) - 2 && fmt[i+2] == 'e' ) {
 			eventstr = inotifytools_event_to_str_sep( event->mask, ch1 );
-			strncpy( &out[ind], eventstr, size - ind );
+			strncpy( &out->buf[ind], eventstr, size - ind );
 			ind += strlen(eventstr);
 			i += 2;
 			continue;
 		}
 
 		// OK, this wasn't a special format character, just output it as normal
-		if ( ind < MAX_STRLEN ) out[ind++] = '%';
-		if ( ind < MAX_STRLEN ) out[ind++] = ch1;
+		if ( ind < MAX_STRLEN ) out->buf[ind++] = '%';
+		if ( ind < MAX_STRLEN ) out->buf[ind++] = ch1;
 		++i;
 	}
-	out[ind] = 0;
+	out->len = ind;
 
 	return ind - 1;
 }
