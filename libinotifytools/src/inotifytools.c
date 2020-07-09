@@ -1669,6 +1669,8 @@ int inotifytools_get_num_watches() {
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1716,6 +1718,8 @@ int inotifytools_printf( struct inotify_event* event, char* fmt ) {
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1772,6 +1776,8 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1824,6 +1830,8 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  *               string previously passed to inotifytools_set_printf_timefmt(),
  *               or replaced with an empty string if that function has never
  *               been called.
+ *  \li \c \%0 - Replaced with the 'NUL' character
+ *  \li \c \%n - Replaced with the 'Line Feed' character
  *
  * @section example Example
  * @code
@@ -1887,6 +1895,18 @@ int inotifytools_snprintf( struct nstring * out, int size,
 
 		if ( ch1 == '%' ) {
 			out->buf[ind++] = '%';
+			++i;
+			continue;
+		}
+
+		if ( ch1 == '0' ) {
+			out->buf[ind++] = '\0';
+			++i;
+			continue;
+		}
+
+		if ( ch1 == 'n' ) {
+			out->buf[ind++] = '\n';
 			++i;
 			continue;
 		}

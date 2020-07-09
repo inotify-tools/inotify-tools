@@ -179,6 +179,14 @@ in the place of `X'.
 Replaced with the current Time in the format specified by the \-\-timefmt option,
 which should be a format string suitable for passing to strftime(3).
 
+.TP
+%0
+Replaced with NUL.
+
+.TP
+%n
+Replaced with Line Feed.
+
 
 
 .SH "EXIT STATUS"
