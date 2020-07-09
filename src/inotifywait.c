@@ -37,7 +37,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex);
+                char **inc_iregex, bool *no_newline);
 
 void print_help();
 
@@ -146,13 +146,14 @@ int main(int argc, char **argv) {
     char *exc_iregex = NULL;
     char *inc_regex = NULL;
     char *inc_iregex = NULL;
+    bool no_newline = false;
     int fd;
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
                     &recursive, &csv, &dodaemon, &syslog, &no_dereference,
                     &format, &timefmt, &fromfile, &outfile, &exc_regex,
-                    &exc_iregex, &inc_regex, &inc_iregex)) {
+                    &exc_iregex, &inc_regex, &inc_iregex, &no_newline)) {
         return EXIT_FAILURE;
     }
 
@@ -420,7 +421,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex) {
+                char **inc_iregex, bool *no_newline) {
     assert(argc);
     assert(argv);
     assert(events);
@@ -452,8 +453,8 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     const char *regex_warning =
         "only the last option will be taken into consideration.\n";
 
-    // format with trailing newline
-    static char *newlineformat;
+    // format provided by the user
+    static char *customformat = NULL;
 
     // Short options
     static const char opt_string[] = "mrhcdsPqt:fo:e:";
@@ -472,6 +473,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         {"syslog", no_argument, NULL, 's'},
         {"no-dereference", no_argument, NULL, 'P'},
         {"format", required_argument, NULL, 'n'},
+        {"no-newline", no_argument, NULL, '0'},
         {"timefmt", required_argument, NULL, 'i'},
         {"fromfile", required_argument, NULL, 'z'},
         {"outfile", required_argument, NULL, 'o'},
@@ -542,10 +544,13 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
 
         // --format
         case 'n':
-            newlineformat = (char *)malloc(strlen(optarg) + 2);
-            strcpy(newlineformat, optarg);
-            strcat(newlineformat, "\n");
-            (*format) = newlineformat;
+            customformat = (char *)malloc(strlen(optarg) + 2);
+            strcpy(customformat, optarg);
+            break;
+
+        // --no-newline
+        case '0':
+            (*no_newline) = true;
             break;
 
         // --timefmt
@@ -623,6 +628,13 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
     }
 
+    if (customformat) {
+        if(!(*no_newline)) {
+            strcat(customformat, "\n");
+        }
+        (*format) = customformat;
+    }
+
     if (*exc_regex && *exc_iregex) {
         fprintf(stderr, "--exclude and --excludei cannot both be specified.\n");
         return false;
@@ -642,6 +654,11 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
 
     if (*format && *csv) {
         fprintf(stderr, "-c and --format cannot both be specified.\n");
+        return false;
+    }
+
+    if (!*format && *no_newline) {
+        fprintf(stderr, "--no-newline cannot be specified without --format.\n");
         return false;
     }
 
@@ -719,6 +736,8 @@ void print_help() {
     printf("\t-qq           \tPrint nothing (not even events).\n");
     printf("\t--format <fmt>\tPrint using a specified printf-like format\n"
            "\t              \tstring; read the man page for more details.\n");
+    printf("\t--no-newline  \tDon't print newline symbol after\n"
+           "\t              \t--format string.\n");
     printf("\t--timefmt <fmt>\tstrftime-compatible format string for use with\n"
            "\t              \t%%T in --format string.\n");
     printf("\t-c|--csv      \tPrint events in CSV format.\n");

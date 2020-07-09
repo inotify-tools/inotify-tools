@@ -150,6 +150,10 @@ Set a time format string as accepted by strftime(3) for use with the `%T' conver
 in the \-\-format option.
 
 .TP
+.B \-\-no-newline
+Don't print newline symbol after user-specified format in the \-\-format option.
+
+.TP
 .B \-\-format <fmt>
 Output in a user-specified format, using printf-like syntax.  The event strings
 output are limited to around 4000 characters and will be truncated to this length.
@@ -341,6 +345,17 @@ OPEN goodfile
 ATTRIB goodfile
 CLOSE_WRITE:CLOSE goodfile
 DELETE badfile
+.fi
+
+.SS Example 4
+Enforce file permissions in directory `~/test'
+
+.nf
+inotifywait -qmr -e 'moved_to,create' --format '%w%f%0' --no-newline ~/test |\\
+    while IFS= read -r -d '' file
+    do
+	  chmod -v a+rX "$file"
+    done
 .fi
 
 
