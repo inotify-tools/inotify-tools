@@ -199,63 +199,61 @@ void tst_inotifytools_snprintf() {
     verify(inotifytools_initialize());
     verify(inotifytools_watch_file(TEST_DIR, IN_CLOSE));
 
-#define BUFSZ 2048
 #define RESET                                                                  \
     do {                                                                       \
-        memset(buf, 0, BUFSZ);                                                 \
+        memset(out.buf, 0, MAX_STRLEN);                                            \
         memset(test_event, 0, sizeof(struct inotify_event));                   \
         test_event->wd = inotifytools_wd_from_filename(TEST_DIR "/");          \
         verify(test_event->wd >= 0);                                           \
         inotifytools_set_printf_timefmt(0);                                    \
     } while (0)
 
-    char buf[BUFSZ];
+    struct nstring out;
     char event_buf[4096];
     struct inotify_event *test_event = (struct inotify_event *)event_buf;
 
     RESET;
     test_event->mask = IN_ACCESS;
-    inotifytools_snprintf(buf, 1024, test_event, "Event %e %.e on %w %f %T");
-    verify2(!strcmp(buf, "Event ACCESS ACCESS on " TEST_DIR "/  "), buf);
+    inotifytools_snprintf(&out, MAX_STRLEN, test_event, "Event %e %.e on %w %f %T");
+    verify2(!strcmp(out.buf, "Event ACCESS ACCESS on " TEST_DIR "/  "), out.buf);
 
     RESET;
     test_event->mask = IN_ACCESS | IN_DELETE;
-    inotifytools_snprintf(buf, 1024, test_event, "Event %e %.e on %w %f %T");
+    inotifytools_snprintf(&out, MAX_STRLEN, test_event, "Event %e %.e on %w %f %T");
     verify2(
-        !strcmp(buf, "Event ACCESS,DELETE ACCESS.DELETE on " TEST_DIR "/  ") ||
-            !strcmp(buf,
+        !strcmp(out.buf, "Event ACCESS,DELETE ACCESS.DELETE on " TEST_DIR "/  ") ||
+            !strcmp(out.buf,
                     "Event DELETE,ACCESS DELETE.ACCESS on " TEST_DIR "/  "),
-        buf);
+        out.buf);
 
     RESET;
     test_event->mask = IN_MODIFY;
-    inotifytools_snprintf(buf, 10, test_event, "Event %e %.e on %w %f %T");
-    verify2(!strcmp(buf, "Event MODI"), buf);
+    inotifytools_snprintf(&out, 10, test_event, "Event %e %.e on %w %f %T");
+    verify2(!strcmp(out.buf, "Event MODI"), out.buf);
 
     RESET;
     test_event->mask = IN_ACCESS;
     strcpy(test_event->name, "my_great_file");
     test_event->len = strlen(test_event->name) + 1;
-    inotifytools_snprintf(buf, 1024, test_event, "Event %e %.e on %w %f %T");
-    verify2(!strcmp(buf, "Event ACCESS ACCESS on " TEST_DIR "/ my_great_file "),
-            buf);
+    inotifytools_snprintf(&out, MAX_STRLEN, test_event, "Event %e %.e on %w %f %T");
+    verify2(!strcmp(out.buf, "Event ACCESS ACCESS on " TEST_DIR "/ my_great_file "),
+            out.buf);
 
     RESET;
     test_event->mask = IN_ACCESS;
     inotifytools_set_printf_timefmt("%D%% %H:%M");
     {
-        char expected[1024];
+        char expected[MAX_STRLEN];
         char timestr[512];
         time_t now = time(0);
         strftime(timestr, 512, "%D%% %H:%M", localtime(&now));
-        snprintf(expected, 1024, "Event ACCESS ACCESS on %s/  %s", TEST_DIR,
+        snprintf(expected, MAX_STRLEN, "Event ACCESS ACCESS on %s/  %s", TEST_DIR,
                  timestr);
-        inotifytools_snprintf(buf, 1024, test_event,
+        inotifytools_snprintf(&out, MAX_STRLEN, test_event,
                               "Event %e %.e on %w %f %T");
-        verify2(!strcmp(buf, expected), buf);
+        verify2(!strcmp(out.buf, expected), out.buf);
     }
 
-#undef BUFSZ
     EXIT
 }
 
