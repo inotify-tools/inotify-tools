@@ -16,7 +16,7 @@ extern "C"
 #define MAX_STRLEN 4096
 
 /** @struct nstring
- *  @brief This structure holds string that can contain any charater including NULL.
+ *  @brief This structure holds string that can contain any character including NULL.
  *  @var nstring::buf
  *  Member 'buf' contains character buffer.  It can hold up to 4096 characters.
  *  @var nstring::len
