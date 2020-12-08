@@ -24,7 +24,8 @@ then install libtool, on Ubuntu:
 
  sudo apt-get install libtool
 
-Now you can proceed with basic intallation: 
+Now you can proceed with basic intallation:
+./autogen.sh
 ./configure 
 make
 sudo make install
