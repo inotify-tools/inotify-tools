@@ -37,7 +37,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex, bool *no_newline);
+                char **inc_iregex, bool *no_newline, bool *ready_event);
 
 void print_help();
 
@@ -147,13 +147,15 @@ int main(int argc, char **argv) {
     char *inc_regex = NULL;
     char *inc_iregex = NULL;
     bool no_newline = false;
+    bool ready_event = false;
     int fd;
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
                     &recursive, &csv, &dodaemon, &syslog, &no_dereference,
                     &format, &timefmt, &fromfile, &outfile, &exc_regex,
-                    &exc_iregex, &inc_regex, &inc_iregex, &no_newline)) {
+                    &exc_iregex, &inc_regex, &inc_iregex, &no_newline,
+                    &ready_event)) {
         return EXIT_FAILURE;
     }
 
@@ -326,6 +328,10 @@ int main(int argc, char **argv) {
         output_error(syslog, "Watches established.\n");
     }
 
+    if (ready_event) {
+        printf("READY\n");
+    }
+
     // Now wait till we get event
     struct inotify_event *event;
     char *moved_from = 0;
@@ -421,7 +427,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex, bool *no_newline) {
+                char **inc_iregex, bool *no_newline, bool *ready_event) {
     assert(argc);
     assert(argv);
     assert(events);
@@ -440,6 +446,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     assert(exc_iregex);
     assert(inc_regex);
     assert(inc_iregex);
+    assert(ready_event);
 
     // Settings for options
     int new_event;
@@ -481,6 +488,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         {"excludei", required_argument, NULL, 'b'},
         {"include", required_argument, NULL, 'j'},
         {"includei", required_argument, NULL, 'k'},
+        {"ready", no_argument, NULL, 'R'},
         {NULL, 0, 0, 0},
     };
 
@@ -510,6 +518,11 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         // --recursive or -r
         case 'r':
             (*recursive)++;
+            break;
+
+        // --ready or -R
+        case 'R':
+            (*ready_event) = true;
             break;
 
         // --csv or -c
@@ -729,6 +742,7 @@ void print_help() {
     printf("\t--fromfile <file>\n"
            "\t              \tRead files to watch from <file> or `-' for "
            "stdin.\n");
+    printf("\t-R|--ready\tPrint header when watches are ready.\n");
     printf("\t-o|--outfile <file>\n"
            "\t              \tPrint events to <file> rather than stdout.\n");
     printf("\t-s|--syslog   \tSend errors to syslog rather than stderr.\n");
