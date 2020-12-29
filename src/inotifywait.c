@@ -330,6 +330,7 @@ int main(int argc, char **argv) {
 
     if (ready_event) {
         printf("READY\n");
+	fflush(stdout);
     }
 
     // Now wait till we get event
