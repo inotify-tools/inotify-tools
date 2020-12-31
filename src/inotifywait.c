@@ -330,7 +330,6 @@ int main(int argc, char **argv) {
 
     if (ready_event) {
         printf("READY\n");
-	fflush(stdout);
     }
 
     // Now wait till we get event
@@ -338,6 +337,9 @@ int main(int argc, char **argv) {
     char *moved_from = 0;
 
     do {
+
+        fflush(NULL);
+
         event = inotifytools_next_event(timeout);
         if (!event) {
             if (!inotifytools_error()) {
@@ -409,8 +411,6 @@ int main(int argc, char **argv) {
                 } // moved_from
             }
         }
-
-        fflush(NULL);
 
     } while (monitor);
 
