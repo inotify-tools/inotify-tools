@@ -26,7 +26,7 @@ then install libtool, on Ubuntu:
 
 Now you can proceed with basic intallation:
 ./autogen.sh
-./configure 
+./configure --prefix=/usr
 make
 sudo make install
 
