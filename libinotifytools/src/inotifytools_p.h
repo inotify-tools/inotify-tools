@@ -3,8 +3,49 @@
 
 #include "redblack.h"
 
-struct rbtree *inotifytools_wd_sorted_by_event(int sort_event);
+/**
+ * @internal
+ * Assert that a condition evaluates to true, and optionally output a message
+ * if the assertion fails.
+ *
+ * @param  cond  Integer; if 0, assertion fails, otherwise assertion succeeds.
+ *
+ * @param  mesg  A human-readable error message shown if assertion fails.
+ *
+ * @section example Example
+ * @code
+ * int upper = 100, lower = 50;
+ * int input = get_user_input();
+ * niceassert( input <= upper && input >= lower,
+ *             "input not in required range!");
+ * @endcode
+ */
+#define niceassert(cond,mesg) _niceassert((long)cond, __LINE__, __FILE__, \
+                                          #cond, mesg)
 
+
+										  /**
+* @internal
+* Assert that a condition evaluates to true, and optionally output a message
+* if the assertion fails.
+*
+* You should use the niceassert() preprocessor macro instead.
+*
+* @param  cond  If 0, assertion fails, otherwise assertion succeeds.
+*
+* @param  line  Line number of source code where assertion is made.
+*
+* @param  file  Name of source file where assertion is made.
+*
+* @param  condstr  Stringified assertion expression.
+*
+* @param  mesg  A human-readable error message shown if assertion fails.
+*/
+void _niceassert( long cond, int line, char const * file,
+                  char const * condstr, char const * mesg );
+
+struct rbtree *inotifytools_wd_sorted_by_event(int sort_event);
+extern int init;
 typedef struct watch {
 	char *filename;
 	int wd;
@@ -23,5 +64,5 @@ typedef struct watch {
 	unsigned hit_move_self;
 	unsigned hit_total;
 } watch;
-
+extern struct rbtree *tree_wd;
 #endif

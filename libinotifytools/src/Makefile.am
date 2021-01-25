@@ -1,7 +1,7 @@
 SUBDIRS = inotifytools
 
 lib_LTLIBRARIES = libinotifytools.la
-libinotifytools_la_SOURCES = inotifytools.c inotifytools_p.h redblack.c redblack.h
+libinotifytools_la_SOURCES = inotifytools.c inotifytools_p.h redblack.c redblack.h stats.c stats.h
 libinotifytools_la_LDFLAGS = -version-info 4:1:4
 
 check_PROGRAMS = test
