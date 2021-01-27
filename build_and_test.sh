@@ -11,7 +11,7 @@ fi
 
 export CC=gcc
 ./autogen.sh
-./configure
+./configure --disable-static --enable-shared
 make -j$j
 
 os=$(uname -o)
@@ -35,6 +35,7 @@ if [ "$1" == "clean" ]; then
 fi
 
 export CC=gcc
+make distclean
 ./autogen.sh
 ./configure --enable-static --disable-shared
 make -j$j
@@ -58,8 +59,9 @@ if [ "$1" == "clean" ]; then
 fi
 
 export CC=clang
+make distclean
 ./autogen.sh
-./configure
+./configure --disable-static --enable-shared
 make -j$j
 
 if [ "$os" != "FreeBSD" ]; then
@@ -81,6 +83,7 @@ if [ "$1" == "clean" ]; then
 fi
 
 export CC=clang
+make distclean
 ./autogen.sh
 ./configure --enable-static --disable-shared
 make -j$j
