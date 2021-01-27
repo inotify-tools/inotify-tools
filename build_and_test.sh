@@ -50,6 +50,7 @@ fi
 printf "\nintegration test\n"
 cd t
 make -j$j
+cd -
 
 printf "\nclang shared build\n"
 if [ "$1" == "clean" ]; then
@@ -72,6 +73,7 @@ fi
 printf "\nintegration test\n"
 cd t
 make -j$j
+cd -
 
 printf "\nclang static build\n"
 if [ "$1" == "clean" ]; then
