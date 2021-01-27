@@ -30,12 +30,12 @@ make -j$j
 cd -
 
 printf "\ngcc static build\n"
+make distclean
 if [ "$1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
 export CC=gcc
-make distclean
 ./autogen.sh
 ./configure --enable-static --disable-shared
 make -j$j
@@ -54,12 +54,12 @@ make -j$j
 cd -
 
 printf "\nclang shared build\n"
+make distclean
 if [ "$1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
 export CC=clang
-make distclean
 ./autogen.sh
 ./configure --disable-static --enable-shared
 make -j$j
@@ -78,12 +78,12 @@ make -j$j
 cd -
 
 printf "\nclang static build\n"
+make distclean
 if [ "$1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
 export CC=clang
-make distclean
 ./autogen.sh
 ./configure --enable-static --disable-shared
 make -j$j
