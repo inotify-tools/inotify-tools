@@ -1,4 +1,5 @@
 #include "../config.h"
+#include "../libinotifytools/src/inotifytools_p.h"
 #include "common.h"
 
 #include <sys/select.h>

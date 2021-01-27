@@ -25,12 +25,6 @@ typedef struct {
 } FileList;
 FileList construct_path_list(int argc, char **argv, char const *filename);
 
-#define niceassert(cond, mesg)                                                 \
-    _niceassert((long)cond, __LINE__, __FILE__, #cond, mesg)
-
-void _niceassert(long cond, int line, char const *file, char const *condstr,
-                 char const *mesg);
-
 void warn_inotify_init_error();
 
 bool is_timeout_option_valid(long int *timeout, char *optarg);

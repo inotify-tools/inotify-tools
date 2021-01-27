@@ -114,20 +114,6 @@ FileList construct_path_list(int argc, char **argv, char const *filename) {
     return list;
 }
 
-void _niceassert(long cond, int line, char const *file, char const *condstr,
-                 char const *mesg) {
-    if (cond)
-        return;
-
-    if (mesg) {
-        fprintf(stderr, "%s:%d assertion ( %s ) failed: %s\n", file, line,
-                condstr, mesg);
-    } else {
-        fprintf(stderr, "%s:%d assertion ( %s ) failed.\n", file, line,
-                condstr);
-    }
-}
-
 void warn_inotify_init_error() {
     int error = inotifytools_error();
     fprintf(stderr, "Couldn't initialize inotify: %s\n", strerror(error));
