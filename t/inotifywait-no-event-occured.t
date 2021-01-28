@@ -5,9 +5,9 @@ test_description='No event occured for inotifywait'
 . ./sharness.sh
 
 run_() {
-    export LD_LIBRARY_PATH="../../libinotifytools/src/.libs/"
+    export LD_LIBRARY_PATH="../../libinotifytools/src/"
     touch test &&
-    ../../src/.libs/inotifywait --quiet --timeout 1 test
+    ../../src/inotifywait --quiet --timeout 1 test
 }
 
 test_expect_success 'Exit code 2 is returned' '

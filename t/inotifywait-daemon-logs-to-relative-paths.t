@@ -17,8 +17,8 @@ run_() {
     touch $logfile test-file &&
     {(sleep 1 && chmod 777 test-file)&} &&
 
-    export LD_LIBRARY_PATH="../../libinotifytools/src/.libs/"
-    ../../src/.libs/inotifywait \
+    export LD_LIBRARY_PATH="../../libinotifytools/src/"
+    ../../src/inotifywait \
         --quiet \
         --daemon \
         --outfile $logfile \

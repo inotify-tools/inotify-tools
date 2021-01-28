@@ -9,9 +9,9 @@ logfile="log"
 run_() {
   touch $logfile
 
-  export LD_LIBRARY_PATH="../../libinotifytools/src/.libs/"
+  export LD_LIBRARY_PATH="../../libinotifytools/src/"
 
-  ../../src/.libs/inotifywait \
+  ../../src/inotifywait \
     --monitor \
     --quiet \
     --outfile $logfile \

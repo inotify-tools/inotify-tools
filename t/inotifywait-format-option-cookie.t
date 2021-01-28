@@ -13,9 +13,9 @@ run_() {
   # inotifywait has been set up.
   touch $logfile
 
-  export LD_LIBRARY_PATH="../../libinotifytools/src/.libs/"
+  export LD_LIBRARY_PATH="../../libinotifytools/src/"
 
-  ../../src/.libs/inotifywait \
+  ../../src/inotifywait \
     --monitor \
     --daemon \
     --quiet \
