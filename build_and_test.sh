@@ -4,6 +4,16 @@ set -e
 
 j=10
 
+integration_test() {
+  printf "\nintegration test\n"
+  for i in {1..32}; do
+    cd t
+    make -j$j
+    cd -
+  done
+}
+
+
 printf "gcc build\n"
 if [ "$1" == "clean" ]; then
   git clean -fdx 2>&1
@@ -24,10 +34,7 @@ if [ "$os" != "FreeBSD" ]; then
   cd -
 fi
 
-printf "\nintegration test\n"
-cd t
-make -j$j
-cd -
+integration_test
 
 printf "gcc static build\n"
 make distclean
@@ -47,10 +54,7 @@ if [ "$os" != "FreeBSD" ]; then
   cd -
 fi
 
-printf "\nintegration test\n"
-cd t
-make -j$j
-cd -
+integration_test
 
 printf "\nclang build\n"
 make distclean
@@ -71,10 +75,7 @@ if [ "$os" != "FreeBSD" ]; then
   cd -
 fi
 
-printf "\nintegration test\n"
-cd t
-make -j$j
-cd -
+integration_test
 
 printf "\nclang static build\n"
 make distclean
@@ -94,7 +95,5 @@ if [ "$os" != "FreeBSD" ]; then
   cd -
 fi
 
-printf "\nintegration test\n"
-cd t
-make -j$j
+integration_test
 

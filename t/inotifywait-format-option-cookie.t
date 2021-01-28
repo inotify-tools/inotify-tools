@@ -16,6 +16,7 @@ run_() {
   export LD_LIBRARY_PATH="../../libinotifytools/src/"
 
   ../../src/inotifywait \
+    --timeout 2 \
     --monitor \
     --daemon \
     --quiet \
@@ -26,13 +27,11 @@ run_() {
     --event moved_from \
     $(realpath ./)
 
-  PID="$!"
+  sleep 1
 
   touch test-file-src
 
   mv test-file-src test-file-dst
-
-  kill ${PID}
 }
 
 test_expect_success \
