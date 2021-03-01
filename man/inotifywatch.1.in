@@ -81,6 +81,16 @@ Do not process any events whose filename matches the specified POSIX extended
 regular expression, case insensitive.
 
 .TP
+.B \-\-include <pattern>
+Require that filenames also match the case sensitive POSIX extended regular
+expression in order for events to be included.
+
+.TP
+.B \-\-includei <pattern>
+Require that filenames also match the case insensitive POSIX extended regular
+expression in order for events to be included.
+
+.TP
 .B \-r, \-\-recursive
 Watch all subdirectories of any directories passed as arguments.  Watches
 will be set up recursively to an unlimited depth.  Symbolic links are not
