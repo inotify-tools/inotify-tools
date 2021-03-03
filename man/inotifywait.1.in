@@ -117,23 +117,23 @@ of fatal errors.
 
 .TP
 .B \-\-exclude <pattern>
-Do not process any events whose filename matches the specified POSIX extended
-regular expression, case sensitive.
+Do not process any events for the subset of files whose filenames match the
+specified POSIX regular expression, case sensitive.
 
 .TP
 .B \-\-excludei <pattern>
-Do not process any events whose filename matches the specified POSIX extended
-regular expression, case insensitive.
+Do not process any events for the subset of files whose filenames match the
+specified POSIX regular expression, case insensitive.
 
 .TP
 .B \-\-include <pattern>
-Require that filenames also match the case sensitive POSIX extended regular
-expression in order for events to be included.
+Process events only for the subset of files whose filenames match the specified
+POSIX regular expression, case sensitive.
 
 .TP
 .B \-\-includei <pattern>
-Require that filenames also match the case insensitive POSIX extended regular
-expression in order for events to be included.
+Process events only for the subset of files whose filenames match the specified
+POSIX regular expression, case insensitive.
 
 .TP
 .B \-t <seconds>, \-\-timeout <seconds>
