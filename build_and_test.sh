@@ -97,3 +97,22 @@ fi
 
 integration_test
 
+
+if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
+  for i in {64..8}; do
+    if command -v "git-clang-format-$i"; then
+      CLANG_FMT_VER="clang-format-$i"
+      break
+    fi
+  done
+
+  if [ -n "$CLANG_FMT_VER" ]; then
+    if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
+      echo -e "\nPlease change style to the format defined in the" \
+              ".clang-format file:\n"
+      git diff
+      exit 1
+    fi
+  fi
+fi
+
