@@ -16,7 +16,7 @@ run_() {
   export LD_LIBRARY_PATH="../../libinotifytools/src/"
 
   ../../src/inotifywait \
-    --timeout 2 \
+    --timeout 4 \
     --monitor \
     --daemon \
     --quiet \
@@ -44,10 +44,11 @@ test_expect_success \
 	#Make sure cookie is 0 for single events
     	[[ "${NONCOOKIE}" == "0" ]] || return 1
 	local COOKIE_A="$(cat "${logfile}" | sed -n 2p | grep -Eo "^[^ ]+")"
-    	[[ -n "${COOKIE_A}" ]] || return 1
+    	[[ -n "${COOKIE_A}" ]] || return 2
     	local COOKIE_B="$(cat "${logfile}" | sed -n 3p | grep -Eo "^[^ ]+")"
-    	[[ "${COOKIE_A}" == "${COOKIE_B}" ]] || return 1
-    	return 0
-	'
+    	[[ "${COOKIE_A}" == "${COOKIE_B}" ]] || return 3'
+
+cat "${logfile}"
 
 test_done
+

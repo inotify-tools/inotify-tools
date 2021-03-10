@@ -2,11 +2,11 @@
 
 set -e
 
-j=10
+j=16
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..32}; do
+  for i in {1..64}; do
     cd t
     make -j$j
     cd -
