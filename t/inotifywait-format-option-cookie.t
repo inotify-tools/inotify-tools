@@ -32,6 +32,8 @@ run_() {
   touch test-file-src
 
   mv test-file-src test-file-dst
+
+  sleep 1
 }
 
 test_expect_success \

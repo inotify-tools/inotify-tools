@@ -6,7 +6,7 @@ j=16
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..64}; do
+  for i in {1..128}; do
     cd t
     make -j$j
     cd -
