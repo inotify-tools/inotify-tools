@@ -46,9 +46,15 @@ void _niceassert( long cond, int line, char const * file,
 
 struct rbtree *inotifytools_wd_sorted_by_event(int sort_event);
 extern int init;
+
+struct fanotify_event_fid;
+
+#define MAX_FID_LEN 20
+
 typedef struct watch {
+	struct fanotify_event_fid *fid;
 	char *filename;
-	int wd;
+	unsigned long wd;
 	unsigned hit_access;
 	unsigned hit_modify;
 	unsigned hit_attrib;

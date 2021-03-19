@@ -1,2 +1,4 @@
 BasedOnStyle: chromium
+IndentWidth: 8
+UseTab: Always
 

@@ -1,0 +1,22 @@
+#ifndef _INOTIFYTOOLS_FANOTIFY_H
+#define _INOTIFYTOOLS_FANOTIFY_H 1
+
+/* this is defined to 1 if <sys/fanotify.h> works. */
+#undef SYS_FANOTIFY_H_EXISTS_AND_WORKS
+
+
+#ifdef SYS_FANOTIFY_H_EXISTS_AND_WORKS
+#include <sys/fanotify.h>
+#else
+/*
+ * Assuming sys/fanotify.h does exist, but linux/fanotify.h doesn't have
+ * FAN_REPORT_DFID_NAME, so include our own copy of linux/fanotify.h
+ * before including sys/fanotify.h.
+ */
+#include "fanotify-dfid-name.h"
+#include <sys/fanotify.h>
+#endif // SYS_FANOTIFY_H_EXISTS_AND_WORKS
+
+
+#endif
+
