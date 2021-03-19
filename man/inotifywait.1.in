@@ -5,7 +5,7 @@ inotifywait \- wait for changes to files using inotify
 
 .SH SYNOPSIS
 .B inotifywait
-.RB [ \-hcmrPq ]
+.RB [ \-hcmrPqS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -200,6 +200,10 @@ Replaced with NUL.
 .TP
 %n
 Replaced with Line Feed.
+
+.TP
+.B \-S, \-\-filesystem
+Watch entire filesystem of any directories passed as arguments using fanotify.
 
 
 

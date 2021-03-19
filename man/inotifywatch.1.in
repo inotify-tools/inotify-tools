@@ -5,7 +5,7 @@ inotifywatch \- gather filesystem access statistics using inotify
 
 .SH SYNOPSIS
 .B inotifywatch
-.RB [ \-hvzrPqf ]
+.RB [ \-hvzrPqfS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -238,6 +238,10 @@ explicitly being listened for.
 The filesystem on which a watched file or directory resides was unmounted.
 After this event the file or directory is no longer being watched.  Note that
 this event can occur even if it is not explicitly being listened to.
+
+.TP
+.B \-S, \-\-filesystem
+Watch entire filesystem of any directories passed as arguments using fanotify.
 
 
 .SH EXAMPLE

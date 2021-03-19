@@ -38,7 +38,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex, bool *no_newline);
+                char **inc_iregex, bool *no_newline, bool *filesystem);
 
 void print_help();
 
@@ -135,6 +135,7 @@ int main(int argc, char **argv) {
     int quiet = 0;
     long int timeout = BLOCKING_TIMEOUT;
     int recursive = 0;
+    bool filesystem = false;
     bool csv = false;
     bool dodaemon = false;
     bool syslog = false;
@@ -154,11 +155,12 @@ int main(int argc, char **argv) {
     if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
                     &recursive, &csv, &dodaemon, &syslog, &no_dereference,
                     &format, &timefmt, &fromfile, &outfile, &exc_regex,
-                    &exc_iregex, &inc_regex, &inc_iregex, &no_newline)) {
+                    &exc_iregex, &inc_regex, &inc_iregex, &no_newline,
+                    &filesystem)) {
         return EXIT_FAILURE;
     }
 
-    if (!inotifytools_initialize()) {
+    if (!inotifytools_init(filesystem, !quiet)) {
         warn_inotify_init_error();
         return EXIT_FAILURE;
     }
@@ -196,6 +198,9 @@ int main(int argc, char **argv) {
     }
     if (no_dereference) {
         events = events | IN_DONT_FOLLOW;
+    }
+    if (filesystem) {
+        events |= IN_ISDIR;
     }
 
     FileList list = construct_path_list(argc, argv, fromfile);
@@ -291,7 +296,9 @@ int main(int argc, char **argv) {
     }
 
     if (!quiet) {
-        if (recursive) {
+        if (filesystem) {
+            output_error(syslog, "Setting up filesystem watches.\n");
+        } else if (recursive) {
             output_error(syslog, "Setting up watches.  Beware: since -r "
                                  "was given, this may take a while!\n");
         } else {
@@ -302,6 +309,16 @@ int main(int argc, char **argv) {
     // now watch files
     for (int i = 0; list.watch_files[i]; ++i) {
         char const *this_file = list.watch_files[i];
+        if (filesystem) {
+            if (!inotifytools_watch_files(list.watch_files, events)) {
+                output_error(syslog,
+                             "Couldn't add filesystem watch %s: %s\n",
+                             this_file, strerror(inotifytools_error()));
+                return EXIT_FAILURE;
+            }
+            break;
+        }
+
         if ((recursive &&
              !inotifytools_watch_recursively_with_exclude(
                  this_file, events, list.exclude_files)) ||
@@ -351,6 +368,10 @@ int main(int argc, char **argv) {
                 inotifytools_printf(event, "%w %,e %f\n");
             }
         }
+
+        // TODO: index files from unknown watches
+        if (filesystem)
+            continue;
 
         // if we last had MOVED_FROM and don't currently have MOVED_TO,
         // moved_from file must have been moved outside of tree - so unwatch it.
@@ -422,13 +443,15 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex, bool *no_newline) {
+                char **inc_iregex, bool *no_newline, bool *filesystem) {
     assert(argc);
     assert(argv);
     assert(events);
     assert(monitor);
     assert(quiet);
     assert(timeout);
+    assert(recursive);
+    assert(filesystem);
     assert(csv);
     assert(daemon);
     assert(syslog);
@@ -458,7 +481,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     static char *customformat = NULL;
 
     // Short options
-    static const char opt_string[] = "mrhcdsPqt:fo:e:";
+    static const char opt_string[] = "mrhcdsPqt:fo:e:S";
 
     // Long options
     static const struct option long_opts[] = {
@@ -469,6 +492,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         {"timeout", required_argument, NULL, 't'},
         {"filename", no_argument, NULL, 'f'},
         {"recursive", no_argument, NULL, 'r'},
+        {"filesystem", no_argument, NULL, 'S'},
         {"csv", no_argument, NULL, 'c'},
         {"daemon", no_argument, NULL, 'd'},
         {"syslog", no_argument, NULL, 's'},
@@ -511,6 +535,11 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         // --recursive or -r
         case 'r':
             (*recursive)++;
+            break;
+
+        // --filesystem or -S
+        case 'S':
+            (*filesystem) = true;
             break;
 
         // --csv or -c
@@ -727,6 +756,7 @@ void print_help() {
     printf("\t-P|--no-dereference\n"
            "\t              \tDo not follow symlinks.\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+    printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
     printf("\t--fromfile <file>\n"
            "\t              \tRead files to watch from <file> or `-' for "
            "stdin.\n");

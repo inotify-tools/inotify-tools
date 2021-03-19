@@ -143,7 +143,7 @@ struct fanotify_event_fid {
 #define QUEUE_SIZE_PATH   INOTIFY_PROCDIR "max_queued_watches"
 #define INSTANCES_PATH    INOTIFY_PROCDIR "max_user_instances"
 
-static int inotify_fd;
+static int inotify_fd = -1;
 
 int collect_stats = 0;
 
@@ -152,6 +152,8 @@ struct rbtree *tree_fid = 0;
 struct rbtree *tree_filename = 0;
 static int error = 0;
 int init = 0;
+int verbosity = 0;
+int fanotify_mode = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
@@ -284,6 +286,7 @@ watch *watch_from_filename( char const *filename ) {
 
 /**
  * Initialise inotify.
+ * With @fanotify non-zero, initialize fanotify filesystem watch.
  *
  * You must call this function before using any function which adds or removes
  * watches or attempts to access any information about watches.
@@ -291,13 +294,21 @@ watch *watch_from_filename( char const *filename ) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_initialize() {
+int inotifytools_init(int fanotify, int verbose) {
 	if (init) return 1;
 
 	error = 0;
-	// Try to initialise inotify
-	inotify_fd = inotify_init();
-	if (inotify_fd < 0)	{
+	verbosity = verbose;
+	// Try to initialise inotify/fanotify
+	if (fanotify) {
+#ifdef LINUX_FANOTIFY
+		fanotify_mode = 1;
+		inotify_fd = fanotify_init(FAN_REPORT_FID, 0);
+#endif
+	} else {
+		inotify_fd = inotify_init();
+	}
+	if (inotify_fd < 0) {
 		error = errno;
 		return 0;
 	}
@@ -310,6 +321,10 @@ int inotifytools_initialize() {
 	timefmt = 0;
 
 	return 1;
+}
+
+int inotifytools_initialize() {
+	return inotifytools_init(0, 0);
 }
 
 /**
@@ -843,6 +858,8 @@ void inotifytools_replace_filename( char const * oldname,
  */
 int remove_inotify_watch(watch *w) {
 	error = 0;
+	// There is no kernel object representing the watch with fanotify
+	if (w->fid) return 0;
 	int status = inotify_rm_watch( inotify_fd, w->wd );
 	if ( status < 0 ) {
 		fprintf(stderr, "Failed to remove watch on %s: %s\n", w->filename,
@@ -857,7 +874,7 @@ int remove_inotify_watch(watch *w) {
  * @internal
  */
 watch *create_watch(int wd, struct fanotify_event_fid *fid, char *filename) {
-	if ( wd <= 0 || !filename) return 0;
+	if (wd < 0 || !filename) return 0;
 
 	watch *w = (watch*)calloc(1, sizeof(watch));
 	w->wd = wd ?: (unsigned long)fid;
@@ -957,8 +974,22 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 
 	static int i;
 	for ( i = 0; filenames[i]; ++i ) {
-		static int wd;
-		wd = inotify_add_watch( inotify_fd, filenames[i], events );
+		int wd = -1;
+		if (fanotify_mode) {
+#ifdef LINUX_FANOTIFY
+			unsigned int flags = FAN_MARK_ADD | FAN_MARK_FILESYSTEM;
+
+			if (events & IN_DONT_FOLLOW) {
+				events &= ~IN_DONT_FOLLOW;
+				flags |= FAN_MARK_DONT_FOLLOW;
+			}
+
+			wd = fanotify_mark(inotify_fd, flags, events,
+					   AT_FDCWD, filenames[i]);
+#endif
+		} else {
+			wd = inotify_add_watch(inotify_fd, filenames[i], events);
+		}
 		if ( wd < 0 ) {
 			if ( wd == -1 ) {
 				error = errno;
@@ -1221,6 +1252,9 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	bytes += this_bytes;
 
 	ret = &event[0];
+	// TODO: get fanotify events
+	if (fanotify_mode) return ret;
+
 	first_byte = sizeof(struct inotify_event) + ret->len;
 	niceassert( first_byte <= bytes, "ridiculously long filename, things will "
 	                                 "almost certainly screw up." );
