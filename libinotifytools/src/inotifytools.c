@@ -158,7 +158,6 @@ static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
 static int invert_regexp = 0;
-static int chdired = 0;
 
 static int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
@@ -874,7 +873,7 @@ int remove_inotify_watch(watch *w) {
 /**
  * @internal
  */
-watch *create_watch(int wd, struct fanotify_event_fid *fid, char *filename) {
+watch *create_watch(int wd, struct fanotify_event_fid *fid, const char *filename) {
 	if (wd < 0 || !filename) return 0;
 
 	watch *w = (watch*)calloc(1, sizeof(watch));
@@ -1008,6 +1007,20 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 			} // else
 		} // if ( wd < 0 )
 
+		const char *filename = filenames[i];
+		size_t filenamelen = strlen(filename);
+		char *dirname;
+		// Always end filename with / if it is a directory
+		if (!isdir(filename)) {
+			dirname = NULL;
+		} else if (filename[filenamelen - 1] == '/') {
+			dirname = strdup(filename);
+		} else {
+			nasprintf(&dirname, "%s/", filename);
+			filename = dirname;
+			filenamelen++;
+		}
+
 		struct fanotify_event_fid *fid = NULL;
 #ifdef LINUX_FANOTIFY
 		if (!wd) {
@@ -1026,7 +1039,38 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 			}
 			memcpy(&fid->fsid, &buf.f_fsid, sizeof(fid->fsid));
 
+			// Hash mount_fd with fid->fsid (and null fhandle)
 			int ret, mntid;
+			watch *mnt = dirname ? watch_from_fid(fid) : NULL;
+			if (dirname && !mnt) {
+				struct fanotify_event_fid *fsid;
+
+				fsid = calloc(1, sizeof(*fsid));
+				if (!fsid) {
+					free(fid);
+					fprintf(stderr,
+						"Failed to allocate fsid");
+					return 0;
+				}
+				fsid->fsid.val[0] = fid->fsid.val[0];
+				fsid->fsid.val[1] = fid->fsid.val[1];
+				mntid = open(dirname, O_RDONLY);
+				if (mntid < 0) {
+					free(fid);
+					free(fsid);
+					fprintf(stderr,
+						"Failed to open %s: %s\n",
+						dirname, strerror(errno));
+					return 0;
+				}
+				// Don't collide with fid pointers
+				mntid = (mntid << 1) | 1;
+				// Hash mount_fd without terminating /
+				dirname[filenamelen - 1] = 0;
+				create_watch(mntid, fsid, dirname);
+				dirname[filenamelen - 1] = '/';
+			}
+
 			fid->handle.handle_bytes = MAX_FID_LEN;
 			ret = name_to_handle_at(AT_FDCWD, filenames[i],
 						(void *)&fid->handle, &mntid, 0);
@@ -1036,26 +1080,10 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					filenames[i], strerror(errno));
 				return 0;
 			}
-			// Hack in order to use AT_FDCWD in open_by_handle_at()
-			// instead of keeping a map of fsid => mount_fd and
-			// avoid keeping open mount_fd which will prevent umount
-			// of monitored filesystem. We try to decode fids from
-			// current workdir or from first directory agument.
-			if (!chdired && isdir(filenames[i]))
-				chdired = !chdir(filenames[i]);
 		}
 #endif
-		char *filename;
-		// Always end filename with / if it is a directory
-		if ( !isdir(filenames[i])
-		     || filenames[i][strlen(filenames[i])-1] == '/') {
-			filename = strdup(filenames[i]);
-		}
-		else {
-			nasprintf( &filename, "%s/", filenames[i] );
-		}
 		create_watch(wd, fid, filename);
-		free(filename);
+		free(dirname);
 	} // for
 
 	return 1;
@@ -1285,8 +1313,21 @@ more_events:
 		ret = &event[MAX_EVENTS];
 		watch *w = watch_from_fid(fid);
 		if (!w) {
-			// TODO: match mount_fd from fid->fsid
-			int fd = open_by_handle_at(AT_FDCWD, &fid->handle,
+			struct fanotify_event_fid *fsid;
+			int mount_fd = AT_FDCWD;
+
+			fsid = calloc(1, sizeof(*fsid));
+			if (!fsid) {
+				fprintf(stderr, "Failed to allocate fsid");
+				return NULL;
+			}
+			// Match mount_fd from fid->fsid (and null fhandle)
+			fsid->fsid.val[0] = fid->fsid.val[0];
+			fsid->fsid.val[1] = fid->fsid.val[1];
+			watch *mnt = watch_from_fid(fsid);
+			if (mnt) mount_fd = mnt->wd >> 1;
+
+			int fd = open_by_handle_at(mount_fd, &fid->handle,
 						   O_PATH);
 			if (fd < 0) {
 				fprintf(stderr, "Failed to decode fid.\n");
