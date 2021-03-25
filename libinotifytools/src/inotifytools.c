@@ -767,13 +767,13 @@ const char *inotifytools_filename_from_fid(struct fanotify_event_fid *fid) {
 			name_len = 0;  // empty name??
 	}
 
-	if (fanotify_mark_type == FAN_MARK_FILESYSTEM) {
-		// For global watch, try to get path from fid
-		dirfd = open_by_handle_at(mount_fd, &fid->handle, 0);
-		if (dirfd < 0) {
-			fprintf(stderr, "Failed to decode directory fid.\n");
-			return NULL;
-		}
+	// Try to get path from file handle
+	dirfd = open_by_handle_at(mount_fd, &fid->handle, 0);
+	if (dirfd > 0) {
+		// Got path by handle
+	} else if (fanotify_mark_type == FAN_MARK_FILESYSTEM) {
+		fprintf(stderr, "Failed to decode directory fid.\n");
+		return NULL;
 	} else if (name_len) {
 		// For recursive watch look for watch by fid without the name
 		fid->info.hdr.info_type = FAN_EVENT_INFO_TYPE_DFID;
