@@ -1296,22 +1296,49 @@ more_events:
 	if (fanotify_mode) {
 		struct fanotify_event_metadata *meta = (void *)ret;
 		struct fanotify_event_info_fid *info = (void *)(meta + 1);
-		struct fanotify_event_fid *fid, *newfid;
+		struct fanotify_event_fid *newfid, *fid = NULL;
+		const char *name = "";
 		int fid_len = 0;
+		int name_len = 0;
 
-		if (meta->event_len > sizeof(*meta) &&
-		    info->hdr.info_type == FAN_EVENT_INFO_TYPE_FID) {
-			fid = (void *)(((char *)info) + sizeof(info->hdr));
-			fid_len = info->hdr.len - sizeof(info->hdr);
-		} else {
+		first_byte += meta->event_len;
+
+		if (meta->event_len > sizeof(*meta)) {
+			switch (info->hdr.info_type) {
+			case FAN_EVENT_INFO_TYPE_FID:
+			case FAN_EVENT_INFO_TYPE_DFID:
+			case FAN_EVENT_INFO_TYPE_DFID_NAME:
+				fid = (void *)(((char *)info) + sizeof(info->hdr));
+				fid_len = sizeof(*fid) + fid->handle.handle_bytes;
+				if (info->hdr.info_type ==
+				    FAN_EVENT_INFO_TYPE_DFID_NAME) {
+					name_len = info->hdr.len - fid_len;
+				}
+				if (name_len > 0) {
+					name = (const char *)fid->handle.f_handle +
+					       fid->handle.handle_bytes;
+				}
+				// Convert zero padding to zero name_len.
+				// For some events on directories, the fid is that
+				// of the dir and name is ".". Do not include "."
+				// name in fid hash, but keep it for debug print.
+				if (name_len && (!*name || !strcmp(name, "."))) {
+					info->hdr.len -= name_len;
+					name_len = 0;
+				}
+				break;
+			}
+		}
+		if (!fid) {
 			fprintf(stderr, "No fid in fanotify event.\n");
 			return NULL;
 		}
 		if (verbosity > 1) {
 			printf("fanotify_event: bytes=%ld, first_byte=%d, "
-				"this_bytes=%ld, event_len=%d, fid_len=%d\n",
+				"this_bytes=%ld, event_len=%d, fid_len=%d, "
+				"name_len=%d, name=%s\n",
 				bytes, first_byte, this_bytes,
-				meta->event_len, fid_len);
+				meta->event_len, fid_len, name_len, name);
 		}
 
 		ret = &event[MAX_EVENTS];
@@ -1367,9 +1394,8 @@ more_events:
 		}
 		ret->wd = w->wd;
 		ret->mask = (uint32_t)meta->mask;
-		ret->len = 0;
-
-		first_byte += meta->event_len;
+		ret->len = name_len;
+		if (name_len > 0) memcpy(ret->name, name, name_len);
 	} else {
 		first_byte += sizeof(struct inotify_event) + ret->len;
 	}
