@@ -243,13 +243,8 @@ int main(int argc, char **argv) {
             if ((event->mask & IN_CREATE) ||
                 (!moved_from && (event->mask & IN_MOVED_TO))) {
                 // New file - if it is a directory, watch it
-                static char *new_file;
-
-                nasprintf(&new_file, "%s%s",
-                          inotifytools_filename_from_wd(event->wd),
-                          event->name);
-
-                if (isdir(new_file) &&
+                char *new_file = inotifytools_dirpath_from_event(event);
+                if (new_file && *new_file && isdir(new_file) &&
                     !inotifytools_watch_recursively(new_file, events)) {
                     fprintf(stderr, "Couldn't watch new directory %s: %s\n",
                             new_file, strerror(inotifytools_error()));
@@ -257,9 +252,7 @@ int main(int argc, char **argv) {
                 free(new_file);
             } // IN_CREATE
             else if (event->mask & IN_MOVED_FROM) {
-                nasprintf(&moved_from, "%s%s/",
-                          inotifytools_filename_from_wd(event->wd),
-                          event->name);
+                moved_from = inotifytools_dirpath_from_event(event);
                 // if not watched...
                 if (inotifytools_wd_from_filename(moved_from) == -1) {
                     free(moved_from);
@@ -268,11 +261,9 @@ int main(int argc, char **argv) {
             } // IN_MOVED_FROM
             else if (event->mask & IN_MOVED_TO) {
                 if (moved_from) {
-                    static char *new_name;
-                    nasprintf(&new_name, "%s%s/",
-                              inotifytools_filename_from_wd(event->wd),
-                              event->name);
+                    char *new_name = inotifytools_dirpath_from_event(event);
                     inotifytools_replace_filename(moved_from, new_name);
+                    free(new_name);
                     free(moved_from);
                     moved_from = 0;
                 } // moved_from

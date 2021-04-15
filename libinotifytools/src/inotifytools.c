@@ -37,6 +37,11 @@
 
 #ifdef __FreeBSD__
 struct fanotify_event_fid;
+
+#define FAN_EVENT_INFO_TYPE_FID 1
+#define FAN_EVENT_INFO_TYPE_DFID_NAME 2
+#define FAN_EVENT_INFO_TYPE_DFID 3
+
 #else
 // Linux only
 #define LINUX_FANOTIFY
@@ -46,7 +51,7 @@ struct fanotify_event_fid;
 #include "inotifytools/fanotify.h"
 
 struct fanotify_event_fid {
-	__kernel_fsid_t fsid;
+	struct fanotify_event_info_fid info;
 	struct file_handle handle;
 };
 #endif
@@ -244,10 +249,10 @@ int fid_compare(const void *d1, const void *d2, const void *config) {
 	watch *w1 = (watch *)d1;
 	watch *w2 = (watch *)d2;
 	int n1, n2;
-	n1 = w1->fid->handle.handle_bytes;
-	n2 = w2->fid->handle.handle_bytes;
+	n1 = w1->fid->info.hdr.len;
+	n2 = w2->fid->info.hdr.len;
 	if (n1 != n2) return n1 - n2;
-	return memcmp(w1->fid, w2->fid, sizeof(*(w1->fid)) + n1);
+	return memcmp(w1->fid, w2->fid, n1);
 #else
 	return d1 - d2;
 #endif
@@ -761,6 +766,31 @@ char * inotifytools_filename_from_wd( int wd ) {
 }
 
 /**
+ * Get the directory path from an event.
+ *
+ * Returns the filename recorded for event->wd or NULL.
+ * For an event on non-directory also returns NULL.
+ *
+ * The caller is responsible to free() the returned string.
+ */
+char *inotifytools_dirpath_from_event(struct inotify_event *event) {
+	const char *filename = inotifytools_filename_from_wd(event->wd);
+
+	if (!filename || !(event->mask & IN_ISDIR)) {
+		return NULL;
+	}
+
+	/*
+	 * fanotify watch->filename includes the name, so no need to add the
+	 * event->name again.
+	 */
+	char *path;
+	nasprintf(&path, "%s%s/", filename, fanotify_mode ? "" : event->name);
+
+	return path;
+}
+
+/**
  * Get the watch descriptor for a particular filename.
  *
  * inotifytools_initialize() must be called before this function can
@@ -776,6 +806,7 @@ char * inotifytools_filename_from_wd( int wd ) {
  */
 int inotifytools_wd_from_filename( char const * filename ) {
 	niceassert( init, "inotifytools_initialize not called yet" );
+	if (!filename || !*filename) return -1;
 	watch *w = watch_from_filename(filename);
 	if (!w) return -1;
 	return w->wd;
@@ -849,7 +880,8 @@ void inotifytools_set_filename_by_filename( char const * oldname,
  */
 void inotifytools_replace_filename( char const * oldname,
                                     char const * newname ) {
-	if ( !oldname || !newname ) return;
+	if (!oldname || !newname) return;
+	if (!*oldname || !*newname) return;
 	struct replace_filename_data data;
 	data.old_name = oldname;
 	data.new_name = newname;
@@ -1041,7 +1073,8 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					filenames[i], strerror(errno));
 				return 0;
 			}
-			memcpy(&fid->fsid, &buf.f_fsid, sizeof(fid->fsid));
+			memcpy(&fid->info.fsid, &buf.f_fsid,
+			       sizeof(__kernel_fsid_t));
 
 			// Hash mount_fd with fid->fsid (and null fhandle)
 			int ret, mntid;
@@ -1056,8 +1089,10 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 						"Failed to allocate fsid");
 					return 0;
 				}
-				fsid->fsid.val[0] = fid->fsid.val[0];
-				fsid->fsid.val[1] = fid->fsid.val[1];
+				fsid->info.fsid.val[0] = fid->info.fsid.val[0];
+				fsid->info.fsid.val[1] = fid->info.fsid.val[1];
+				fsid->info.hdr.info_type = FAN_EVENT_INFO_TYPE_FID;
+				fsid->info.hdr.len = sizeof(*fsid);
 				mntid = open(dirname, O_RDONLY);
 				if (mntid < 0) {
 					free(fid);
@@ -1084,6 +1119,10 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					filenames[i], strerror(errno));
 				return 0;
 			}
+			fid->info.hdr.info_type = dirname ?
+				FAN_EVENT_INFO_TYPE_DFID : FAN_EVENT_INFO_TYPE_FID;
+			fid->info.hdr.len = sizeof(*fid) +
+					    fid->handle.handle_bytes;
 		}
 #endif
 		create_watch(wd, fid, filename);
@@ -1308,7 +1347,7 @@ more_events:
 			case FAN_EVENT_INFO_TYPE_FID:
 			case FAN_EVENT_INFO_TYPE_DFID:
 			case FAN_EVENT_INFO_TYPE_DFID_NAME:
-				fid = (void *)(((char *)info) + sizeof(info->hdr));
+				fid = (void *)info;
 				fid_len = sizeof(*fid) + fid->handle.handle_bytes;
 				if (info->hdr.info_type ==
 				    FAN_EVENT_INFO_TYPE_DFID_NAME) {
@@ -1353,8 +1392,10 @@ more_events:
 				return NULL;
 			}
 			// Match mount_fd from fid->fsid (and null fhandle)
-			fsid->fsid.val[0] = fid->fsid.val[0];
-			fsid->fsid.val[1] = fid->fsid.val[1];
+			fsid->info.fsid.val[0] = fid->info.fsid.val[0];
+			fsid->info.fsid.val[1] = fid->info.fsid.val[1];
+			fsid->info.hdr.info_type = FAN_EVENT_INFO_TYPE_FID;
+			fsid->info.hdr.len = sizeof(*fsid);
 			watch *mnt = watch_from_fid(fsid);
 			if (mnt) mount_fd = mnt->wd >> 1;
 
@@ -1366,30 +1407,37 @@ more_events:
 			}
 			char sym[30];
 			sprintf(sym, "/proc/self/fd/%d", fd);
-			ret->len = readlink(sym, ret->name, PATH_MAX);
+			char filename[PATH_MAX];
+			int len = readlink(sym, filename, PATH_MAX);
 			close(fd);
-			if (ret->len < 0) {
+			if (len < 0) {
 				fprintf(stderr,
 					"Failed to resolve path from fid.\n");
 				longjmp(jmp, 0);
 			}
-			ret->name[ret->len] = 0;
-			newfid = calloc(1, fid_len);
+			filename[len++] = '/';
+			if (name_len > 0) {
+				memcpy(filename + len, name, name_len);
+				len += name_len;
+			}
+			filename[len] = 0;
+			newfid = calloc(1, info->hdr.len);
 			if (!newfid) {
 				fprintf(stderr, "Failed to allocate fid.\n");
 				return NULL;
 			}
-			memcpy(newfid, fid, fid_len);
-			w = create_watch(0, newfid, ret->name);
+			memcpy(newfid, fid, info->hdr.len);
+			w = create_watch(0, newfid, filename);
 			if (!w) return NULL;
 
 			if (verbosity) {
 				unsigned long id;
 				memcpy((void *)&id, fid->handle.f_handle,
 						sizeof(id));
-				printf("Start watching %s (fid=%x.%x.%lx...)\n",
-				       ret->name, fid->fsid.val[0],
-				       fid->fsid.val[1], id);
+				printf("Start watching %s (fid=%x.%x.%lx...;"
+				       "name='%s')\n",
+				       ret->name, fid->info.fsid.val[0],
+				       fid->info.fsid.val[1], id, name);
 			}
 		}
 		ret->wd = w->wd;
