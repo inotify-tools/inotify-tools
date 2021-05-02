@@ -311,7 +311,8 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 		fanotify_mode = 1;
 		fanotify_mark_type =
 		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
-		inotify_fd = fanotify_init(FAN_REPORT_FID, 0);
+		inotify_fd =
+		    fanotify_init(FAN_REPORT_FID | FAN_REPORT_DFID_NAME, 0);
 #endif
 	} else {
 		fanotify_mode = 0;
@@ -1160,7 +1161,8 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 				flags |= FAN_MARK_DONT_FOLLOW;
 			}
 
-			wd = fanotify_mark(inotify_fd, flags, events,
+			wd = fanotify_mark(inotify_fd, flags,
+					   events | FAN_EVENT_ON_CHILD,
 					   AT_FDCWD, filenames[i]);
 #endif
 		} else {
