@@ -6,6 +6,7 @@ When --daemon is used, events are logged correctly to --outfile
 even if that is a relative path
 '
 
+. ./fanotify-common.sh
 . ./sharness.sh
 
 logfile="log"
@@ -18,7 +19,7 @@ run_() {
     {(sleep 1 && chown $(id -u) test-file)&} &&
 
     export LD_LIBRARY_PATH="../../libinotifytools/src/"
-    ../../src/inotifywait \
+    ../../src/$* \
         --quiet \
         --daemon \
         --outfile $logfile \
@@ -30,9 +31,20 @@ run_() {
     sleep $timeout
 }
 
+run_and_check_log()
+{
+    rm -f $logfile
+    run_ $* && grep ATTRIB $logfile
+}
+
 test_expect_success 'event logged' '
-    run_ &&
-    grep ATTRIB $logfile
+    run_and_check_log inotifywait
 '
+
+if fanotify_supported; then
+    test_expect_success 'event logged' '
+	run_and_check_log fsnotifywait --fanotify
+    '
+fi
 
 test_done
