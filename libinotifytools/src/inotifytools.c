@@ -766,6 +766,32 @@ char * inotifytools_filename_from_wd( int wd ) {
 }
 
 /**
+ * Get the directory path used to establish a watch.
+ *
+ * Returns the filename recorded for event->wd and the dirname
+ * prefix length.
+ *
+ * The caller should NOT free() the returned string.
+ */
+char *inotifytools_dirname_from_event(struct inotify_event *event,
+				      size_t *dirnamelen) {
+	char *filename = inotifytools_filename_from_wd(event->wd);
+	char *dirsep;
+
+	if (!filename) {
+		return NULL;
+	}
+
+	dirsep = strrchr(filename, '/');
+	if (!dirsep) {
+		return NULL;
+	}
+
+	*dirnamelen = dirsep - filename + 1;
+	return filename;
+}
+
+/**
  * Get the directory path from an event.
  *
  * Returns the filename recorded for event->wd or NULL.
@@ -1887,8 +1913,8 @@ int inotifytools_snprintf( struct nstring * out, int size,
 		eventname = NULL;
 	}
 
-
-	filename = inotifytools_filename_from_wd( event->wd );
+	size_t dirnamelen = 0;
+	filename = inotifytools_dirname_from_event(event, &dirnamelen);
 
 	if ( !fmt || 0 == strlen(fmt) ) {
 		error = EINVAL;
@@ -1934,9 +1960,9 @@ int inotifytools_snprintf( struct nstring * out, int size,
 		}
 
 		if ( ch1 == 'w' ) {
-			if ( filename ) {
-				strncpy( &out->buf[ind], filename, size - ind );
-				ind += strlen(filename);
+			if ( filename && dirnamelen <= size - ind) {
+				strncpy( &out->buf[ind], filename, dirnamelen );
+				ind += dirnamelen;
 			}
 			++i;
 			continue;

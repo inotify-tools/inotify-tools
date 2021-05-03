@@ -43,7 +43,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
 
 void print_help();
 
-char *csv_escape(char *string) {
+static char *csv_escape_len(char *string, size_t len) {
     static char csv[MAX_STRLEN + 1];
     static unsigned int i, ind;
 
@@ -51,25 +51,21 @@ char *csv_escape(char *string) {
         return NULL;
     }
 
-    if (strlen(string) > MAX_STRLEN) {
-        return NULL;
-    }
-
-    if (strlen(string) == 0) {
+    if (len == 0 || len > MAX_STRLEN) {
         return NULL;
     }
 
     // May not need escaping
     if (!strchr(string, '"') && !strchr(string, ',') && !strchr(string, '\n') &&
-        string[0] != ' ' && string[strlen(string) - 1] != ' ') {
-        strcpy(csv, string);
+        string[0] != ' ' && string[len - 1] != ' ') {
+        strncpy(csv, string, len);
         return csv;
     }
 
     // OK, so now we _do_ need escaping.
     csv[0] = '"';
     ind = 1;
-    for (i = 0; i < strlen(string); ++i) {
+    for (i = 0; i < len; ++i) {
         if (string[i] == '"') {
             csv[ind++] = '"';
         }
@@ -79,6 +75,14 @@ char *csv_escape(char *string) {
     csv[ind] = '\0';
 
     return csv;
+}
+
+static char *csv_escape(char *string) {
+    if (string == NULL) {
+        return NULL;
+    }
+
+    return csv_escape_len(string, strlen(string));
 }
 
 void validate_format(char *fmt) {
@@ -108,7 +112,9 @@ void validate_format(char *fmt) {
 }
 
 void output_event_csv(struct inotify_event *event) {
-    char *filename = csv_escape(inotifytools_filename_from_wd(event->wd));
+    size_t dirnamelen = 0;
+    char *dirname = inotifytools_dirname_from_event(event, &dirnamelen);
+    char *filename = csv_escape_len(dirname, dirnamelen);
     if (filename != NULL)
         printf("%s,", filename);
 
