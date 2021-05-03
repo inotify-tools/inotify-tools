@@ -182,14 +182,14 @@ void basic_watch_info() {
     verify(!strcmp(inotifytools_filename_from_wd(1), "/"));
     verify(inotifytools_remove_watch_by_filename("/"));
     compare(inotifytools_wd_from_filename("/"), -1);
-    compare(inotifytools_filename_from_wd(1), 0);
+    compare(*inotifytools_filename_from_wd(1), 0);
     verify(inotifytools_watch_file("/", IN_CLOSE));
     compare(inotifytools_wd_from_filename("/"), 2);
     compare(inotifytools_wd_from_filename("foobar"), -1);
     verify(!strcmp(inotifytools_filename_from_wd(2), "/"));
     verify(inotifytools_remove_watch_by_wd(2));
     compare(inotifytools_wd_from_filename("/"), -1);
-    compare(inotifytools_filename_from_wd(2), 0);
+    compare(*inotifytools_filename_from_wd(2), 0);
     EXIT
 }
 

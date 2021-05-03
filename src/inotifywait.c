@@ -43,7 +43,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
 
 void print_help();
 
-static char *csv_escape_len(char *string, size_t len) {
+static char *csv_escape_len(const char *string, size_t len) {
     static char csv[MAX_STRLEN + 1];
     static unsigned int i, ind;
 
@@ -77,7 +77,7 @@ static char *csv_escape_len(char *string, size_t len) {
     return csv;
 }
 
-static char *csv_escape(char *string) {
+static char *csv_escape(const char *string) {
     if (string == NULL) {
         return NULL;
     }
@@ -113,7 +113,7 @@ void validate_format(char *fmt) {
 
 void output_event_csv(struct inotify_event *event) {
     size_t dirnamelen = 0;
-    char *dirname = inotifytools_dirname_from_event(event, &dirnamelen);
+    const char *dirname = inotifytools_dirname_from_event(event, &dirnamelen);
     char *filename = csv_escape_len(dirname, dirnamelen);
     if (filename != NULL)
         printf("%s,", filename);

@@ -373,7 +373,7 @@ int print_info() {
             (zero || inotifytools_get_stat_total(IN_UNMOUNT)))
             printf("%-7u  ", w->hit_unmount);
 
-        printf("%s\n", w->filename);
+        printf("%s\n", inotifytools_filename_from_watch(w));
         w = (watch *)rbreadlist(rblist);
     }
     rbcloselist(rblist);
