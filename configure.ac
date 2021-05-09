@@ -94,6 +94,8 @@ AC_CONFIG_FILES([
   man/Makefile
   man/inotifywait.1
   man/inotifywatch.1
+  man/fsnotifywait.1
+  man/fsnotifywatch.1
   libinotifytools/Makefile
   libinotifytools/src/Makefile
   libinotifytools/src/inotifytools/Makefile
