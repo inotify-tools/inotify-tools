@@ -32,7 +32,7 @@ bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
                 int *verbose, int *zero, int *sort, int *recursive,
                 int *no_dereference, char **fromfile, char **exc_regex,
                 char **exc_iregex, char **inc_regex, char **inc_iregex,
-                bool *filesystem);
+                int *fanotify, bool *filesystem);
 
 void print_help();
 
@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
     int verbose = 0;
     zero = 0;
     int recursive = 0;
+    int fanotify = DEFAULT_FANOTIFY_MODE;
     bool filesystem = false;
     int no_dereference = 0;
     char *fromfile = 0;
@@ -83,13 +84,15 @@ int main(int argc, char **argv) {
     char *exc_iregex = NULL;
     char *inc_regex = NULL;
     char *inc_iregex = NULL;
+    int rc;
 
     signal(SIGINT, handle_impatient_user);
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &timeout, &verbose, &zero, &sort,
                     &recursive, &no_dereference, &fromfile, &exc_regex,
-                    &exc_iregex, &inc_regex, &inc_iregex, &filesystem)) {
+                    &exc_iregex, &inc_regex, &inc_iregex, &fanotify,
+                    &filesystem)) {
         return EXIT_FAILURE;
     }
 
@@ -112,8 +115,9 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (!inotifytools_init(filesystem, verbose)) {
-        warn_inotify_init_error();
+    rc = inotifytools_init(fanotify, filesystem, verbose);
+    if (!rc) {
+        warn_inotify_init_error(fanotify);
         return EXIT_FAILURE;
     }
 
@@ -124,7 +128,7 @@ int main(int argc, char **argv) {
     if (no_dereference)
         events = events | IN_DONT_FOLLOW;
 
-    if (filesystem)
+    if (fanotify)
         events |= IN_ISDIR;
 
     FileList list = construct_path_list(argc, argv, fromfile);
@@ -162,12 +166,15 @@ int main(int argc, char **argv) {
         }
         if (!status) {
             if (inotifytools_error() == ENOSPC) {
-                fprintf(stderr, "Failed to watch %s; upper limit on inotify "
-                                "watches reached!\n",
-                        this_file);
-                fprintf(stderr, "Please increase the amount of inotify watches "
-                                "allowed per user via `/proc/sys/fs/inotify/"
-                                "max_user_watches'.\n");
+                const char* backend = fanotify ? "fanotify" : "inotify";
+                const char* resource = fanotify ? "marks" : "watches";
+                fprintf(stderr, "Failed to watch %s; upper limit on %s %s "
+                                "reached!\n",
+                        this_file, backend, resource);
+                fprintf(stderr, "Please increase the amount of %s %s "
+                                "allowed per user via `/proc/sys/fs/%s/"
+                                "max_user_%s'.\n",
+                        backend, resource, backend, resource);
             } else {
                 fprintf(stderr, "Failed to watch %s: %s\n", this_file,
                         strerror(inotifytools_error()));
@@ -388,7 +395,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
                 int *verbose, int *z, int *s, int *recursive,
                 int *no_dereference, char **fromfile, char **exc_regex,
                 char **exc_iregex, char **inc_regex, char **inc_iregex,
-                bool *filesystem) {
+                int *fanotify, bool *filesystem) {
     assert(argc);
     assert(argv);
     assert(e);
@@ -397,6 +404,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
     assert(z);
     assert(s);
     assert(recursive);
+    assert(fanotify);
     assert(filesystem);
     assert(no_dereference);
     assert(fromfile);
@@ -410,7 +418,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
     bool sort_set = false;
 
     // Short options
-    static const char opt_string[] = "hrPa:d:zve:t:S";
+    static const char opt_string[] = "hrPa:d:zve:t:IFS";
 
     // Construct array
     static const struct option long_opts[] = {
@@ -422,6 +430,8 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
         {"ascending", required_argument, NULL, 'a'},
         {"descending", required_argument, NULL, 'd'},
         {"recursive", no_argument, NULL, 'r'},
+        {"inotify", no_argument, NULL, 'I'},
+        {"fanotify", no_argument, NULL, 'F'},
         {"filesystem", no_argument, NULL, 'S'},
         {"no-dereference", no_argument, NULL, 'P'},
         {"fromfile", required_argument, NULL, 'o'},
@@ -455,9 +465,20 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
             ++(*recursive);
             break;
 
+        // --inotify or -I
+        case 'I':
+            (*fanotify) = 0;
+            break;
+
+	// --fanotify or -F
+        case 'F':
+            (*fanotify) = 1;
+            break;
+
 	// --filesystem or -S
         case 'S':
             (*filesystem) = true;
+            (*fanotify) = 1;
             break;
 
         case 'P':
@@ -639,6 +660,8 @@ void print_help() {
            "\t\tif they consist only of zeros (the default is to not output\n"
            "\t\tthese rows and columns).\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+    printf("\t-I|--inotify\tWatch with inotify.\n");
+    printf("\t-F|--fanotify\tWatch with fanotify.\n");
     printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
     printf("\t-P|--no-dereference\n"
            "\t\tDo not follow symlinks.\n");

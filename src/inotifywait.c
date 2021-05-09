@@ -38,7 +38,8 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex, bool *no_newline, bool *filesystem);
+                char **inc_iregex, bool *no_newline,
+                int *fanotify, bool *filesystem);
 
 void print_help();
 
@@ -135,6 +136,7 @@ int main(int argc, char **argv) {
     int quiet = 0;
     long int timeout = BLOCKING_TIMEOUT;
     int recursive = 0;
+    int fanotify = DEFAULT_FANOTIFY_MODE;
     bool filesystem = false;
     bool csv = false;
     bool dodaemon = false;
@@ -149,19 +151,20 @@ int main(int argc, char **argv) {
     char *inc_regex = NULL;
     char *inc_iregex = NULL;
     bool no_newline = false;
-    int fd;
+    int fd, rc;
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
                     &recursive, &csv, &dodaemon, &syslog, &no_dereference,
                     &format, &timefmt, &fromfile, &outfile, &exc_regex,
                     &exc_iregex, &inc_regex, &inc_iregex, &no_newline,
-                    &filesystem)) {
+                    &fanotify, &filesystem)) {
         return EXIT_FAILURE;
     }
 
-    if (!inotifytools_init(filesystem, !quiet)) {
-        warn_inotify_init_error();
+    rc = inotifytools_init(fanotify, filesystem, !quiet);
+    if (!rc) {
+        warn_inotify_init_error(fanotify);
         return EXIT_FAILURE;
     }
 
@@ -199,7 +202,7 @@ int main(int argc, char **argv) {
     if (no_dereference) {
         events = events | IN_DONT_FOLLOW;
     }
-    if (filesystem) {
+    if (fanotify) {
         events |= IN_ISDIR;
     }
 
@@ -324,14 +327,17 @@ int main(int argc, char **argv) {
                  this_file, events, list.exclude_files)) ||
             (!recursive && !inotifytools_watch_file(this_file, events))) {
             if (inotifytools_error() == ENOSPC) {
+                const char* backend = fanotify ? "fanotify" : "inotify";
+                const char* resource = fanotify ? "marks" : "watches";
                 output_error(syslog,
-                             "Failed to watch %s; upper limit on inotify "
-                             "watches reached!\n",
-                             this_file);
+                             "Failed to watch %s; upper limit on %s %s "
+                             "reached!\n",
+                             this_file, backend, resource);
                 output_error(syslog,
-                             "Please increase the amount of inotify watches "
-                             "allowed per user via `/proc/sys/fs/inotify/"
-                             "max_user_watches'.\n");
+                             "Please increase the amount of %s %s "
+                             "allowed per user via `/proc/sys/fs/%s/"
+                             "max_user_%s'.\n",
+                             backend, resource, backend, resource);
             } else {
                 output_error(syslog, "Couldn't watch %s: %s\n", this_file,
                              strerror(inotifytools_error()));
@@ -443,7 +449,8 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
                 bool *syslog, bool *no_dereference, char **format,
                 char **timefmt, char **fromfile, char **outfile,
                 char **exc_regex, char **exc_iregex, char **inc_regex,
-                char **inc_iregex, bool *no_newline, bool *filesystem) {
+                char **inc_iregex, bool *no_newline,
+                int *fanotify, bool *filesystem) {
     assert(argc);
     assert(argv);
     assert(events);
@@ -451,6 +458,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     assert(quiet);
     assert(timeout);
     assert(recursive);
+    assert(fanotify);
     assert(filesystem);
     assert(csv);
     assert(daemon);
@@ -481,7 +489,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     static char *customformat = NULL;
 
     // Short options
-    static const char opt_string[] = "mrhcdsPqt:fo:e:S";
+    static const char opt_string[] = "mrhcdsPqt:fo:e:IFS";
 
     // Long options
     static const struct option long_opts[] = {
@@ -492,6 +500,8 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
         {"timeout", required_argument, NULL, 't'},
         {"filename", no_argument, NULL, 'f'},
         {"recursive", no_argument, NULL, 'r'},
+        {"inotify", no_argument, NULL, 'I'},
+        {"fanotify", no_argument, NULL, 'F'},
         {"filesystem", no_argument, NULL, 'S'},
         {"csv", no_argument, NULL, 'c'},
         {"daemon", no_argument, NULL, 'd'},
@@ -537,9 +547,20 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
             (*recursive)++;
             break;
 
+        // --inotify or -I
+        case 'I':
+            (*fanotify) = 0;
+            break;
+
+        // --fanotify or -F
+        case 'F':
+            (*fanotify) = 1;
+            break;
+
         // --filesystem or -S
         case 'S':
             (*filesystem) = true;
+            (*fanotify) = 1;
             break;
 
         // --csv or -c
@@ -756,6 +777,8 @@ void print_help() {
     printf("\t-P|--no-dereference\n"
            "\t              \tDo not follow symlinks.\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+    printf("\t-I|--inotify\tWatch with inotify.\n");
+    printf("\t-F|--fanotify\tWatch with fanotify.\n");
     printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
     printf("\t--fromfile <file>\n"
            "\t              \tRead files to watch from <file> or `-' for "

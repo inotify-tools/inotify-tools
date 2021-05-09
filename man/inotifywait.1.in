@@ -5,7 +5,7 @@ inotifywait \- wait for changes to files using inotify
 
 .SH SYNOPSIS
 .B inotifywait
-.RB [ \-hcmrPqS ]
+.RB [ \-hcmrPqIFS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -200,6 +200,17 @@ Replaced with NUL.
 .TP
 %n
 Replaced with Line Feed.
+
+.TP
+.B \-I, \-\-inotify
+Watch using inotify.
+
+.TP
+.B \-F, \-\-fanotify
+Watch using fanotify.
+fanotify support for reporting events with inotify compatible information
+was added in kernel v5.9.  With older kernels the command will fail.
+As of kernel v5.12, fanotify requires admin privileges.
 
 .TP
 .B \-S, \-\-filesystem

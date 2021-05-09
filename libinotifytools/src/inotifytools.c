@@ -154,6 +154,7 @@ static int error = 0;
 int init = 0;
 int verbosity = 0;
 int fanotify_mode = 0;
+int fanotify_mark_type = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
@@ -294,7 +295,7 @@ watch *watch_from_filename( char const *filename ) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_init(int fanotify, int verbose) {
+int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 	if (init) return 1;
 
 	error = 0;
@@ -303,9 +304,12 @@ int inotifytools_init(int fanotify, int verbose) {
 	if (fanotify) {
 #ifdef LINUX_FANOTIFY
 		fanotify_mode = 1;
+		fanotify_mark_type =
+		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
 		inotify_fd = fanotify_init(FAN_REPORT_FID, 0);
 #endif
 	} else {
+		fanotify_mode = 0;
 		inotify_fd = inotify_init();
 	}
 	if (inotify_fd < 0) {
@@ -324,7 +328,7 @@ int inotifytools_init(int fanotify, int verbose) {
 }
 
 int inotifytools_initialize() {
-	return inotifytools_init(0, 0);
+	return inotifytools_init(0, 0, 0);
 }
 
 /**
@@ -981,7 +985,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 		int wd = -1;
 		if (fanotify_mode) {
 #ifdef LINUX_FANOTIFY
-			unsigned int flags = FAN_MARK_ADD | FAN_MARK_FILESYSTEM;
+			unsigned int flags = FAN_MARK_ADD | fanotify_mark_type;
 
 			if (events & IN_DONT_FOLLOW) {
 				events &= ~IN_DONT_FOLLOW;

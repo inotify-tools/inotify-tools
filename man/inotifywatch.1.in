@@ -5,7 +5,7 @@ inotifywatch \- gather filesystem access statistics using inotify
 
 .SH SYNOPSIS
 .B inotifywatch
-.RB [ \-hvzrPqfS ]
+.RB [ \-hvzrPqfIFS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -238,6 +238,17 @@ explicitly being listened for.
 The filesystem on which a watched file or directory resides was unmounted.
 After this event the file or directory is no longer being watched.  Note that
 this event can occur even if it is not explicitly being listened to.
+
+.TP
+.B \-I, \-\-inotify
+Watch using inotify.
+
+.TP
+.B \-F, \-\-fanotify
+Watch using fanotify.
+fanotify support for reporting events with inotify compatible information
+was added in kernel v5.9.  With older kernels the command will fail.
+As of kernel v5.12, fanotify requires admin privileges.
 
 .TP
 .B \-S, \-\-filesystem
