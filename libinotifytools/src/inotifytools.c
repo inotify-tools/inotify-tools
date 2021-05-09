@@ -158,6 +158,7 @@ static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
 static int invert_regexp = 0;
+static int chdired = 0;
 
 static int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
@@ -877,13 +878,17 @@ watch *create_watch(int wd, struct fanotify_event_fid *fid, char *filename) {
 	if (wd < 0 || !filename) return 0;
 
 	watch *w = (watch*)calloc(1, sizeof(watch));
+	if (!w) {
+		fprintf(stderr, "Failed to allocate watch.\n");
+		return NULL;
+	}
 	w->wd = wd ?: (unsigned long)fid;
 	w->fid = fid;
 	w->filename = strdup(filename);
 	rbsearch(w, tree_wd);
 	if (fid) rbsearch(w, tree_fid);
 	rbsearch(w, tree_filename);
-    return NULL;
+	return w;
 }
 
 /**
@@ -1031,6 +1036,13 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					filenames[i], strerror(errno));
 				return 0;
 			}
+			// Hack in order to use AT_FDCWD in open_by_handle_at()
+			// instead of keeping a map of fsid => mount_fd and
+			// avoid keeping open mount_fd which will prevent umount
+			// of monitored filesystem. We try to decode fids from
+			// current workdir or from first directory agument.
+			if (!chdired && isdir(filenames[i]))
+				chdired = !chdir(filenames[i]);
 		}
 #endif
 		char *filename;
@@ -1139,6 +1151,7 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	static struct inotify_event * ret;
 	static int first_byte = 0;
 	static ssize_t bytes;
+	static ssize_t this_bytes;
 	static jmp_buf jmp;
 	static struct nstring match_name;
 	static char match_name_string[MAX_STRLEN+1];
@@ -1171,14 +1184,8 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	  && first_byte <= (int)(bytes - sizeof(struct inotify_event)) ) {
 
 		ret = (struct inotify_event *)((char *)&event[0] + first_byte);
-		first_byte += sizeof(struct inotify_event) + ret->len;
-
-		// if the pointer to the next event exactly hits end of bytes read,
-		// that's good.  next time we're called, we'll read.
-		if ( first_byte == bytes ) {
-			first_byte = 0;
-		}
-		else if ( first_byte > bytes ) {
+		if (!fanotify_mode &&
+		    first_byte + sizeof(*ret) + ret->len > bytes) {
 			// oh... no.  this can't be happening.  An incomplete event.
 			// Copy what we currently have into first element, call self to
 			// read remainder.
@@ -1194,7 +1201,8 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 			memcpy( &event[0], ret, bytes );
 			return inotifytools_next_events( timeout, num_events );
 		}
-		RETURN(ret);
+		this_bytes = 0;
+		goto more_events;
 
 	}
 
@@ -1203,7 +1211,6 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	}
 
 
-	static ssize_t this_bytes;
 	static unsigned int bytes_to_read;
 	static int rc;
 	static fd_set read_fds;
@@ -1250,13 +1257,14 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 		                "events occurred at once.\n");
 		return NULL;
 	}
-	ret = &event[0];
+more_events:
+	ret = (struct inotify_event *)((char *)&event[0] + first_byte);
 #ifdef LINUX_FANOTIFY
 	// convert fanotify events to inotify events
 	if (fanotify_mode) {
 		struct fanotify_event_metadata *meta = (void *)ret;
 		struct fanotify_event_info_fid *info = (void *)(meta + 1);
-		struct fanotify_event_fid *fid;
+		struct fanotify_event_fid *fid, *newfid;
 		int fid_len = 0;
 
 		if (meta->event_len > sizeof(*meta) &&
@@ -1274,24 +1282,55 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 				meta->event_len, fid_len);
 		}
 
+		ret = &event[MAX_EVENTS];
 		watch *w = watch_from_fid(fid);
 		if (!w) {
-			fprintf(stderr,
-				"Ignoring fanotify event on unwatched "
-				"object.\n");
-			longjmp(jmp, 0);
+			// TODO: match mount_fd from fid->fsid
+			int fd = open_by_handle_at(AT_FDCWD, &fid->handle,
+						   O_PATH);
+			if (fd < 0) {
+				fprintf(stderr, "Failed to decode fid.\n");
+				longjmp(jmp, 0);
+			}
+			char sym[30];
+			sprintf(sym, "/proc/self/fd/%d", fd);
+			ret->len = readlink(sym, ret->name, PATH_MAX);
+			close(fd);
+			if (ret->len < 0) {
+				fprintf(stderr,
+					"Failed to resolve path from fid.\n");
+				longjmp(jmp, 0);
+			}
+			ret->name[ret->len] = 0;
+			newfid = calloc(1, fid_len);
+			if (!newfid) {
+				fprintf(stderr, "Failed to allocate fid.\n");
+				return NULL;
+			}
+			memcpy(newfid, fid, fid_len);
+			w = create_watch(0, newfid, ret->name);
+			if (!w) return NULL;
+
+			if (verbosity) {
+				unsigned long id;
+				memcpy((void *)&id, fid->handle.f_handle,
+						sizeof(id));
+				printf("Start watching %s (fid=%x.%x.%lx...)\n",
+				       ret->name, fid->fsid.val[0],
+				       fid->fsid.val[1], id);
+			}
 		}
-		ret = &event[MAX_EVENTS];
 		ret->wd = w->wd;
 		ret->mask = (uint32_t)meta->mask;
 		ret->len = 0;
 
-		RETURN(ret);
+		first_byte += meta->event_len;
+	} else {
+		first_byte += sizeof(struct inotify_event) + ret->len;
 	}
 #endif
 
 	bytes += this_bytes;
-	first_byte = sizeof(struct inotify_event) + ret->len;
 	niceassert( first_byte <= bytes, "ridiculously long filename, things will "
 	                                 "almost certainly screw up." );
 	if ( first_byte == bytes ) {

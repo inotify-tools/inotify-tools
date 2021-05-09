@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        // TODO: index files from unknown watches
+        // TODO: replace filename of renamed filesystem watch entries
         if (filesystem)
             continue;
 
