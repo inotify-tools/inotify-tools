@@ -4,7 +4,7 @@
 #ifdef __FreeBSD__
 #define stat64 stat
 #define lstat64 lstat
-#ifdef DEFAULT_FANOTIFY
+#ifdef ENABLE_FANOTIFY
 #error "FreeBSD does not support fanotify"
 #endif
 #endif
@@ -19,9 +19,13 @@
 #endif
 #define EXIT_TIMEOUT 2
 
-#ifdef DEFAULT_FANOTIFY
+#ifdef ENABLE_FANOTIFY
+// fsnotifywait/fsnotifywatch defaults to fanotify
+#define TOOLS_PREFIX "fsnotify"
 #define DEFAULT_FANOTIFY_MODE 1
 #else
+// inotifywait/inotifywatch defaults to inotify
+#define TOOLS_PREFIX "inotify"
 #define DEFAULT_FANOTIFY_MODE 0
 #endif
 

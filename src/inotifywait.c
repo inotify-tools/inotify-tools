@@ -547,6 +547,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
             (*recursive)++;
             break;
 
+#ifdef ENABLE_FANOTIFY
         // --inotify or -I
         case 'I':
             (*fanotify) = 0;
@@ -562,6 +563,7 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
             (*filesystem) = true;
             (*fanotify) = 1;
             break;
+#endif
 
         // --csv or -c
         case 'c':
@@ -744,11 +746,13 @@ bool parse_opts(int *argc, char ***argv, int *events, bool *monitor, int *quiet,
     return (curr_opt != '?');
 }
 
+#define TOOL_NAME TOOLS_PREFIX "wait"
+
 void print_help() {
-    printf("inotifywait %s\n", PACKAGE_VERSION);
+    printf("%s %s\n", TOOL_NAME, PACKAGE_VERSION);
     printf("Wait for a particular event on a file or set of files.\n");
-    printf("Usage: inotifywait [ options ] file1 [ file2 ] [ file3 ] "
-           "[ ... ]\n");
+    printf("Usage: %s [ options ] file1 [ file2 ] [ file3 ] [ ... ]\n",
+           TOOL_NAME);
     printf("Options:\n");
     printf("\t-h|--help     \tShow this help text.\n");
     printf("\t@<file>       \tExclude the specified file from being "
@@ -768,8 +772,8 @@ void print_help() {
            "\t              \tLike --include but case insensitive.\n");
     printf("\t-m|--monitor  \tKeep listening for events forever or until "
            "--timeout expires.\n"
-           "\t              \tWithout this option, inotifywait will exit after "
-           "one event is received.\n");
+           "\t              \tWithout this option, %s will exit after "
+           "one event is received.\n", TOOL_NAME);
     printf(
         "\t-d|--daemon   \tSame as --monitor, except run in the background\n"
         "\t              \tlogging events to a file specified by --outfile.\n"
@@ -777,9 +781,11 @@ void print_help() {
     printf("\t-P|--no-dereference\n"
            "\t              \tDo not follow symlinks.\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+#ifdef ENABLE_FANOTIFY
     printf("\t-I|--inotify\tWatch with inotify.\n");
     printf("\t-F|--fanotify\tWatch with fanotify.\n");
     printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
+#endif
     printf("\t--fromfile <file>\n"
            "\t              \tRead files to watch from <file> or `-' for "
            "stdin.\n");
@@ -799,9 +805,8 @@ void print_help() {
            "\t              \tWhen listening for a single event, time out "
            "after\n"
            "\t              \twaiting for an event for <seconds> seconds.\n"
-           "\t              \tIf <seconds> is negative, inotifywait will never "
-           "time "
-           "out.\n");
+           "\t              \tIf <seconds> is negative, %s will never time "
+           "out.\n", TOOL_NAME);
     printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
            "\t\tListen for specific event(s).  If omitted, all events are \n"
            "\t\tlistened for.\n\n");

@@ -58,14 +58,21 @@ AC_COMPILE_IFELSE(
   [AC_MSG_RESULT([nope, using own inotify headers])]
 )
 
+# Checks for fanotify support.
 AC_MSG_CHECKING([whether sys/fanotify.h actually works])
 AC_COMPILE_IFELSE(
   [AC_LANG_PROGRAM([[#include <sys/fanotify.h>]],
                   [[return (-1 == fanotify_init(FAN_REPORT_DFID_NAME, 0));]]
   )],
-  [AC_MSG_RESULT([yup]); AC_DEFINE([SYS_FANOTIFY_H_EXISTS_AND_WORKS],[1],[sys/fanotify.h exists and works correctly])],
-  [AC_MSG_RESULT([nope, using own fanotify headers])]
+  [AC_MSG_RESULT([yup]); DEFAULT_FANOTIFY=yes; AC_DEFINE([SYS_FANOTIFY_H_EXISTS_AND_WORKS],[1],[sys/fanotify.h exists and works correctly])],
+  [AC_MSG_RESULT([nope, using own fanotify headers]); DEFAULT_FANOTIFY=no]
 )
+
+AC_ARG_ENABLE(fanotify,
+    AS_HELP_STRING([--enable-fanotify],[enable fanotify support]),
+    ENABLE_FANOTIFY=$enableval, DOXYGEN_ENABLE="$DEFAULT_FANOTIFY"
+)
+AM_CONDITIONAL([ENABLE_FANOTIFY], test "$ENABLE_FANOTIFY" = "yes")
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

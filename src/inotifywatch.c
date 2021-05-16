@@ -465,6 +465,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
             ++(*recursive);
             break;
 
+#ifdef ENABLE_FANOTIFY
         // --inotify or -I
         case 'I':
             (*fanotify) = 0;
@@ -480,6 +481,7 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
             (*filesystem) = true;
             (*fanotify) = 1;
             break;
+#endif
 
         case 'P':
             ++(*no_dereference);
@@ -633,10 +635,12 @@ bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
     return (curr_opt != '?');
 }
 
+#define TOOL_NAME TOOLS_PREFIX "watch"
+
 void print_help() {
-    printf("inotifywatch %s\n", PACKAGE_VERSION);
-    printf("Gather filesystem usage statistics using inotify.\n");
-    printf("Usage: inotifywatch [ options ] file1 [ file2 ] [ ... ]\n");
+    printf("%s %s\n", TOOL_NAME, PACKAGE_VERSION);
+    printf("Gather filesystem usage statistics using %s.\n", TOOL_NAME);
+    printf("Usage: %s [ options ] file1 [ file2 ] [ ... ]\n", TOOL_NAME);
     printf("Options:\n");
     printf("\t-h|--help    \tShow this help text.\n");
     printf("\t-v|--verbose \tBe verbose.\n");
@@ -660,16 +664,17 @@ void print_help() {
            "\t\tif they consist only of zeros (the default is to not output\n"
            "\t\tthese rows and columns).\n");
     printf("\t-r|--recursive\tWatch directories recursively.\n");
+#ifdef ENABLE_FANOTIFY
     printf("\t-I|--inotify\tWatch with inotify.\n");
     printf("\t-F|--fanotify\tWatch with fanotify.\n");
     printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
+#endif
     printf("\t-P|--no-dereference\n"
            "\t\tDo not follow symlinks.\n");
     printf("\t-t|--timeout <seconds>\n"
            "\t\tListen only for specified amount of time in seconds; if\n"
-           "\t\tomitted or negative, inotifywatch will execute until receiving "
-           "an\n"
-           "\t\tinterrupt signal.\n");
+           "\t\tomitted or negative, %s will execute until receiving an\n"
+           "\t\tinterrupt signal.\n", TOOL_NAME);
     printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
            "\t\tListen for specific event(s).  If omitted, all events are \n"
            "\t\tlistened for.\n");
