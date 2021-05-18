@@ -110,7 +110,7 @@ if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
     if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
       echo -e "\nPlease change style to the format defined in the" \
               ".clang-format file:\n"
-      git diff
+      git diff --name-only
       exit 1
     fi
   fi
