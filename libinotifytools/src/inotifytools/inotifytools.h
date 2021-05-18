@@ -36,7 +36,13 @@ void inotifytools_set_filename_by_filename( char const * oldname,
                                             char const * newname );
 void inotifytools_replace_filename( char const * oldname,
                                     char const * newname );
-char * inotifytools_filename_from_wd( int wd );
+struct inotify_event;
+const char* inotifytools_dirname_from_event(struct inotify_event* event,
+					    size_t* dirnamelen);
+char* inotifytools_dirpath_from_event(struct inotify_event* event);
+struct watch;
+const char* inotifytools_filename_from_watch(struct watch* w);
+const char* inotifytools_filename_from_wd(int wd);
 int inotifytools_wd_from_filename( char const * filename );
 int inotifytools_remove_watch_by_filename( char const * filename );
 int inotifytools_remove_watch_by_wd( int wd );
@@ -58,6 +64,7 @@ int inotifytools_get_stat_by_filename( char const * filename,
                                                 int event );
 void inotifytools_initialize_stats();
 int inotifytools_initialize();
+int inotifytools_init(int fanotify, int watch_filesystem, int verbose);
 void inotifytools_cleanup();
 int inotifytools_get_num_watches();
 

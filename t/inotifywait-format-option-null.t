@@ -2,6 +2,7 @@
 
 test_description='Check producing NUL-delimited output'
 
+. ./fanotify-common.sh
 . ./sharness.sh
 
 logfile="log"
@@ -11,7 +12,7 @@ run_() {
 
   export LD_LIBRARY_PATH="../../libinotifytools/src/"
 
-  ../../src/inotifywait \
+  ../../src/$* \
     --monitor \
     --quiet \
     --outfile $logfile \
@@ -34,15 +35,25 @@ run_() {
   kill ${PID}
 }
 
-test_expect_success 'the output is delimited by NUL' \
-	'
+run_and_check_log() {
 	set -e
 	trap "set +e" RETURN
-	run_
+	rm -f "${logfile}"
+	run_ $*
 	srcfile="${PWD}/test-file-src"
 	dstfile="${PWD}/test-file-dst"
 
 	return $(printf "${srcfile}\0${srcfile}\0${dstfile}\0" | cmp -s "${logfile}")
-	'
+}
+
+test_expect_success 'the output is delimited by NUL' '
+    run_and_check_log inotifywait
+'
+
+if fanotify_supported; then
+    test_expect_success 'the output is delimited by NUL' '
+	run_and_check_log fsnotifywait --fanotify
+    '
+fi
 
 test_done

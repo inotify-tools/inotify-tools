@@ -7,6 +7,7 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([src/inotifywait.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([libinotifytools/src/inotifytools/inotify.h])
+AC_CONFIG_HEADERS([libinotifytools/src/inotifytools/fanotify.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_DEFINE([_GNU_SOURCE], [], [For a few GNU-specific functions])
 AC_PROG_MAKE_SET
@@ -46,7 +47,7 @@ AM_CONDITIONAL([STATIC_BINARY_ENABLE], test "$STATIC_BINARY_ENABLE" = "yes")
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([sys/inotify.h mcheck.h])
+AC_CHECK_HEADERS([sys/inotify.h sys/fanotify.h mcheck.h])
 AC_LANG(C)
 AC_MSG_CHECKING([whether sys/inotify.h actually works])
 AC_COMPILE_IFELSE(
@@ -56,6 +57,22 @@ AC_COMPILE_IFELSE(
   [AC_MSG_RESULT([yup]); AC_DEFINE([SYS_INOTIFY_H_EXISTS_AND_WORKS],[1],[sys/inotify.h exists and works correctly])],
   [AC_MSG_RESULT([nope, using own inotify headers])]
 )
+
+# Checks for fanotify support.
+AC_MSG_CHECKING([whether sys/fanotify.h actually works])
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([[#include <sys/fanotify.h>]],
+                  [[return (-1 == fanotify_init(FAN_REPORT_DFID_NAME, 0));]]
+  )],
+  [AC_MSG_RESULT([yup]); DEFAULT_FANOTIFY=yes; AC_DEFINE([SYS_FANOTIFY_H_EXISTS_AND_WORKS],[1],[sys/fanotify.h exists and works correctly])],
+  [AC_MSG_RESULT([nope, using own fanotify headers]); DEFAULT_FANOTIFY=no]
+)
+
+AC_ARG_ENABLE(fanotify,
+    AS_HELP_STRING([--enable-fanotify],[enable fanotify support]),
+    ENABLE_FANOTIFY=$enableval, DOXYGEN_ENABLE="$DEFAULT_FANOTIFY"
+)
+AM_CONDITIONAL([ENABLE_FANOTIFY], test "$ENABLE_FANOTIFY" = "yes")
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -77,6 +94,8 @@ AC_CONFIG_FILES([
   man/Makefile
   man/inotifywait.1
   man/inotifywatch.1
+  man/fsnotifywait.1
+  man/fsnotifywatch.1
   libinotifytools/Makefile
   libinotifytools/src/Makefile
   libinotifytools/src/inotifytools/Makefile

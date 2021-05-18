@@ -28,10 +28,22 @@ extern int optind, opterr, optopt;
 #define nasprintf(...) niceassert(-1 != asprintf(__VA_ARGS__), "out of memory")
 
 // METHODS
-bool parse_opts(int *argc, char ***argv, int *events, long int *timeout,
-                int *verbose, int *zero, int *sort, int *recursive,
-                int *no_dereference, char **fromfile, char **exc_regex,
-                char **exc_iregex, char **inc_regex, char **inc_iregex);
+bool parse_opts(int* argc,
+		char*** argv,
+		int* events,
+		long int* timeout,
+		int* verbose,
+		int* zero,
+		int* sort,
+		int* recursive,
+		int* no_dereference,
+		char** fromfile,
+		char** exc_regex,
+		char** exc_iregex,
+		char** inc_regex,
+		char** inc_iregex,
+		int* fanotify,
+		bool* filesystem);
 
 void print_help();
 
@@ -73,6 +85,8 @@ int main(int argc, char **argv) {
     int verbose = 0;
     zero = 0;
     int recursive = 0;
+    int fanotify = DEFAULT_FANOTIFY_MODE;
+    bool filesystem = false;
     int no_dereference = 0;
     char *fromfile = 0;
     sort = -1;
@@ -81,14 +95,16 @@ int main(int argc, char **argv) {
     char *exc_iregex = NULL;
     char *inc_regex = NULL;
     char *inc_iregex = NULL;
+    int rc;
 
     signal(SIGINT, handle_impatient_user);
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &timeout, &verbose, &zero, &sort,
-                    &recursive, &no_dereference, &fromfile, &exc_regex,
-                    &exc_iregex, &inc_regex, &inc_iregex)) {
-        return EXIT_FAILURE;
+		    &recursive, &no_dereference, &fromfile, &exc_regex,
+		    &exc_iregex, &inc_regex, &inc_iregex, &fanotify,
+		    &filesystem)) {
+	    return EXIT_FAILURE;
     }
 
     if ((exc_regex &&
@@ -110,9 +126,10 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (!inotifytools_initialize()) {
-        warn_inotify_init_error();
-        return EXIT_FAILURE;
+    rc = inotifytools_init(fanotify, filesystem, verbose);
+    if (!rc) {
+	    warn_inotify_init_error(fanotify);
+	    return EXIT_FAILURE;
     }
 
     // Attempt to watch file
@@ -121,6 +138,9 @@ int main(int argc, char **argv) {
         events = IN_ALL_EVENTS;
     if (no_dereference)
         events = events | IN_DONT_FOLLOW;
+
+    if (fanotify)
+	    events |= IN_ISDIR;
 
     FileList list = construct_path_list(argc, argv, fromfile);
 
@@ -134,7 +154,19 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Establishing watches...\n");
     for (int i = 0; list.watch_files[i]; ++i) {
         char const *this_file = list.watch_files[i];
-        if (recursive && verbose) {
+	if (filesystem) {
+		fprintf(stderr, "Setting up filesystem watch on %s\n",
+			this_file);
+		if (!inotifytools_watch_files(list.watch_files, events)) {
+			fprintf(stderr,
+				"Couldn't add filesystem watch %s: %s\n",
+				this_file, strerror(inotifytools_error()));
+			return EXIT_FAILURE;
+		}
+		break;
+	}
+
+	if (recursive && verbose) {
             fprintf(stderr, "Setting up watch(es) on %s\n", this_file);
         }
 
@@ -146,13 +178,18 @@ int main(int argc, char **argv) {
         }
         if (!status) {
             if (inotifytools_error() == ENOSPC) {
-                fprintf(stderr, "Failed to watch %s; upper limit on inotify "
-                                "watches reached!\n",
-                        this_file);
-                fprintf(stderr, "Please increase the amount of inotify watches "
-                                "allowed per user via `/proc/sys/fs/inotify/"
-                                "max_user_watches'.\n");
-            } else {
+		    const char* backend = fanotify ? "fanotify" : "inotify";
+		    const char* resource = fanotify ? "marks" : "watches";
+		    fprintf(stderr,
+			    "Failed to watch %s; upper limit on %s %s "
+			    "reached!\n",
+			    this_file, backend, resource);
+		    fprintf(stderr,
+			    "Please increase the amount of %s %s "
+			    "allowed per user via `/proc/sys/fs/%s/"
+			    "max_user_%s'.\n",
+			    backend, resource, backend, resource);
+	    } else {
                 fprintf(stderr, "Failed to watch %s: %s\n", this_file,
                         strerror(inotifytools_error()));
             }
@@ -201,7 +238,11 @@ int main(int argc, char **argv) {
             }
         }
 
-        // if we last had MOVED_FROM and don't currently have MOVED_TO,
+	// TODO: replace filename of renamed filesystem watch entries
+	if (filesystem)
+		continue;
+
+	// if we last had MOVED_FROM and don't currently have MOVED_TO,
         // moved_from file must have been moved outside of tree - so unwatch it.
         if (moved_from && !(event->mask & IN_MOVED_TO)) {
             if (!inotifytools_remove_watch_by_filename(moved_from)) {
@@ -216,38 +257,29 @@ int main(int argc, char **argv) {
             if ((event->mask & IN_CREATE) ||
                 (!moved_from && (event->mask & IN_MOVED_TO))) {
                 // New file - if it is a directory, watch it
-                static char *new_file;
-
-                nasprintf(&new_file, "%s%s",
-                          inotifytools_filename_from_wd(event->wd),
-                          event->name);
-
-                if (isdir(new_file) &&
-                    !inotifytools_watch_recursively(new_file, events)) {
-                    fprintf(stderr, "Couldn't watch new directory %s: %s\n",
-                            new_file, strerror(inotifytools_error()));
-                }
-                free(new_file);
+		char* new_file = inotifytools_dirpath_from_event(event);
+		if (new_file && *new_file && isdir(new_file) &&
+		    !inotifytools_watch_recursively(new_file, events)) {
+			fprintf(stderr, "Couldn't watch new directory %s: %s\n",
+				new_file, strerror(inotifytools_error()));
+		}
+		free(new_file);
             } // IN_CREATE
             else if (event->mask & IN_MOVED_FROM) {
-                nasprintf(&moved_from, "%s%s/",
-                          inotifytools_filename_from_wd(event->wd),
-                          event->name);
-                // if not watched...
-                if (inotifytools_wd_from_filename(moved_from) == -1) {
-                    free(moved_from);
-                    moved_from = 0;
+		    moved_from = inotifytools_dirpath_from_event(event);
+		    // if not watched...
+		    if (inotifytools_wd_from_filename(moved_from) == -1) {
+			    free(moved_from);
+			    moved_from = 0;
                 }
             } // IN_MOVED_FROM
             else if (event->mask & IN_MOVED_TO) {
                 if (moved_from) {
-                    static char *new_name;
-                    nasprintf(&new_name, "%s%s/",
-                              inotifytools_filename_from_wd(event->wd),
-                              event->name);
-                    inotifytools_replace_filename(moved_from, new_name);
-                    free(moved_from);
-                    moved_from = 0;
+			char* new_name = inotifytools_dirpath_from_event(event);
+			inotifytools_replace_filename(moved_from, new_name);
+			free(new_name);
+			free(moved_from);
+			moved_from = 0;
                 } // moved_from
             }
         }
@@ -355,8 +387,8 @@ int print_info() {
             (zero || inotifytools_get_stat_total(IN_UNMOUNT)))
             printf("%-7u  ", w->hit_unmount);
 
-        printf("%s\n", w->filename);
-        w = (watch *)rbreadlist(rblist);
+	printf("%s\n", inotifytools_filename_from_watch(w));
+	w = (watch *)rbreadlist(rblist);
     }
     rbcloselist(rblist);
     rbdestroy(tree);
@@ -364,269 +396,350 @@ int print_info() {
     return EXIT_SUCCESS;
 }
 
-bool parse_opts(int *argc, char ***argv, int *e, long int *timeout,
-                int *verbose, int *z, int *s, int *recursive,
-                int *no_dereference, char **fromfile, char **exc_regex,
-                char **exc_iregex, char **inc_regex, char **inc_iregex) {
-    assert(argc);
-    assert(argv);
-    assert(e);
-    assert(timeout);
-    assert(verbose);
-    assert(z);
-    assert(s);
-    assert(recursive);
-    assert(no_dereference);
-    assert(fromfile);
-    assert(exc_regex);
-    assert(exc_iregex);
-    assert(inc_regex);
-    assert(inc_iregex);
+bool parse_opts(int* argc,
+		char*** argv,
+		int* e,
+		long int* timeout,
+		int* verbose,
+		int* z,
+		int* s,
+		int* recursive,
+		int* no_dereference,
+		char** fromfile,
+		char** exc_regex,
+		char** exc_iregex,
+		char** inc_regex,
+		char** inc_iregex,
+		int* fanotify,
+		bool* filesystem) {
+	assert(argc);
+	assert(argv);
+	assert(e);
+	assert(timeout);
+	assert(verbose);
+	assert(z);
+	assert(s);
+	assert(recursive);
+	assert(fanotify);
+	assert(filesystem);
+	assert(no_dereference);
+	assert(fromfile);
+	assert(exc_regex);
+	assert(exc_iregex);
+	assert(inc_regex);
+	assert(inc_iregex);
 
-    // Settings for options
-    int new_event;
-    bool sort_set = false;
+	// Settings for options
+	int new_event;
+	bool sort_set = false;
 
-    // Short options
-    static const char opt_string[] = "hrPa:d:zve:t:";
+	// Short options
+	static const char opt_string[] = "hrPa:d:zve:t:IFS";
 
-    // Construct array
-    static const struct option long_opts[] = {
-        {"help", no_argument, NULL, 'h'},
-        {"event", required_argument, NULL, 'e'},
-        {"timeout", required_argument, NULL, 't'},
-        {"verbose", no_argument, NULL, 'v'},
-        {"zero", no_argument, NULL, 'z'},
-        {"ascending", required_argument, NULL, 'a'},
-        {"descending", required_argument, NULL, 'd'},
-        {"recursive", no_argument, NULL, 'r'},
-        {"no-dereference", no_argument, NULL, 'P'},
-        {"fromfile", required_argument, NULL, 'o'},
-        {"exclude", required_argument, NULL, 'c'},
-        {"excludei", required_argument, NULL, 'b'},
-        {"include", required_argument, NULL, 'j'},
-        {"includei", required_argument, NULL, 'k'},
-        {NULL, 0, 0, 0},
-    };
+	// Construct array
+	static const struct option long_opts[] = {
+	    {"help", no_argument, NULL, 'h'},
+	    {"event", required_argument, NULL, 'e'},
+	    {"timeout", required_argument, NULL, 't'},
+	    {"verbose", no_argument, NULL, 'v'},
+	    {"zero", no_argument, NULL, 'z'},
+	    {"ascending", required_argument, NULL, 'a'},
+	    {"descending", required_argument, NULL, 'd'},
+	    {"recursive", no_argument, NULL, 'r'},
+	    {"inotify", no_argument, NULL, 'I'},
+	    {"fanotify", no_argument, NULL, 'F'},
+	    {"filesystem", no_argument, NULL, 'S'},
+	    {"no-dereference", no_argument, NULL, 'P'},
+	    {"fromfile", required_argument, NULL, 'o'},
+	    {"exclude", required_argument, NULL, 'c'},
+	    {"excludei", required_argument, NULL, 'b'},
+	    {"include", required_argument, NULL, 'j'},
+	    {"includei", required_argument, NULL, 'k'},
+	    {NULL, 0, 0, 0},
+	};
 
-    // Get first option
-    char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
+	// Get first option
+	char curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
 
-    // While more options exist...
-    while ((curr_opt != '?') && (curr_opt != (char)-1)) {
-        switch (curr_opt) {
-        // --help or -h
-        case 'h':
-            print_help();
-            // Shouldn't process any further...
-            return false;
-            break;
+	// While more options exist...
+	while ((curr_opt != '?') && (curr_opt != (char)-1)) {
+		switch (curr_opt) {
+			// --help or -h
+			case 'h':
+				print_help();
+				// Shouldn't process any further...
+				return false;
+				break;
 
-        // --verbose or -v
-        case 'v':
-            ++(*verbose);
-            break;
+			// --verbose or -v
+			case 'v':
+				++(*verbose);
+				break;
 
-        // --recursive or -r
-        case 'r':
-            ++(*recursive);
-            break;
-        case 'P':
-            ++(*no_dereference);
-            break;
+			// --recursive or -r
+			case 'r':
+				++(*recursive);
+				break;
 
-        // --zero or -z
-        case 'z':
-            ++(*z);
-            break;
+#ifdef ENABLE_FANOTIFY
+			// --inotify or -I
+			case 'I':
+				(*fanotify) = 0;
+				break;
 
-        // --exclude
-        case 'c':
-            (*exc_regex) = optarg;
-            break;
+			// --fanotify or -F
+			case 'F':
+				(*fanotify) = 1;
+				break;
 
-        // --excludei
-        case 'b':
-            (*exc_iregex) = optarg;
-            break;
+			// --filesystem or -S
+			case 'S':
+				(*filesystem) = true;
+				(*fanotify) = 1;
+				break;
+#endif
 
-        // --include
-        case 'j':
-            (*inc_regex) = optarg;
-            break;
+			case 'P':
+				++(*no_dereference);
+				break;
 
-        // --includei
-        case 'k':
-            (*inc_iregex) = optarg;
-            break;
+			// --zero or -z
+			case 'z':
+				++(*z);
+				break;
 
-        // --fromfile
-        case 'o':
-            if (*fromfile) {
-                fprintf(stderr, "Multiple --fromfile options given.\n");
-                return false;
-            }
-            (*fromfile) = optarg;
-            break;
+			// --exclude
+			case 'c':
+				(*exc_regex) = optarg;
+				break;
 
-        // --timeout or -t
-        case 't':
-            if (!is_timeout_option_valid(timeout, optarg)) {
-                return false;
-            }
-            break;
+			// --excludei
+			case 'b':
+				(*exc_iregex) = optarg;
+				break;
 
-        // --event or -e
-        case 'e':
-            // Get event mask from event string
-            new_event = inotifytools_str_to_event(optarg);
+			// --include
+			case 'j':
+				(*inc_regex) = optarg;
+				break;
 
-            // If optarg was invalid, abort
-            if (new_event == -1) {
-                fprintf(stderr, "'%s' is not a valid event!  Run with the "
-                                "'--help' option to see a list of "
-                                "events.\n",
-                        optarg);
-                return false;
-            }
+			// --includei
+			case 'k':
+				(*inc_iregex) = optarg;
+				break;
 
-            // Add the new event to the event mask
-            (*e) = ((*e) | new_event);
+			// --fromfile
+			case 'o':
+				if (*fromfile) {
+					fprintf(stderr,
+						"Multiple --fromfile options "
+						"given.\n");
+					return false;
+				}
+				(*fromfile) = optarg;
+				break;
 
-            break;
+			// --timeout or -t
+			case 't':
+				if (!is_timeout_option_valid(timeout, optarg)) {
+					return false;
+				}
+				break;
 
-        // --ascending or -a
-        case 'a':
-            if (sort_set) {
-                fprintf(stderr, "Please specify -a or -d once only!\n");
-                return false;
-            }
-            if (0 == strcasecmp(optarg, "total")) {
-                (*s) = 0;
-            } else if (0 == strcasecmp(optarg, "move")) {
-                fprintf(stderr, "Cannot sort by `move' event; please use "
-                                "`moved_from' or `moved_to'.\n");
-                return false;
-            } else if (0 == strcasecmp(optarg, "close")) {
-                fprintf(stderr, "Cannot sort by `close' event; please use "
-                                "`close_write' or `close_nowrite'.\n");
-                return false;
-            } else {
-                int event = inotifytools_str_to_event(optarg);
+			// --event or -e
+			case 'e':
+				// Get event mask from event string
+				new_event = inotifytools_str_to_event(optarg);
 
-                // If optarg was invalid, abort
-                if (event == -1) {
-                    fprintf(stderr, "'%s' is not a valid key for "
-                                    "sorting!\n",
-                            optarg);
-                    return false;
-                }
+				// If optarg was invalid, abort
+				if (new_event == -1) {
+					fprintf(
+					    stderr,
+					    "'%s' is not a valid event!  Run "
+					    "with the "
+					    "'--help' option to see a list of "
+					    "events.\n",
+					    optarg);
+					return false;
+				}
 
-                (*s) = event;
-            }
-            sort_set = true;
-            break;
+				// Add the new event to the event mask
+				(*e) = ((*e) | new_event);
 
-        // --descending or -d
-        case 'd':
-            if (sort_set) {
-                fprintf(stderr, "Please specify -a or -d once only!\n");
-                return false;
-            }
-            if (0 == strcasecmp(optarg, "total")) {
-                (*s) = -1;
-            } else {
-                int event = inotifytools_str_to_event(optarg);
+				break;
 
-                // If optarg was invalid, abort
-                if (event == -1) {
-                    fprintf(stderr, "'%s' is not a valid key for "
-                                    "sorting!\n",
-                            optarg);
-                    return false;
-                }
+			// --ascending or -a
+			case 'a':
+				if (sort_set) {
+					fprintf(stderr,
+						"Please specify -a or -d once "
+						"only!\n");
+					return false;
+				}
+				if (0 == strcasecmp(optarg, "total")) {
+					(*s) = 0;
+				} else if (0 == strcasecmp(optarg, "move")) {
+					fprintf(
+					    stderr,
+					    "Cannot sort by `move' event; "
+					    "please use "
+					    "`moved_from' or `moved_to'.\n");
+					return false;
+				} else if (0 == strcasecmp(optarg, "close")) {
+					fprintf(stderr,
+						"Cannot sort by `close' event; "
+						"please use "
+						"`close_write' or "
+						"`close_nowrite'.\n");
+					return false;
+				} else {
+					int event =
+					    inotifytools_str_to_event(optarg);
 
-                (*s) = -event;
-            }
-            break;
-        }
+					// If optarg was invalid, abort
+					if (event == -1) {
+						fprintf(stderr,
+							"'%s' is not a valid "
+							"key for "
+							"sorting!\n",
+							optarg);
+						return false;
+					}
 
-        curr_opt = getopt_long(*argc, *argv, opt_string, long_opts, NULL);
-    }
+					(*s) = event;
+				}
+				sort_set = true;
+				break;
 
-    (*argc) -= optind;
-    *argv = &(*argv)[optind];
+			// --descending or -d
+			case 'd':
+				if (sort_set) {
+					fprintf(stderr,
+						"Please specify -a or -d once "
+						"only!\n");
+					return false;
+				}
+				if (0 == strcasecmp(optarg, "total")) {
+					(*s) = -1;
+				} else {
+					int event =
+					    inotifytools_str_to_event(optarg);
 
-    if ((*s) != 0 && (*s) != -1 &&
-        !(abs(*s) & ((*e) ? (*e) : IN_ALL_EVENTS))) {
-        fprintf(stderr, "Can't sort by an event which isn't being watched "
-                        "for!\n");
-        return false;
-    }
+					// If optarg was invalid, abort
+					if (event == -1) {
+						fprintf(stderr,
+							"'%s' is not a valid "
+							"key for "
+							"sorting!\n",
+							optarg);
+						return false;
+					}
 
-    if (*exc_regex && *exc_iregex) {
-        fprintf(stderr, "--exclude and --excludei cannot both be specified.\n");
-        return false;
-    }
-    if (*inc_regex && *inc_iregex) {
-        fprintf(stderr, "--include and --includei cannot both be specified.\n");
-        return false;
-    }
-    if ((*inc_regex && *exc_regex) || (*inc_regex && *exc_iregex) ||
-        (*inc_iregex && *exc_regex) || (*inc_iregex && *exc_iregex)) {
-        fprintf(stderr,
-                "include and exclude regexp cannot both be specified.\n");
-        return false;
-    }
+					(*s) = -event;
+				}
+				break;
+		}
 
-    // If ? returned, invalid option
-    return (curr_opt != '?');
+		curr_opt =
+		    getopt_long(*argc, *argv, opt_string, long_opts, NULL);
+	}
+
+	(*argc) -= optind;
+	*argv = &(*argv)[optind];
+
+	if ((*s) != 0 && (*s) != -1 &&
+	    !(abs(*s) & ((*e) ? (*e) : IN_ALL_EVENTS))) {
+		fprintf(stderr,
+			"Can't sort by an event which isn't being watched "
+			"for!\n");
+		return false;
+	}
+
+	if (*exc_regex && *exc_iregex) {
+		fprintf(stderr,
+			"--exclude and --excludei cannot both be specified.\n");
+		return false;
+	}
+	if (*inc_regex && *inc_iregex) {
+		fprintf(stderr,
+			"--include and --includei cannot both be specified.\n");
+		return false;
+	}
+	if ((*inc_regex && *exc_regex) || (*inc_regex && *exc_iregex) ||
+	    (*inc_iregex && *exc_regex) || (*inc_iregex && *exc_iregex)) {
+		fprintf(
+		    stderr,
+		    "include and exclude regexp cannot both be specified.\n");
+		return false;
+	}
+
+	// If ? returned, invalid option
+	return (curr_opt != '?');
 }
 
+#define TOOL_NAME TOOLS_PREFIX "watch"
+
 void print_help() {
-    printf("inotifywatch %s\n", PACKAGE_VERSION);
-    printf("Gather filesystem usage statistics using inotify.\n");
-    printf("Usage: inotifywatch [ options ] file1 [ file2 ] [ ... ]\n");
-    printf("Options:\n");
-    printf("\t-h|--help    \tShow this help text.\n");
-    printf("\t-v|--verbose \tBe verbose.\n");
-    printf("\t@<file>       \tExclude the specified file from being "
-           "watched.\n");
-    printf("\t--fromfile <file>\n"
-           "\t\tRead files to watch from <file> or `-' for stdin.\n");
-    printf("\t--exclude <pattern>\n"
-           "\t\tExclude all events on files matching the extended regular\n"
-           "\t\texpression <pattern>.\n");
-    printf("\t--excludei <pattern>\n"
-           "\t\tLike --exclude but case insensitive.\n");
-    printf("\t--include <pattern>\n"
-           "\t\tExclude all events on files except the ones\n"
-           "\t\tmatching the extended regular expression\n"
-           "\t\t<pattern>.\n");
-    printf("\t--includei <pattern>\n"
-           "\t\tLike --include but case insensitive.\n");
-    printf("\t-z|--zero\n"
-           "\t\tIn the final table of results, output rows and columns even\n"
-           "\t\tif they consist only of zeros (the default is to not output\n"
-           "\t\tthese rows and columns).\n");
-    printf("\t-r|--recursive\tWatch directories recursively.\n");
-    printf("\t-P|--no-dereference\n"
-           "\t\tDo not follow symlinks.\n");
-    printf("\t-t|--timeout <seconds>\n"
-           "\t\tListen only for specified amount of time in seconds; if\n"
-           "\t\tomitted or negative, inotifywatch will execute until receiving "
-           "an\n"
-           "\t\tinterrupt signal.\n");
-    printf("\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
-           "\t\tListen for specific event(s).  If omitted, all events are \n"
-           "\t\tlistened for.\n");
-    printf("\t-a|--ascending <event>\n"
-           "\t\tSort ascending by a particular event, or `total'.\n");
-    printf("\t-d|--descending <event>\n"
-           "\t\tSort descending by a particular event, or `total'.\n\n");
-    printf("Exit status:\n");
-    printf("\t%d  -  Exited normally.\n", EXIT_SUCCESS);
-    printf("\t%d  -  Some error occurred.\n\n", EXIT_FAILURE);
-    printf("Events:\n");
-    print_event_descriptions();
+	printf("%s %s\n", TOOL_NAME, PACKAGE_VERSION);
+	printf("Gather filesystem usage statistics using %s.\n", TOOL_NAME);
+	printf("Usage: %s [ options ] file1 [ file2 ] [ ... ]\n", TOOL_NAME);
+	printf("Options:\n");
+	printf("\t-h|--help    \tShow this help text.\n");
+	printf("\t-v|--verbose \tBe verbose.\n");
+	printf(
+	    "\t@<file>       \tExclude the specified file from being "
+	    "watched.\n");
+	printf(
+	    "\t--fromfile <file>\n"
+	    "\t\tRead files to watch from <file> or `-' for stdin.\n");
+	printf(
+	    "\t--exclude <pattern>\n"
+	    "\t\tExclude all events on files matching the extended regular\n"
+	    "\t\texpression <pattern>.\n");
+	printf(
+	    "\t--excludei <pattern>\n"
+	    "\t\tLike --exclude but case insensitive.\n");
+	printf(
+	    "\t--include <pattern>\n"
+	    "\t\tExclude all events on files except the ones\n"
+	    "\t\tmatching the extended regular expression\n"
+	    "\t\t<pattern>.\n");
+	printf(
+	    "\t--includei <pattern>\n"
+	    "\t\tLike --include but case insensitive.\n");
+	printf(
+	    "\t-z|--zero\n"
+	    "\t\tIn the final table of results, output rows and columns even\n"
+	    "\t\tif they consist only of zeros (the default is to not output\n"
+	    "\t\tthese rows and columns).\n");
+	printf("\t-r|--recursive\tWatch directories recursively.\n");
+#ifdef ENABLE_FANOTIFY
+	printf("\t-I|--inotify\tWatch with inotify.\n");
+	printf("\t-F|--fanotify\tWatch with fanotify.\n");
+	printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
+#endif
+	printf(
+	    "\t-P|--no-dereference\n"
+	    "\t\tDo not follow symlinks.\n");
+	printf(
+	    "\t-t|--timeout <seconds>\n"
+	    "\t\tListen only for specified amount of time in seconds; if\n"
+	    "\t\tomitted or negative, %s will execute until receiving an\n"
+	    "\t\tinterrupt signal.\n",
+	    TOOL_NAME);
+	printf(
+	    "\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
+	    "\t\tListen for specific event(s).  If omitted, all events are \n"
+	    "\t\tlistened for.\n");
+	printf(
+	    "\t-a|--ascending <event>\n"
+	    "\t\tSort ascending by a particular event, or `total'.\n");
+	printf(
+	    "\t-d|--descending <event>\n"
+	    "\t\tSort descending by a particular event, or `total'.\n\n");
+	printf("Exit status:\n");
+	printf("\t%d  -  Exited normally.\n", EXIT_SUCCESS);
+	printf("\t%d  -  Some error occurred.\n\n", EXIT_FAILURE);
+	printf("Events:\n");
+	print_event_descriptions();
 }

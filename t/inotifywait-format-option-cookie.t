@@ -4,6 +4,7 @@ test_description='Resolves Issue #72
 
 Make transaction id (cookie) available as part of the format string using %c'
 
+. ./fanotify-common.sh
 . ./sharness.sh
 
 logfile="log"
@@ -15,7 +16,7 @@ run_() {
 
   export LD_LIBRARY_PATH="../../libinotifytools/src/"
 
-  ../../src/inotifywait \
+  ../../src/$* \
     --timeout 4 \
     --monitor \
     --daemon \
@@ -36,21 +37,31 @@ run_() {
   sleep 1
 }
 
-test_expect_success \
-	'event logged' \
-	'
+run_and_check_log()
+{
 	set -e
 	trap "set +e" RETURN
-	run_
+	rm -f "${logfile}"
+	run_ $*
 	local NONCOOKIE="$(cat "${logfile}" | sed -n 1p | grep -Eo "^[^ ]+")"
 	#Make sure cookie is 0 for single events
-    	[[ "${NONCOOKIE}" == "0" ]] || return 1
+	[[ "${NONCOOKIE}" == "0" ]] || return 1
 	local COOKIE_A="$(cat "${logfile}" | sed -n 2p | grep -Eo "^[^ ]+")"
-    	[[ -n "${COOKIE_A}" ]] || return 2
-    	local COOKIE_B="$(cat "${logfile}" | sed -n 3p | grep -Eo "^[^ ]+")"
-    	[[ "${COOKIE_A}" == "${COOKIE_B}" ]] || return 3'
+	[[ -n "${COOKIE_A}" ]] || return 2
+	local COOKIE_B="$(cat "${logfile}" | sed -n 3p | grep -Eo "^[^ ]+")"
+	[[ "${COOKIE_A}" == "${COOKIE_B}" ]] || return 3
+	cat "${logfile}"
+}
 
-cat "${logfile}"
+test_expect_success 'event logged' '
+    run_and_check_log inotifywait
+'
+
+if fanotify_supported; then
+    test_expect_success 'event logged' '
+	run_and_check_log fsnotifywait --fanotify
+    '
+fi
 
 test_done
 

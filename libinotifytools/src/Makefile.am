@@ -13,6 +13,7 @@ TESTS = test
 EXTRA_DIST = example.c Doxyfile
 
 nobase_include_HEADERS = inotifytools/inotifytools.h inotifytools/inotify-nosys.h inotifytools/inotify.h
+nobase_include_HEADERS += inotifytools/fanotify-dfid-name.h inotifytools/fanotify.h
 
 AM_CFLAGS = -std=c99 -Wall -Wshadow -Werror
 

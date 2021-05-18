@@ -22,10 +22,13 @@ config/
 
 /libinotifytools/src/doc
 /libinotifytools/src/inotifytools/inotify.h
+/libinotifytools/src/inotifytools/fanotify.h
 /libinotifytools/src/inotifytools/stamp-h2
 
 /src/inotifywait
 /src/inotifywatch
+/src/fsnotifywait
+/src/fsnotifywatch
 
 config.h
 config.h.in

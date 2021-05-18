@@ -114,13 +114,27 @@ FileList construct_path_list(int argc, char **argv, char const *filename) {
     return list;
 }
 
-void warn_inotify_init_error() {
-    int error = inotifytools_error();
-    fprintf(stderr, "Couldn't initialize inotify: %s\n", strerror(error));
-    if (error == EMFILE) {
-        fprintf(stderr, "Try increasing the value of "
-                        "/proc/sys/fs/inotify/max_user_instances\n");
-    }
+void warn_inotify_init_error(int fanotify) {
+	const char* backend = fanotify ? "fanotify" : "inotify";
+	const char* resource = fanotify ? "groups" : "instances";
+	int error = inotifytools_error();
+
+	fprintf(stderr, "Couldn't initialize %s: %s\n", backend,
+		strerror(error));
+	if (error == EMFILE) {
+		fprintf(stderr,
+			"Try increasing the value of "
+			"/proc/sys/fs/%s/max_user_%s\n",
+			backend, resource);
+	}
+	if (fanotify && error == EINVAL) {
+		fprintf(stderr,
+			"fanotify support for reporting the events with "
+			"file names was added in kernel v5.9.\n");
+	}
+	if (fanotify && error == EPERM) {
+		fprintf(stderr, "fanotify watch requires admin privileges\n");
+	}
 }
 
 bool is_timeout_option_valid(long int *timeout, char *o) {

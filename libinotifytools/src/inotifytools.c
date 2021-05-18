@@ -35,6 +35,27 @@
 
 #include "inotifytools/inotify.h"
 
+#ifdef __FreeBSD__
+struct fanotify_event_fid;
+
+#define FAN_EVENT_INFO_TYPE_FID 1
+#define FAN_EVENT_INFO_TYPE_DFID_NAME 2
+#define FAN_EVENT_INFO_TYPE_DFID 3
+
+#else
+// Linux only
+#define LINUX_FANOTIFY
+
+#include <fcntl.h>
+#include <sys/vfs.h>
+#include "inotifytools/fanotify.h"
+
+struct fanotify_event_fid {
+	struct fanotify_event_info_fid info;
+	struct file_handle handle;
+};
+#endif
+
 /**
  * @file inotifytools/inotifytools.h
  * @brief inotifytools library public interface.
@@ -127,14 +148,18 @@
 #define QUEUE_SIZE_PATH   INOTIFY_PROCDIR "max_queued_watches"
 #define INSTANCES_PATH    INOTIFY_PROCDIR "max_user_instances"
 
-static int inotify_fd;
+static int inotify_fd = -1;
 
 int collect_stats = 0;
 
 struct rbtree *tree_wd = 0;
+struct rbtree* tree_fid = 0;
 struct rbtree *tree_filename = 0;
 static int error = 0;
 int init = 0;
+int verbosity = 0;
+int fanotify_mode = 0;
+int fanotify_mark_type = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
@@ -218,6 +243,23 @@ int wd_compare(const void *d1, const void *d2, const void *config) {
 	return ((watch*)d1)->wd - ((watch*)d2)->wd;
 }
 
+int fid_compare(const void* d1, const void* d2, const void* config) {
+#ifdef LINUX_FANOTIFY
+	if (!d1 || !d2)
+		return d1 - d2;
+	watch* w1 = (watch*)d1;
+	watch* w2 = (watch*)d2;
+	int n1, n2;
+	n1 = w1->fid->info.hdr.len;
+	n2 = w2->fid->info.hdr.len;
+	if (n1 != n2)
+		return n1 - n2;
+	return memcmp(w1->fid, w2->fid, n1);
+#else
+	return d1 - d2;
+#endif
+}
+
 int filename_compare(const void *d1, const void *d2, const void *config) {
 	if (!d1 || !d2) return d1 - d2;
 	return strcmp(((watch*)d1)->filename, ((watch*)d2)->filename);
@@ -235,6 +277,15 @@ watch *watch_from_wd( int wd ) {
 /**
  * @internal
  */
+watch* watch_from_fid(struct fanotify_event_fid* fid) {
+	watch w;
+	w.fid = fid;
+	return (watch*)rbfind(&w, tree_fid);
+}
+
+/**
+ * @internal
+ */
 watch *watch_from_filename( char const *filename ) {
 	watch w;
 	w.filename = (char*)filename;
@@ -243,6 +294,7 @@ watch *watch_from_filename( char const *filename ) {
 
 /**
  * Initialise inotify.
+ * With @fanotify non-zero, initialize fanotify filesystem watch.
  *
  * You must call this function before using any function which adds or removes
  * watches or attempts to access any information about watches.
@@ -250,13 +302,25 @@ watch *watch_from_filename( char const *filename ) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_initialize() {
+int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 	if (init) return 1;
 
 	error = 0;
-	// Try to initialise inotify
-	inotify_fd = inotify_init();
-	if (inotify_fd < 0)	{
+	verbosity = verbose;
+	// Try to initialise inotify/fanotify
+	if (fanotify) {
+#ifdef LINUX_FANOTIFY
+		fanotify_mode = 1;
+		fanotify_mark_type =
+		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
+		inotify_fd =
+		    fanotify_init(FAN_REPORT_FID | FAN_REPORT_DFID_NAME, 0);
+#endif
+	} else {
+		fanotify_mode = 0;
+		inotify_fd = inotify_init();
+	}
+	if (inotify_fd < 0) {
 		error = errno;
 		return 0;
 	}
@@ -264,10 +328,15 @@ int inotifytools_initialize() {
 	collect_stats = 0;
 	init = 1;
 	tree_wd = rbinit(wd_compare, 0);
+	tree_fid = rbinit(fid_compare, 0);
 	tree_filename = rbinit(filename_compare, 0);
 	timefmt = 0;
 
 	return 1;
+}
+
+int inotifytools_initialize() {
+	return inotifytools_init(0, 0, 0);
 }
 
 /**
@@ -275,6 +344,10 @@ int inotifytools_initialize() {
  */
 void destroy_watch(watch *w) {
 	if (w->filename) free(w->filename);
+	if (w->fid)
+		free(w->fid);
+	if (w->dirfd)
+		close(w->dirfd);
 	free(w);
 }
 
@@ -311,8 +384,12 @@ void inotifytools_cleanup() {
 	}
 
 	rbwalk(tree_wd, cleanup_tree, 0);
-	rbdestroy(tree_wd); tree_wd = 0;
-	rbdestroy(tree_filename); tree_filename = 0;
+	rbdestroy(tree_wd);
+	rbdestroy(tree_fid);
+	rbdestroy(tree_filename);
+	tree_wd = 0;
+	tree_fid = 0;
+	tree_filename = 0;
 }
 
 
@@ -666,6 +743,115 @@ char * inotifytools_event_to_str_sep(int events, char sep)
 }
 
 /**
+ * Get the filename from fid.
+ *
+ * Resolve filename from fid + name and return
+ * static filename string.
+ */
+const char* inotifytools_filename_from_fid(struct fanotify_event_fid* fid) {
+#ifdef LINUX_FANOTIFY
+	static char filename[PATH_MAX];
+	struct fanotify_event_fid fsid = {};
+	int dirfd = 0, mount_fd = AT_FDCWD;
+	int len = 0, name_len = 0;
+
+	// Match mount_fd from fid->fsid (and null fhandle)
+	fsid.info.fsid.val[0] = fid->info.fsid.val[0];
+	fsid.info.fsid.val[1] = fid->info.fsid.val[1];
+	fsid.info.hdr.info_type = FAN_EVENT_INFO_TYPE_FID;
+	fsid.info.hdr.len = sizeof(fsid);
+	watch* mnt = watch_from_fid(&fsid);
+	if (mnt)
+		mount_fd = mnt->dirfd;
+
+	if (fid->info.hdr.info_type == FAN_EVENT_INFO_TYPE_DFID_NAME) {
+		int fid_len = sizeof(*fid) + fid->handle.handle_bytes;
+
+		name_len = fid->info.hdr.len - fid_len;
+		if (name_len && !fid->handle.f_handle[fid->handle.handle_bytes])
+			name_len = 0;  // empty name??
+	}
+
+	// Try to get path from file handle
+	dirfd = open_by_handle_at(mount_fd, &fid->handle, 0);
+	if (dirfd > 0) {
+		// Got path by handle
+	} else if (fanotify_mark_type == FAN_MARK_FILESYSTEM) {
+		fprintf(stderr, "Failed to decode directory fid.\n");
+		return NULL;
+	} else if (name_len) {
+		// For recursive watch look for watch by fid without the name
+		fid->info.hdr.info_type = FAN_EVENT_INFO_TYPE_DFID;
+		fid->info.hdr.len -= name_len;
+
+		watch* w = watch_from_fid(fid);
+
+		fid->info.hdr.info_type = FAN_EVENT_INFO_TYPE_DFID_NAME;
+		fid->info.hdr.len += name_len;
+
+		if (!w) {
+			fprintf(stderr,
+				"Failed to lookup path by directory fid.\n");
+			return NULL;
+		}
+
+		dirfd = w->dirfd ? dup(w->dirfd) : -1;
+		if (dirfd < 0) {
+			fprintf(stderr, "Failed to get directory fd.\n");
+			return NULL;
+		}
+	} else {
+		// Fallthrough to stored filename
+		return NULL;
+	}
+	char sym[30];
+	sprintf(sym, "/proc/self/fd/%d", dirfd);
+	len = readlink(sym, filename, PATH_MAX);
+	if (len < 0) {
+		close(dirfd);
+		fprintf(stderr, "Failed to resolve path from directory fd.\n");
+		return NULL;
+	}
+	filename[len++] = '/';
+	filename[len] = 0;
+
+	if (name_len > 0) {
+		const char* name = (const char*)fid->handle.f_handle +
+				   fid->handle.handle_bytes;
+		int deleted = faccessat(dirfd, name, F_OK, AT_SYMLINK_NOFOLLOW);
+		if (deleted && errno != ENOENT) {
+			fprintf(stderr, "Failed to access file %s (%s).\n",
+				name, strerror(errno));
+			close(dirfd);
+			return NULL;
+		}
+		memcpy(filename + len, name, name_len);
+		if (deleted)
+			strcat(filename, " (deleted)");
+	}
+	close(dirfd);
+	return filename;
+#else
+	return NULL;
+#endif
+}
+
+/**
+ * Get the filename from a watch.
+ *
+ * If not stored in watch, resolve filename from fid + name and return
+ * static filename string.
+ */
+const char* inotifytools_filename_from_watch(watch* w) {
+	if (!w)
+		return "";
+	if (!w->fid || !fanotify_mark_type)
+		return w->filename;
+
+	return inotifytools_filename_from_fid(w->fid) ?: w->filename;
+}
+
+/**
  * Get the filename used to establish a watch.
  *
  * inotifytools_initialize() must be called before this function can
@@ -685,13 +871,66 @@ char * inotifytools_event_to_str_sep(int events, char sep)
  *       Finally, if a file is moved or renamed while being watched, the
  *       filename returned will still be the original name.
  */
-char * inotifytools_filename_from_wd( int wd ) {
+const char* inotifytools_filename_from_wd(int wd) {
 	niceassert( init, "inotifytools_initialize not called yet" );
+	if (!wd)
+		return "";
 	watch *w = watch_from_wd(wd);
 	if (!w)
-        return NULL;
+		return "";
 
-	return w->filename;
+	return inotifytools_filename_from_watch(w);
+}
+
+/**
+ * Get the directory path used to establish a watch.
+ *
+ * Returns the filename recorded for event->wd and the dirname
+ * prefix length.
+ *
+ * The caller should NOT free() the returned string.
+ */
+const char* inotifytools_dirname_from_event(struct inotify_event* event,
+					    size_t* dirnamelen) {
+	const char* filename = inotifytools_filename_from_wd(event->wd);
+	char* dirsep;
+
+	if (!filename) {
+		return NULL;
+	}
+
+	dirsep = strrchr(filename, '/');
+	if (!dirsep) {
+		return NULL;
+	}
+
+	*dirnamelen = dirsep - filename + 1;
+	return filename;
+}
+
+/**
+ * Get the directory path from an event.
+ *
+ * Returns the filename recorded for event->wd or NULL.
+ * For an event on non-directory also returns NULL.
+ *
+ * The caller is responsible to free() the returned string.
+ */
+char* inotifytools_dirpath_from_event(struct inotify_event* event) {
+	const char* filename = inotifytools_filename_from_wd(event->wd);
+
+	if (!filename || !*filename || !(event->mask & IN_ISDIR)) {
+		return NULL;
+	}
+
+	/*
+	 * fanotify watch->filename includes the name, so no need to add the
+	 * event->name again.
+	 */
+	char* path;
+	nasprintf(&path, "%s%s/", filename, fanotify_mode ? "" : event->name);
+
+	return path;
 }
 
 /**
@@ -710,6 +949,8 @@ char * inotifytools_filename_from_wd( int wd ) {
  */
 int inotifytools_wd_from_filename( char const * filename ) {
 	niceassert( init, "inotifytools_initialize not called yet" );
+	if (!filename || !*filename)
+		return -1;
 	watch *w = watch_from_filename(filename);
 	if (!w) return -1;
 	return w->wd;
@@ -783,7 +1024,10 @@ void inotifytools_set_filename_by_filename( char const * oldname,
  */
 void inotifytools_replace_filename( char const * oldname,
                                     char const * newname ) {
-	if ( !oldname || !newname ) return;
+	if (!oldname || !newname)
+		return;
+	if (!*oldname || !*newname)
+		return;
 	struct replace_filename_data data;
 	data.old_name = oldname;
 	data.new_name = newname;
@@ -796,6 +1040,9 @@ void inotifytools_replace_filename( char const * oldname,
  */
 int remove_inotify_watch(watch *w) {
 	error = 0;
+	// There is no kernel object representing the watch with fanotify
+	if (w->fid)
+		return 0;
 	int status = inotify_rm_watch( inotify_fd, w->wd );
 	if ( status < 0 ) {
 		fprintf(stderr, "Failed to remove watch on %s: %s\n", w->filename,
@@ -809,15 +1056,29 @@ int remove_inotify_watch(watch *w) {
 /**
  * @internal
  */
-watch *create_watch(int wd, char *filename) {
-	if ( wd <= 0 || !filename) return 0;
+watch* create_watch(int wd,
+		    struct fanotify_event_fid* fid,
+		    const char* filename,
+		    int dirfd) {
+	if (wd < 0 || !filename)
+		return 0;
 
 	watch *w = (watch*)calloc(1, sizeof(watch));
-	w->wd = wd;
-	w->filename = strdup(filename);
+	if (!w) {
+		fprintf(stderr, "Failed to allocate watch.\n");
+		return NULL;
+	}
+	w->wd = wd ?: (unsigned long)fid;
+	w->fid = fid;
+	w->dirfd = dirfd;
+	if (filename)
+		w->filename = strdup(filename);
 	rbsearch(w, tree_wd);
-	rbsearch(w, tree_filename);
-    return NULL;
+	if (fid)
+		rbsearch(w, tree_fid);
+	if (filename)
+		rbsearch(w, tree_filename);
+	return w;
 }
 
 /**
@@ -839,6 +1100,8 @@ int inotifytools_remove_watch_by_wd( int wd ) {
 
 	if (!remove_inotify_watch(w)) return 0;
 	rbdelete(w, tree_wd);
+	if (w->fid)
+		rbdelete(w, tree_fid);
 	rbdelete(w, tree_filename);
 	destroy_watch(w);
 	return 1;
@@ -862,6 +1125,8 @@ int inotifytools_remove_watch_by_filename( char const * filename ) {
 
 	if (!remove_inotify_watch(w)) return 0;
 	rbdelete(w, tree_wd);
+	if (w->fid)
+		rbdelete(w, tree_fid);
 	rbdelete(w, tree_filename);
 	destroy_watch(w);
 	return 1;
@@ -906,8 +1171,24 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 
 	static int i;
 	for ( i = 0; filenames[i]; ++i ) {
-		static int wd;
-		wd = inotify_add_watch( inotify_fd, filenames[i], events );
+		int wd = -1;
+		if (fanotify_mode) {
+#ifdef LINUX_FANOTIFY
+			unsigned int flags = FAN_MARK_ADD | fanotify_mark_type;
+
+			if (events & IN_DONT_FOLLOW) {
+				events &= ~IN_DONT_FOLLOW;
+				flags |= FAN_MARK_DONT_FOLLOW;
+			}
+
+			wd = fanotify_mark(inotify_fd, flags,
+					   events | FAN_EVENT_ON_CHILD,
+					   AT_FDCWD, filenames[i]);
+#endif
+		} else {
+			wd =
+			    inotify_add_watch(inotify_fd, filenames[i], events);
+		}
 		if ( wd < 0 ) {
 			if ( wd == -1 ) {
 				error = errno;
@@ -921,17 +1202,101 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 			} // else
 		} // if ( wd < 0 )
 
-		char *filename;
+		const char* filename = filenames[i];
+		size_t filenamelen = strlen(filename);
+		char* dirname;
+		int dirfd = 0;
 		// Always end filename with / if it is a directory
-		if ( !isdir(filenames[i])
-		     || filenames[i][strlen(filenames[i])-1] == '/') {
-			filename = strdup(filenames[i]);
+		if (!isdir(filename)) {
+			dirname = NULL;
+		} else if (filename[filenamelen - 1] == '/') {
+			dirname = strdup(filename);
+		} else {
+			nasprintf(&dirname, "%s/", filename);
+			filename = dirname;
+			filenamelen++;
 		}
-		else {
-			nasprintf( &filename, "%s/", filenames[i] );
+
+		struct fanotify_event_fid* fid = NULL;
+#ifdef LINUX_FANOTIFY
+		if (!wd) {
+			fid = calloc(1, sizeof(*fid) + MAX_FID_LEN);
+			if (!fid) {
+				fprintf(stderr, "Failed to allocate fid");
+				return 0;
+			}
+
+			struct statfs buf;
+			if (statfs(filenames[i], &buf)) {
+				free(fid);
+				fprintf(stderr, "Statfs failed on %s: %s\n",
+					filenames[i], strerror(errno));
+				return 0;
+			}
+			memcpy(&fid->info.fsid, &buf.f_fsid,
+			       sizeof(__kernel_fsid_t));
+
+			// Hash mount_fd with fid->fsid (and null fhandle)
+			int ret, mntid;
+			watch* mnt = dirname ? watch_from_fid(fid) : NULL;
+			if (dirname && !mnt) {
+				struct fanotify_event_fid* fsid;
+
+				fsid = calloc(1, sizeof(*fsid));
+				if (!fsid) {
+					free(fid);
+					fprintf(stderr,
+						"Failed to allocate fsid");
+					return 0;
+				}
+				fsid->info.fsid.val[0] = fid->info.fsid.val[0];
+				fsid->info.fsid.val[1] = fid->info.fsid.val[1];
+				fsid->info.hdr.info_type =
+				    FAN_EVENT_INFO_TYPE_FID;
+				fsid->info.hdr.len = sizeof(*fsid);
+				mntid = open(dirname, O_RDONLY);
+				if (mntid < 0) {
+					free(fid);
+					free(fsid);
+					fprintf(stderr,
+						"Failed to open %s: %s\n",
+						dirname, strerror(errno));
+					return 0;
+				}
+				// Hash mount_fd without terminating /
+				dirname[filenamelen - 1] = 0;
+				create_watch(0, fsid, dirname, mntid);
+				dirname[filenamelen - 1] = '/';
+			}
+
+			fid->handle.handle_bytes = MAX_FID_LEN;
+			ret = name_to_handle_at(AT_FDCWD, filenames[i],
+						(void*)&fid->handle, &mntid, 0);
+			if (ret || fid->handle.handle_bytes > MAX_FID_LEN) {
+				free(fid);
+				fprintf(stderr, "Encode fid failed on %s: %s\n",
+					filenames[i], strerror(errno));
+				return 0;
+			}
+			fid->info.hdr.info_type = dirname
+						      ? FAN_EVENT_INFO_TYPE_DFID
+						      : FAN_EVENT_INFO_TYPE_FID;
+			fid->info.hdr.len =
+			    sizeof(*fid) + fid->handle.handle_bytes;
+			if (dirname) {
+				dirfd = open(dirname, O_PATH);
+				if (dirfd < 0) {
+					free(fid);
+					fprintf(stderr,
+						"Failed to open %s: %s\n",
+						dirname, strerror(errno));
+					return 0;
+				}
+			}
 		}
-		create_watch(wd, filename);
-		free(filename);
+#endif
+		create_watch(wd, fid, filename, dirfd);
+		free(dirname);
 	} // for
 
 	return 1;
@@ -1022,10 +1387,12 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 
 	if ( num_events < 1 ) return NULL;
 
-	static struct inotify_event event[MAX_EVENTS];
+	// second half of event[] buffer is for fanotify->inotify conversion
+	static struct inotify_event event[2 * MAX_EVENTS];
 	static struct inotify_event * ret;
 	static int first_byte = 0;
 	static ssize_t bytes;
+	static ssize_t this_bytes;
 	static jmp_buf jmp;
 	static struct nstring match_name;
 	static char match_name_string[MAX_STRLEN+1];
@@ -1058,14 +1425,8 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	  && first_byte <= (int)(bytes - sizeof(struct inotify_event)) ) {
 
 		ret = (struct inotify_event *)((char *)&event[0] + first_byte);
-		first_byte += sizeof(struct inotify_event) + ret->len;
-
-		// if the pointer to the next event exactly hits end of bytes read,
-		// that's good.  next time we're called, we'll read.
-		if ( first_byte == bytes ) {
-			first_byte = 0;
-		}
-		else if ( first_byte > bytes ) {
+		if (!fanotify_mode &&
+		    first_byte + sizeof(*ret) + ret->len > bytes) {
 			// oh... no.  this can't be happening.  An incomplete event.
 			// Copy what we currently have into first element, call self to
 			// read remainder.
@@ -1081,7 +1442,8 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 			memcpy( &event[0], ret, bytes );
 			return inotifytools_next_events( timeout, num_events );
 		}
-		RETURN(ret);
+		this_bytes = 0;
+		goto more_events;
 
 	}
 
@@ -1090,7 +1452,6 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	}
 
 
-	static ssize_t this_bytes;
 	static unsigned int bytes_to_read;
 	static int rc;
 	static fd_set read_fds;
@@ -1137,10 +1498,104 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 		                "events occurred at once.\n");
 		return NULL;
 	}
-	bytes += this_bytes;
+more_events:
+	ret = (struct inotify_event*)((char*)&event[0] + first_byte);
+#ifdef LINUX_FANOTIFY
+	// convert fanotify events to inotify events
+	if (fanotify_mode) {
+		struct fanotify_event_metadata* meta = (void*)ret;
+		struct fanotify_event_info_fid* info = (void*)(meta + 1);
+		struct fanotify_event_fid *newfid, *fid = NULL;
+		const char* name = "";
+		int fid_len = 0;
+		int name_len = 0;
 
-	ret = &event[0];
-	first_byte = sizeof(struct inotify_event) + ret->len;
+		first_byte += meta->event_len;
+
+		if (meta->event_len > sizeof(*meta)) {
+			switch (info->hdr.info_type) {
+				case FAN_EVENT_INFO_TYPE_FID:
+				case FAN_EVENT_INFO_TYPE_DFID:
+				case FAN_EVENT_INFO_TYPE_DFID_NAME:
+					fid = (void*)info;
+					fid_len = sizeof(*fid) +
+						  fid->handle.handle_bytes;
+					if (info->hdr.info_type ==
+					    FAN_EVENT_INFO_TYPE_DFID_NAME) {
+						name_len =
+						    info->hdr.len - fid_len;
+					}
+					if (name_len > 0) {
+						name =
+						    (const char*)
+							fid->handle.f_handle +
+						    fid->handle.handle_bytes;
+					}
+					// Convert zero padding to zero
+					// name_len. For some events on
+					// directories, the fid is that of the
+					// dir and name is ".". Do not include
+					// "." name in fid hash, but keep it for
+					// debug print.
+					if (name_len &&
+					    (!*name || !strcmp(name, "."))) {
+						info->hdr.len -= name_len;
+						name_len = 0;
+					}
+					break;
+			}
+		}
+		if (!fid) {
+			fprintf(stderr, "No fid in fanotify event.\n");
+			return NULL;
+		}
+		if (verbosity > 1) {
+			printf(
+			    "fanotify_event: bytes=%ld, first_byte=%d, "
+			    "this_bytes=%ld, event_len=%d, fid_len=%d, "
+			    "name_len=%d, name=%s\n",
+			    bytes, first_byte, this_bytes, meta->event_len,
+			    fid_len, name_len, name);
+		}
+
+		ret = &event[MAX_EVENTS];
+		watch* w = watch_from_fid(fid);
+		if (!w) {
+			newfid = calloc(1, info->hdr.len);
+			if (!newfid) {
+				fprintf(stderr, "Failed to allocate fid.\n");
+				return NULL;
+			}
+			memcpy(newfid, fid, info->hdr.len);
+			const char* filename =
+			    inotifytools_filename_from_fid(fid);
+			if (filename) {
+				w = create_watch(0, newfid, filename, 0);
+				if (!w)
+					return NULL;
+			}
+
+			if (verbosity) {
+				unsigned long id;
+				memcpy((void*)&id, fid->handle.f_handle,
+				       sizeof(id));
+				printf("[fid=%x.%x.%lx;name='%s'] %s\n",
+				       fid->info.fsid.val[0],
+				       fid->info.fsid.val[1], id, name,
+				       filename ?: "");
+			}
+		}
+		ret->wd = w ? w->wd : 0;
+		ret->mask = (uint32_t)meta->mask;
+		ret->len = name_len;
+		if (name_len > 0)
+			memcpy(ret->name, name, name_len);
+	} else {
+		first_byte += sizeof(struct inotify_event) + ret->len;
+	}
+#endif
+
+	bytes += this_bytes;
 	niceassert( first_byte <= bytes, "ridiculously long filename, things will "
 	                                 "almost certainly screw up." );
 	if ( first_byte == bytes ) {
@@ -1565,7 +2020,8 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  */
 int inotifytools_snprintf( struct nstring * out, int size,
                            struct inotify_event* event, char* fmt ) {
-	static char * filename, * eventname, * eventstr;
+	static const char* filename;
+	static char *eventname, *eventstr;
 	static unsigned int i, ind;
 	static char ch1;
 	static char timestr[MAX_STRLEN];
@@ -1578,8 +2034,8 @@ int inotifytools_snprintf( struct nstring * out, int size,
 		eventname = NULL;
 	}
 
-
-	filename = inotifytools_filename_from_wd( event->wd );
+	size_t dirnamelen = 0;
+	filename = inotifytools_dirname_from_event(event, &dirnamelen);
 
 	if ( !fmt || 0 == strlen(fmt) ) {
 		error = EINVAL;
@@ -1625,9 +2081,9 @@ int inotifytools_snprintf( struct nstring * out, int size,
 		}
 
 		if ( ch1 == 'w' ) {
-			if ( filename ) {
-				strncpy( &out->buf[ind], filename, size - ind );
-				ind += strlen(filename);
+			if (filename && dirnamelen <= size - ind) {
+				strncpy(&out->buf[ind], filename, dirnamelen);
+				ind += dirnamelen;
 			}
 			++i;
 			continue;
