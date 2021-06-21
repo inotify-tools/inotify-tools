@@ -27,7 +27,7 @@ void print_event_descriptions() {
     printf("\tmodify\t\tfile or directory contents were written\n");
     printf("\tattrib\t\tfile or directory attributes changed\n");
     printf("\tclose_write\tfile or directory closed, after being opened in\n"
-           "\t           \twriteable mode\n");
+           "\t           \twritable mode\n");
     printf("\tclose_nowrite\tfile or directory closed, after being opened in\n"
            "\t           \tread-only mode\n");
     printf("\tclose\t\tfile or directory closed, regardless of read/write "
