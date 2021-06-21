@@ -412,6 +412,14 @@ inotifywait -qmr -e 'moved_to,create' --format '%w%f%0' --no-newline ~/test |\\
     done
 .fi
 
+.SH CAVEATS
+
+When using inotifywait, the filename that is outputted is not
+guaranteed to be up to date after a move because it is the inode that
+is being monitored. Additionally, none of the observed operations are
+guaranteed to have been performed on the filename inotifywait was
+instructed to monitor in cases when the file is known by several names
+in the filesystem.
 
 .SH BUGS
 There are race conditions in the recursive directory watching code
