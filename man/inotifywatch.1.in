@@ -313,6 +313,15 @@ total  access  modify  filename
 2      2       0       /home/rohan/.beagle/Indexes/KMailIndex/SecondaryIndex/
 .fi
 
+.SH CAVEATS
+
+When using inotifywatch, the filename that is outputted is not
+guaranteed to be up to date after a move because it is the inode that
+is being monitored. Additionally, none of the observed operations are
+guaranteed to have been performed on the filename inotifywatch was
+instructed to monitor in cases when the file is known by several names
+in the filesystem.
+
 .SH BUGS
 There are race conditions in the recursive directory watching code
 which can cause events to be missed if they occur in a directory immediately
