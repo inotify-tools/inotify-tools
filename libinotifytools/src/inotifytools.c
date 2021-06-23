@@ -230,6 +230,7 @@ int read_num_from_file( char * filename, int * num ) {
 
 	if ( EOF == fscanf( file, "%d", num ) ) {
 		error = errno;
+		niceassert(0 == fclose(file), 0);
 		return 0;
 	}
 
