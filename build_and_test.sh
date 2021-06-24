@@ -114,5 +114,30 @@ if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
       exit 1
     fi
   fi
+
+  if [ "$1" == "clean" ]; then
+    git clean -fdx 2>&1
+  fi
+
+  export CC=gcc
+
+  file="/tmp/cov-analysis-linux64.tar.gz"
+  project="inotifytools"
+  token="Dy7fkaSpHHjTg8JMFHKgOw"
+  curl -o "$file" https://scan.coverity.com/download/linux64 \
+    --form project="$project" --form token="$token"
+  tar xf "$file"
+  ./autogen.sh
+  ./configure
+  cov-analysis-linux64-*/bin/cov-build --dir cov-int make -j$j
+  tar cfz cov-int.tar.gz cov-int
+  version="$(git rev-parse HEAD)"
+  description="$(git show --no-patch --oneline)"
+  curl --form token="$token" \
+    --form email=ericcurtin17@gmail.com \
+    --form file=@cov-int.tar.gz \
+    --form version="$version" \
+    --form description="$description" \
+    https://scan.coverity.com/builds?project=$project
 fi
 
