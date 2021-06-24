@@ -33,28 +33,28 @@ extern int optind, opterr, optopt;
 #define nasprintf(...) niceassert(-1 != asprintf(__VA_ARGS__), "out of memory")
 
 // METHODS
-bool parse_opts(int* argc,
-		char*** argv,
-		int* events,
-		bool* monitor,
-		int* quiet,
-		long int* timeout,
-		int* recursive,
-		bool* csv,
-		bool* daemon,
-		bool* syslog,
-		bool* no_dereference,
-		char** format,
-		char** timefmt,
-		char** fromfile,
-		char** outfile,
-		char** exc_regex,
-		char** exc_iregex,
-		char** inc_regex,
-		char** inc_iregex,
-		bool* no_newline,
-		int* fanotify,
-		bool* filesystem);
+static bool parse_opts(int* argc,
+		       char*** argv,
+		       int* events,
+		       bool* monitor,
+		       int* quiet,
+		       long int* timeout,
+		       int* recursive,
+		       bool* csv,
+		       bool* daemon,
+		       bool* syslog,
+		       bool* no_dereference,
+		       char** format,
+		       char** timefmt,
+		       char** fromfile,
+		       char** outfile,
+		       char** exc_regex,
+		       char** exc_iregex,
+		       char** inc_regex,
+		       char** inc_iregex,
+		       bool* no_newline,
+		       int* fanotify,
+		       bool* filesystem);
 
 void print_help();
 
@@ -119,10 +119,14 @@ void validate_format(char *fmt) {
         free(event);
         return;
     }
+
     if (-1 == inotifytools_fprintf(devnull, event, fmt)) {
         fprintf(stderr, "Something is wrong with your format string.\n");
-        exit(EXIT_FAILURE);
+	free(event);
+	fclose(devnull);
+	exit(EXIT_FAILURE);
     }
+
     free(event);
     fclose(devnull);
 }
@@ -491,28 +495,28 @@ timeout:
 	return EXIT_TIMEOUT;
 }
 
-bool parse_opts(int* argc,
-		char*** argv,
-		int* events,
-		bool* monitor,
-		int* quiet,
-		long int* timeout,
-		int* recursive,
-		bool* csv,
-		bool* daemon,
-		bool* syslog,
-		bool* no_dereference,
-		char** format,
-		char** timefmt,
-		char** fromfile,
-		char** outfile,
-		char** exc_regex,
-		char** exc_iregex,
-		char** inc_regex,
-		char** inc_iregex,
-		bool* no_newline,
-		int* fanotify,
-		bool* filesystem) {
+static bool parse_opts(int* argc,
+		       char*** argv,
+		       int* events,
+		       bool* monitor,
+		       int* quiet,
+		       long int* timeout,
+		       int* recursive,
+		       bool* csv,
+		       bool* daemon,
+		       bool* syslog,
+		       bool* no_dereference,
+		       char** format,
+		       char** timefmt,
+		       char** fromfile,
+		       char** outfile,
+		       char** exc_regex,
+		       char** exc_iregex,
+		       char** inc_regex,
+		       char** inc_iregex,
+		       bool* no_newline,
+		       int* fanotify,
+		       bool* filesystem) {
 	assert(argc);
 	assert(argv);
 	assert(events);
@@ -546,9 +550,6 @@ bool parse_opts(int* argc,
 
 	const char* regex_warning =
 	    "only the last option will be taken into consideration.\n";
-
-	// format provided by the user
-	static char* customformat = NULL;
 
 	// Short options
 	static const char opt_string[] = "mrhcdsPqt:fo:e:IFS";
@@ -659,13 +660,15 @@ bool parse_opts(int* argc,
 					"inotifywait is now turned on by "
 					"default.\n");
 				return false;
-				break;
 
 			// --format
 			case 'n':
-				customformat =
-				    (char*)malloc(strlen(optarg) + 2);
-				strcpy(customformat, optarg);
+				if (!(*format)) {
+					*format =
+					    (char*)malloc(strlen(optarg) + 2);
+				}
+
+				strcpy(*format, optarg);
 				break;
 
 			// --no-newline
@@ -708,6 +711,7 @@ bool parse_opts(int* argc,
 						"given.\n");
 					return false;
 				}
+
 				(*fromfile) = optarg;
 				break;
 
@@ -719,6 +723,7 @@ bool parse_opts(int* argc,
 						"given.\n");
 					return false;
 				}
+
 				(*outfile) = optarg;
 				break;
 
@@ -727,6 +732,7 @@ bool parse_opts(int* argc,
 				if (!is_timeout_option_valid(timeout, optarg)) {
 					return false;
 				}
+
 				break;
 
 			// --event or -e
@@ -756,11 +762,8 @@ bool parse_opts(int* argc,
 		    getopt_long(*argc, *argv, opt_string, long_opts, NULL);
 	}
 
-	if (customformat) {
-		if (!(*no_newline)) {
-			strcat(customformat, "\n");
-		}
-		(*format) = customformat;
+	if (*format && !(*no_newline)) {
+		strcat(*format, "\n");
 	}
 
 	if (*exc_regex && *exc_iregex) {
