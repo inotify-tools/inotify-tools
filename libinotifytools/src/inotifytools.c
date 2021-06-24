@@ -490,13 +490,9 @@ int inotifytools_str_to_event_sep(char const * event, char sep) {
                 if (len > eventstr_size - 1)
                     len = eventstr_size - 1;
 
-                if (event2 || len == eventstr_size - 1) {
-                    strncpy(eventstr, event1, len);
-                } else {
-                    strcpy(eventstr, event1);
-                }
+		strncpy(eventstr, event1, len);
 
-                eventstr[len] = 0;
+		eventstr[len] = 0;
 
 		ret1 = onestr_to_event( eventstr );
 		if ( 0 == ret1 || -1 == ret1 ) {
