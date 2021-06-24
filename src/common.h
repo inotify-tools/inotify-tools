@@ -36,7 +36,11 @@ typedef struct {
     char const **watch_files;
     char const **exclude_files;
 } FileList;
-FileList construct_path_list(int argc, char **argv, char const *filename);
+
+void construct_path_list(int argc,
+			 char** argv,
+			 char const* filename,
+			 FileList* list);
 
 void warn_inotify_init_error(int fanotify);
 

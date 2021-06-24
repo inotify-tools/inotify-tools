@@ -142,11 +142,12 @@ int main(int argc, char **argv) {
     if (fanotify)
 	    events |= IN_ISDIR;
 
-    FileList list = construct_path_list(argc, argv, fromfile);
+    FileList list;
+    construct_path_list(argc, argv, fromfile, &list);
 
     if (0 == list.watch_files[0]) {
         fprintf(stderr, "No files specified to watch!\n");
-        return EXIT_FAILURE;
+	goto failure;
     }
 
     unsigned int num_watches = 0;
@@ -161,7 +162,7 @@ int main(int argc, char **argv) {
 			fprintf(stderr,
 				"Couldn't add filesystem watch %s: %s\n",
 				this_file, strerror(inotifytools_error()));
-			return EXIT_FAILURE;
+			goto failure;
 		}
 		break;
 	}
@@ -193,11 +194,12 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Failed to watch %s: %s\n", this_file,
                         strerror(inotifytools_error()));
             }
-            return EXIT_FAILURE;
-        }
-        if (recursive && verbose) {
-            fprintf(stderr, "OK, %s is now being watched.\n", this_file);
-        }
+
+	    goto failure;
+	}
+	if (recursive && verbose) {
+		fprintf(stderr, "OK, %s is now being watched.\n", this_file);
+	}
     }
     num_watches = inotifytools_get_num_watches();
 
@@ -229,14 +231,15 @@ int main(int argc, char **argv) {
         event = inotifytools_next_event(BLOCKING_TIMEOUT);
         if (!event) {
             if (!inotifytools_error()) {
-                return EXIT_TIMEOUT;
-            } else if (inotifytools_error() != EINTR) {
-                fprintf(stderr, "%s\n", strerror(inotifytools_error()));
-                return EXIT_FAILURE;
-            } else {
-                continue;
-            }
-        }
+		    goto timeout;
+	    } else if (inotifytools_error() != EINTR) {
+		    fprintf(stderr, "%s\n", strerror(inotifytools_error()));
+
+		    goto failure;
+	    } else {
+		    continue;
+	    }
+	}
 
 	// TODO: replace filename of renamed filesystem watch entries
 	if (filesystem)
@@ -285,7 +288,23 @@ int main(int argc, char **argv) {
         }
 
     } while (!done);
+
+    free(list.watch_files);
+    free(list.exclude_files);
+
     return print_info();
+
+failure:
+	free(list.watch_files);
+	free(list.exclude_files);
+
+	return EXIT_FAILURE;
+
+timeout:
+	free(list.watch_files);
+	free(list.exclude_files);
+
+	return EXIT_TIMEOUT;
 }
 
 int print_info() {

@@ -56,62 +56,69 @@ int isdir(char const *path) {
     return S_ISDIR(my_stat.st_mode) && !S_ISLNK(my_stat.st_mode);
 }
 
-FileList construct_path_list(int argc, char **argv, char const *filename) {
-    FileList list;
-    list.watch_files = 0;
-    list.exclude_files = 0;
-    FILE *file = 0;
+void construct_path_list(int argc,
+			 char** argv,
+			 char const* filename,
+			 FileList* list) {
+	list->watch_files = 0;
+	list->exclude_files = 0;
+	FILE* file = 0;
 
-    if (filename) {
-        if (!strcmp(filename, "-")) {
-            file = stdin;
-        } else {
-            file = fopen(filename, "r");
-        }
-    }
+	if (filename) {
+		if (!strcmp(filename, "-")) {
+			file = stdin;
+		} else {
+			file = fopen(filename, "r");
+		}
+	}
 
-    int watch_len = LIST_CHUNK;
-    int exclude_len = LIST_CHUNK;
-    int watch_count = 0;
-    int exclude_count = 0;
-    list.watch_files = (char const **)malloc(sizeof(char *) * watch_len);
-    list.exclude_files = (char const **)malloc(sizeof(char *) * exclude_len);
+	int watch_len = LIST_CHUNK;
+	int exclude_len = LIST_CHUNK;
+	int watch_count = 0;
+	int exclude_count = 0;
+	list->watch_files = (char const**)malloc(sizeof(char*) * watch_len);
+	list->exclude_files = (char const**)malloc(sizeof(char*) * exclude_len);
 
-    char name[MAXLEN];
-    while (file && fgets(name, MAXLEN, file)) {
-        if (name[strlen(name) - 1] == '\n')
-            name[strlen(name) - 1] = 0;
-        if (strlen(name) == 0)
-            continue;
-        if ('@' == name[0] && strlen(name) == 1)
-            continue;
-        if ('@' == name[0]) {
-            resize_if_necessary(exclude_count, exclude_len, list.exclude_files);
-            list.exclude_files[exclude_count++] = strdup(&name[1]);
-        } else {
-            resize_if_necessary(watch_count, watch_len, list.watch_files);
-            list.watch_files[watch_count++] = strdup(name);
-        }
-    }
-    if (file && file != stdin)
-        fclose(file);
+	char name[MAXLEN];
+	while (file && fgets(name, MAXLEN, file)) {
+		if (name[strlen(name) - 1] == '\n')
+			name[strlen(name) - 1] = 0;
+		if (strlen(name) == 0)
+			continue;
+		if ('@' == name[0] && strlen(name) == 1)
+			continue;
+		if ('@' == name[0]) {
+			resize_if_necessary(exclude_count, exclude_len,
+					    list->exclude_files);
+			list->exclude_files[exclude_count++] = strdup(&name[1]);
+		} else {
+			resize_if_necessary(watch_count, watch_len,
+					    list->watch_files);
+			list->watch_files[watch_count++] = strdup(name);
+		}
+	}
 
-    for (int i = 0; i < argc; ++i) {
-        if (strlen(argv[i]) == 0)
-            continue;
-        if ('@' == argv[i][0] && strlen(argv[i]) == 1)
-            continue;
-        if ('@' == argv[i][0]) {
-            resize_if_necessary(exclude_count, exclude_len, list.exclude_files);
-            list.exclude_files[exclude_count++] = &argv[i][1];
-        } else {
-            resize_if_necessary(watch_count, watch_len, list.watch_files);
-            list.watch_files[watch_count++] = argv[i];
-        }
-    }
-    list.exclude_files[exclude_count] = 0;
-    list.watch_files[watch_count] = 0;
-    return list;
+	if (file && file != stdin)
+		fclose(file);
+
+	for (int i = 0; i < argc; ++i) {
+		if (strlen(argv[i]) == 0)
+			continue;
+		if ('@' == argv[i][0] && strlen(argv[i]) == 1)
+			continue;
+		if ('@' == argv[i][0]) {
+			resize_if_necessary(exclude_count, exclude_len,
+					    list->exclude_files);
+			list->exclude_files[exclude_count++] = &argv[i][1];
+		} else {
+			resize_if_necessary(watch_count, watch_len,
+					    list->watch_files);
+			list->watch_files[watch_count++] = argv[i];
+		}
+	}
+
+	list->exclude_files[exclude_count] = 0;
+	list->watch_files[watch_count] = 0;
 }
 
 void warn_inotify_init_error(int fanotify) {

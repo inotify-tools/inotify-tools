@@ -24,9 +24,9 @@ export CC=gcc
 ./configure
 make -j$j
 
-os=$(uname -o)
+os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
 
-if [ "$os" != "FreeBSD" ]; then
+if [ "$os" != "freebsd" ]; then
   printf "\nunit test\n"
   cd libinotifytools/src/
   make -j$j test
@@ -46,7 +46,7 @@ fi
 ./configure --enable-static --disable-shared
 make -j$j
 
-if [ "$os" != "FreeBSD" ]; then
+if [ "$os" != "freebsd" ]; then
   printf "\nunit test\n"
   cd libinotifytools/src/
   make -j$j test
@@ -55,6 +55,27 @@ if [ "$os" != "FreeBSD" ]; then
 fi
 
 integration_test
+
+if [ "$os" != "freebsd" ]; then
+  printf "gcc address sanitizer build\n"
+  make distclean
+  if [ "$1" == "clean" ]; then
+    git clean -fdx 2>&1
+  fi
+
+  ./autogen.sh
+  ./configure CFLAGS="-fsanitize=address -O0 -ggdb" \
+    LDFLAGS="-fsanitize=address -O0 -ggdb"
+  make -j$j
+
+  printf "\nunit test\n"
+  cd libinotifytools/src/
+  make -j$j test
+  ./test
+  cd -
+
+  integration_test
+fi
 
 printf "\nclang build\n"
 make distclean
@@ -67,7 +88,7 @@ export CC=clang
 ./configure
 make -j$j
 
-if [ "$os" != "FreeBSD" ]; then
+if [ "$os" != "freebsd" ]; then
   printf "\nunit test\n"
   cd libinotifytools/src/
   make -j$j test
@@ -87,7 +108,7 @@ fi
 ./configure --enable-static --disable-shared
 make -j$j
 
-if [ "$os" != "FreeBSD" ]; then
+if [ "$os" != "freebsd" ]; then
   printf "\nunit test\n"
   cd libinotifytools/src/
   make -j$j test
@@ -121,15 +142,15 @@ if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
 
   export CC=gcc
 
-  file="/tmp/cov-analysis-linux64.tar.gz"
+  file="/tmp/cov-analysis-${os}64.tar.gz"
   project="inotifytools"
   token="Dy7fkaSpHHjTg8JMFHKgOw"
-  curl -o "$file" https://scan.coverity.com/download/linux64 \
+  curl -o "$file" https://scan.coverity.com/download/${os}64 \
     --form project="$project" --form token="$token"
   tar xf "$file"
   ./autogen.sh
   ./configure
-  cov-analysis-linux64-*/bin/cov-build --dir cov-int make -j$j
+  cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j
   tar cfz cov-int.tar.gz cov-int
   version="$(git rev-parse HEAD)"
   description="$(git show --no-patch --oneline)"

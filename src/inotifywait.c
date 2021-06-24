@@ -229,11 +229,13 @@ int main(int argc, char **argv) {
 	    events |= IN_ISDIR;
     }
 
-    FileList list = construct_path_list(argc, argv, fromfile);
+    FileList list;
+    construct_path_list(argc, argv, fromfile, &list);
 
     if (0 == list.watch_files[0]) {
         fprintf(stderr, "No files specified to watch!\n");
-        return EXIT_FAILURE;
+
+	goto failure;
     }
 
     // Daemonize - BSD double-fork approach
@@ -242,40 +244,46 @@ int main(int argc, char **argv) {
         char *logfile = calloc(PATH_MAX + 1, sizeof(char));
         if (realpath(outfile, logfile) == NULL) {
             fprintf(stderr, "%s: %s\n", strerror(errno), outfile);
-            return EXIT_FAILURE;
-        }
+
+	    goto failure;
+	}
 
 #ifdef HAVE_DAEMON
         if (daemon(0, 0)) {
             fprintf(stderr, "Failed to daemonize!\n");
-            return EXIT_FAILURE;
-        }
+
+	    goto failure;
+	}
 #else
         pid_t pid = fork();
         if (pid < 0) {
             fprintf(stderr, "Failed to fork1 whilst daemonizing!\n");
-            return EXIT_FAILURE;
-        }
-        if (pid > 0) {
-            _exit(0);
-        }
-        if (setsid() < 0) {
-            fprintf(stderr, "Failed to setsid whilst daemonizing!\n");
-            return EXIT_FAILURE;
-        }
-        signal(SIGHUP, SIG_IGN);
-        pid = fork();
-        if (pid < 0) {
-            fprintf(stderr, "Failed to fork2 whilst daemonizing!\n");
-            return EXIT_FAILURE;
-        }
-        if (pid > 0) {
-            _exit(0);
-        }
-        if (chdir("/") < 0) {
-            fprintf(stderr, "Failed to chdir whilst daemonizing!\n");
-            return EXIT_FAILURE;
-        }
+
+	    goto failure;
+	}
+	if (pid > 0) {
+		goto success;
+	}
+	if (setsid() < 0) {
+		fprintf(stderr, "Failed to setsid whilst daemonizing!\n");
+
+		goto failure;
+	}
+	signal(SIGHUP, SIG_IGN);
+	pid = fork();
+	if (pid < 0) {
+		fprintf(stderr, "Failed to fork2 whilst daemonizing!\n");
+
+		goto failure;
+	}
+	if (pid > 0) {
+		goto success;
+	}
+	if (chdir("/") < 0) {
+		fprintf(stderr, "Failed to chdir whilst daemonizing!\n");
+
+		goto failure;
+	}
 #endif
 
         // Redirect stdin from /dev/null
@@ -290,31 +298,33 @@ int main(int argc, char **argv) {
         if (fd < 0) {
             fprintf(stderr, "Failed to open output file %s\n", logfile);
             free(logfile);
-            return EXIT_FAILURE;
-        }
-        free(logfile);
-        if (fd != fileno(stdout)) {
-            dup2(fd, fileno(stdout));
-            close(fd);
-        }
 
-        // Redirect stderr to /dev/null
-        fd = open("/dev/null", O_WRONLY);
-        if (fd != fileno(stderr)) {
-            dup2(fd, fileno(stderr));
-            close(fd);
-        }
+	    goto failure;
+	}
+	free(logfile);
+	if (fd != fileno(stdout)) {
+		dup2(fd, fileno(stdout));
+		close(fd);
+	}
+
+	// Redirect stderr to /dev/null
+	fd = open("/dev/null", O_WRONLY);
+	if (fd != fileno(stderr)) {
+		dup2(fd, fileno(stderr));
+		close(fd);
+	}
 
     } else if (outfile != NULL) { // Redirect stdout to a file if specified
         fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
         if (fd < 0) {
             fprintf(stderr, "Failed to open output file %s\n", outfile);
-            return EXIT_FAILURE;
-        }
-        if (fd != fileno(stdout)) {
-            dup2(fd, fileno(stdout));
-            close(fd);
-        }
+
+	    goto failure;
+	}
+	if (fd != fileno(stdout)) {
+		dup2(fd, fileno(stdout));
+		close(fd);
+	}
     }
 
     if (syslog) {
@@ -341,7 +351,8 @@ int main(int argc, char **argv) {
 			output_error(syslog,
 				     "Couldn't add filesystem watch %s: %s\n",
 				     this_file, strerror(inotifytools_error()));
-			return EXIT_FAILURE;
+
+			goto failure;
 		}
 		break;
 	}
@@ -366,8 +377,9 @@ int main(int argc, char **argv) {
                 output_error(syslog, "Couldn't watch %s: %s\n", this_file,
                              strerror(inotifytools_error()));
             }
-            return EXIT_FAILURE;
-        }
+
+	    goto failure;
+	}
     }
 
     if (!quiet) {
@@ -382,22 +394,24 @@ int main(int argc, char **argv) {
         event = inotifytools_next_event(timeout);
         if (!event) {
             if (!inotifytools_error()) {
-                return EXIT_TIMEOUT;
-            } else {
-                output_error(syslog, "%s\n", strerror(inotifytools_error()));
-                return EXIT_FAILURE;
-            }
-        }
+		    goto timeout;
+	    } else {
+		    output_error(syslog, "%s\n",
+				 strerror(inotifytools_error()));
 
-        if (quiet < 2 && (event->mask & orig_events)) {
-            if (csv) {
-                output_event_csv(event);
-            } else if (format) {
-                inotifytools_printf(event, format);
-            } else {
-                inotifytools_printf(event, "%w %,e %f\n");
-            }
-        }
+		    goto failure;
+	    }
+	}
+
+	if (quiet < 2 && (event->mask & orig_events)) {
+		if (csv) {
+			output_event_csv(event);
+		} else if (format) {
+			inotifytools_printf(event, format);
+		} else {
+			inotifytools_printf(event, "%w %,e %f\n");
+		}
+	}
 
 	// TODO: replace filename of renamed filesystem watch entries
 	if (filesystem)
@@ -453,10 +467,28 @@ int main(int argc, char **argv) {
     // If we weren't trying to listen for this event...
     if ((events & event->mask) == 0) {
         // ...then most likely something bad happened, like IGNORE etc.
-        return EXIT_FAILURE;
+	goto failure;
     }
 
-    return EXIT_SUCCESS;
+#ifndef HAVE_DAEMON
+success:
+#endif
+	free(list.watch_files);
+	free(list.exclude_files);
+
+	return EXIT_SUCCESS;
+
+failure:
+	free(list.watch_files);
+	free(list.exclude_files);
+
+	return EXIT_FAILURE;
+
+timeout:
+	free(list.watch_files);
+	free(list.exclude_files);
+
+	return EXIT_TIMEOUT;
 }
 
 bool parse_opts(int* argc,
