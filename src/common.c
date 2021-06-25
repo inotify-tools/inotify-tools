@@ -77,8 +77,8 @@ void construct_path_list(int argc,
 	int exclude_len = LIST_CHUNK;
 	int watch_count = 0;
 	int exclude_count = 0;
-	list->watch_files = (char const**)malloc(sizeof(char*) * watch_len);
-	list->exclude_files = (char const**)malloc(sizeof(char*) * exclude_len);
+	list->watch_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	list->exclude_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
 
 	char name[MAXLEN];
 	while (file && fgets(name, MAXLEN, file)) {
