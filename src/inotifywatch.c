@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     num_watches = inotifytools_get_num_watches();
 
     if (verbose) {
-        fprintf(stderr, "Total of %d watches.\n", num_watches);
+	    fprintf(stderr, "Total of %u watches.\n", num_watches);
     }
     fprintf(stderr,
             "Finished establishing watches, now collecting statistics.\n");
