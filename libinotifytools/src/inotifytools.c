@@ -347,8 +347,8 @@ void destroy_watch(watch *w) {
 	if (w->filename) free(w->filename);
 	if (w->fid)
 		free(w->fid);
-	if (w->dirfd)
-		close(w->dirfd);
+	if (w->dirf)
+		close(w->dirf);
 	free(w);
 }
 
@@ -750,7 +750,7 @@ static const char* inotifytools_filename_from_fid(
 #ifdef LINUX_FANOTIFY
 	static char filename[PATH_MAX];
 	struct fanotify_event_fid fsid = {};
-	int dirfd = 0, mount_fd = AT_FDCWD;
+	int dirf = 0, mount_fd = AT_FDCWD;
 	int len = 0, name_len = 0;
 
 	// Match mount_fd from fid->fsid (and null fhandle)
@@ -760,7 +760,7 @@ static const char* inotifytools_filename_from_fid(
 	fsid.info.hdr.len = sizeof(fsid);
 	watch* mnt = watch_from_fid(&fsid);
 	if (mnt)
-		mount_fd = mnt->dirfd;
+		mount_fd = mnt->dirf;
 
 	if (fid->info.hdr.info_type == FAN_EVENT_INFO_TYPE_DFID_NAME) {
 		int fid_len = sizeof(*fid) + fid->handle.handle_bytes;
@@ -771,8 +771,8 @@ static const char* inotifytools_filename_from_fid(
 	}
 
 	// Try to get path from file handle
-	dirfd = open_by_handle_at(mount_fd, &fid->handle, 0);
-	if (dirfd > 0) {
+	dirf = open_by_handle_at(mount_fd, &fid->handle, 0);
+	if (dirf > 0) {
 		// Got path by handle
 	} else if (fanotify_mark_type == FAN_MARK_FILESYSTEM) {
 		fprintf(stderr, "Failed to decode directory fid.\n");
@@ -793,8 +793,8 @@ static const char* inotifytools_filename_from_fid(
 			return NULL;
 		}
 
-		dirfd = w->dirfd ? dup(w->dirfd) : -1;
-		if (dirfd < 0) {
+		dirf = w->dirf ? dup(w->dirf) : -1;
+		if (dirf < 0) {
 			fprintf(stderr, "Failed to get directory fd.\n");
 			return NULL;
 		}
@@ -803,13 +803,13 @@ static const char* inotifytools_filename_from_fid(
 		return NULL;
 	}
 	char sym[30];
-	sprintf(sym, "/proc/self/fd/%d", dirfd);
+	sprintf(sym, "/proc/self/fd/%d", dirf);
 
 	// PATH_MAX - 2 because we have to append two characters to this path,
 	// '/' and 0
 	len = readlink(sym, filename, PATH_MAX - 2);
 	if (len < 0) {
-		close(dirfd);
+		close(dirf);
 		fprintf(stderr, "Failed to resolve path from directory fd.\n");
 		return NULL;
 	}
@@ -820,18 +820,18 @@ static const char* inotifytools_filename_from_fid(
 	if (name_len > 0) {
 		const char* name = (const char*)fid->handle.f_handle +
 				   fid->handle.handle_bytes;
-		int deleted = faccessat(dirfd, name, F_OK, AT_SYMLINK_NOFOLLOW);
+		int deleted = faccessat(dirf, name, F_OK, AT_SYMLINK_NOFOLLOW);
 		if (deleted && errno != ENOENT) {
 			fprintf(stderr, "Failed to access file %s (%s).\n",
 				name, strerror(errno));
-			close(dirfd);
+			close(dirf);
 			return NULL;
 		}
 		memcpy(filename + len, name, name_len);
 		if (deleted)
 			strcat(filename, " (deleted)");
 	}
-	close(dirfd);
+	close(dirf);
 	return filename;
 #else
 	return NULL;
@@ -1061,7 +1061,7 @@ int remove_inotify_watch(watch *w) {
 watch* create_watch(int wd,
 		    struct fanotify_event_fid* fid,
 		    const char* filename,
-		    int dirfd) {
+		    int dirf) {
 	if (wd < 0 || !filename)
 		return 0;
 
@@ -1072,7 +1072,7 @@ watch* create_watch(int wd,
 	}
 	w->wd = wd ?: (unsigned long)fid;
 	w->fid = fid;
-	w->dirfd = dirfd;
+	w->dirf = dirf;
 	w->filename = strdup(filename);
 	rbsearch(w, tree_wd);
 	if (fid)
@@ -1206,7 +1206,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 		const char* filename = filenames[i];
 		size_t filenamelen = strlen(filename);
 		char* dirname;
-		int dirfd = 0;
+		int dirf = 0;
 		// Always end filename with / if it is a directory
 		if (!isdir(filename)) {
 			dirname = NULL;
@@ -1285,8 +1285,8 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 			fid->info.hdr.len =
 			    sizeof(*fid) + fid->handle.handle_bytes;
 			if (dirname) {
-				dirfd = open(dirname, O_PATH);
-				if (dirfd < 0) {
+				dirf = open(dirname, O_PATH);
+				if (dirf < 0) {
 					free(fid);
 					fprintf(stderr,
 						"Failed to open %s: %s\n",
@@ -1296,7 +1296,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 			}
 		}
 #endif
-		create_watch(wd, fid, filename, dirfd);
+		create_watch(wd, fid, filename, dirf);
 		free(dirname);
 	} // for
 

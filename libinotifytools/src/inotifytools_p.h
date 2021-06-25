@@ -55,7 +55,7 @@ typedef struct watch {
 	struct fanotify_event_fid* fid;
 	char *filename;
 	unsigned long wd;
-	int dirfd;
+	int dirf;
 	unsigned hit_access;
 	unsigned hit_modify;
 	unsigned hit_attrib;
