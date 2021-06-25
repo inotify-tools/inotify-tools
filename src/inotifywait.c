@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
     bool filesystem = false;
     bool csv = false;
     bool dodaemon = false;
-    bool syslog = false;
+    bool sysl = false;
     bool no_dereference = false;
     char *format = NULL;
     char *timefmt = NULL;
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
 
     // Parse commandline options, aborting if something goes wrong
     if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
-		    &recursive, &csv, &dodaemon, &syslog, &no_dereference,
+		    &recursive, &csv, &dodaemon, &sysl, &no_dereference,
 		    &format, &timefmt, &fromfile, &outfile, &exc_regex,
 		    &exc_iregex, &inc_regex, &inc_iregex, &no_newline,
 		    &fanotify, &filesystem)) {
@@ -331,19 +331,19 @@ int main(int argc, char **argv) {
 	}
     }
 
-    if (syslog) {
-        openlog("inotifywait", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_DAEMON);
+    if (sysl) {
+	    openlog("inotifywait", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_DAEMON);
     }
 
     if (!quiet) {
 	    if (filesystem) {
-		    output_error(syslog, "Setting up filesystem watches.\n");
+		    output_error(sysl, "Setting up filesystem watches.\n");
 	    } else if (recursive) {
-		    output_error(syslog,
+		    output_error(sysl,
 				 "Setting up watches.  Beware: since -r "
 				 "was given, this may take a while!\n");
 	    } else {
-		    output_error(syslog, "Setting up watches.\n");
+		    output_error(sysl, "Setting up watches.\n");
 	    }
     }
 
@@ -352,7 +352,7 @@ int main(int argc, char **argv) {
         char const *this_file = list.watch_files[i];
 	if (filesystem) {
 		if (!inotifytools_watch_files(list.watch_files, events)) {
-			output_error(syslog,
+			output_error(sysl,
 				     "Couldn't add filesystem watch %s: %s\n",
 				     this_file, strerror(inotifytools_error()));
 
@@ -368,26 +368,26 @@ int main(int argc, char **argv) {
             if (inotifytools_error() == ENOSPC) {
 		    const char* backend = fanotify ? "fanotify" : "inotify";
 		    const char* resource = fanotify ? "marks" : "watches";
-		    output_error(syslog,
+		    output_error(sysl,
 				 "Failed to watch %s; upper limit on %s %s "
 				 "reached!\n",
 				 this_file, backend, resource);
-		    output_error(syslog,
+		    output_error(sysl,
 				 "Please increase the amount of %s %s "
 				 "allowed per user via `/proc/sys/fs/%s/"
 				 "max_user_%s'.\n",
 				 backend, resource, backend, resource);
 	    } else {
-                output_error(syslog, "Couldn't watch %s: %s\n", this_file,
-                             strerror(inotifytools_error()));
-            }
+		    output_error(sysl, "Couldn't watch %s: %s\n", this_file,
+				 strerror(inotifytools_error()));
+	    }
 
 	    goto failure;
 	}
     }
 
     if (!quiet) {
-        output_error(syslog, "Watches established.\n");
+	    output_error(sysl, "Watches established.\n");
     }
 
     // Now wait till we get event
@@ -400,8 +400,7 @@ int main(int argc, char **argv) {
             if (!inotifytools_error()) {
 		    goto timeout;
 	    } else {
-		    output_error(syslog, "%s\n",
-				 strerror(inotifytools_error()));
+		    output_error(sysl, "%s\n", strerror(inotifytools_error()));
 
 		    goto failure;
 	    }
@@ -425,46 +424,49 @@ int main(int argc, char **argv) {
         // moved_from file must have been moved outside of tree - so unwatch it.
         if (moved_from && !(event->mask & IN_MOVED_TO)) {
             if (!inotifytools_remove_watch_by_filename(moved_from)) {
-                output_error(syslog, "Error removing watch on %s: %s\n",
-                             moved_from, strerror(inotifytools_error()));
-            }
-            free(moved_from);
-            moved_from = 0;
-        }
+		    output_error(sysl, "Error removing watch on %s: %s\n",
+				 moved_from, strerror(inotifytools_error()));
+	    }
+	    free(moved_from);
+	    moved_from = 0;
+	}
 
-        if (monitor && recursive) {
-            if ((event->mask & IN_CREATE) ||
-                (!moved_from && (event->mask & IN_MOVED_TO))) {
-                // New file - if it is a directory, watch it
-		char* new_file = inotifytools_dirpath_from_event(event);
-		if (new_file && *new_file && isdir(new_file) &&
-		    !inotifytools_watch_recursively(new_file, events)) {
-			output_error(syslog,
-				     "Couldn't watch new directory %s: %s\n",
-				     new_file, strerror(inotifytools_error()));
+	if (monitor && recursive) {
+		if ((event->mask & IN_CREATE) ||
+		    (!moved_from && (event->mask & IN_MOVED_TO))) {
+			// New file - if it is a directory, watch it
+			char* new_file = inotifytools_dirpath_from_event(event);
+			if (new_file && *new_file && isdir(new_file) &&
+			    !inotifytools_watch_recursively(new_file, events)) {
+				output_error(
+				    sysl,
+				    "Couldn't watch new directory %s: %s\n",
+				    new_file, strerror(inotifytools_error()));
+			}
+			free(new_file);
+		}  // IN_CREATE
+		else if (event->mask & IN_MOVED_FROM) {
+			moved_from = inotifytools_dirpath_from_event(event);
+			// if not watched...
+			if (inotifytools_wd_from_filename(moved_from) == -1) {
+				free(moved_from);
+				moved_from = 0;
+			}
+		}  // IN_MOVED_FROM
+		else if (event->mask & IN_MOVED_TO) {
+			if (moved_from) {
+				char* new_name =
+				    inotifytools_dirpath_from_event(event);
+				inotifytools_replace_filename(moved_from,
+							      new_name);
+				free(new_name);
+				free(moved_from);
+				moved_from = 0;
+			}  // moved_from
 		}
-		free(new_file);
-            } // IN_CREATE
-            else if (event->mask & IN_MOVED_FROM) {
-		    moved_from = inotifytools_dirpath_from_event(event);
-		    // if not watched...
-		    if (inotifytools_wd_from_filename(moved_from) == -1) {
-			    free(moved_from);
-			    moved_from = 0;
-                }
-            } // IN_MOVED_FROM
-            else if (event->mask & IN_MOVED_TO) {
-                if (moved_from) {
-			char* new_name = inotifytools_dirpath_from_event(event);
-			inotifytools_replace_filename(moved_from, new_name);
-			free(new_name);
-			free(moved_from);
-			moved_from = 0;
-                } // moved_from
-            }
-        }
+	}
 
-        fflush(NULL);
+	fflush(NULL);
 
     } while (monitor);
 
