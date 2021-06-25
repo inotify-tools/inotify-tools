@@ -1073,13 +1073,12 @@ watch* create_watch(int wd,
 	w->wd = wd ?: (unsigned long)fid;
 	w->fid = fid;
 	w->dirfd = dirfd;
-	if (filename)
-		w->filename = strdup(filename);
+	w->filename = strdup(filename);
 	rbsearch(w, tree_wd);
 	if (fid)
 		rbsearch(w, tree_fid);
-	if (filename)
-		rbsearch(w, tree_filename);
+
+	rbsearch(w, tree_filename);
 	return w;
 }
 
