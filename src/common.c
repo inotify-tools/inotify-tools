@@ -16,11 +16,12 @@
 #define MAXLEN 4096
 #define LIST_CHUNK 1024
 
-#define resize_if_necessary(count, len, ptr)                                   \
-    if (count >= len - 1) {                                                    \
-        len += LIST_CHUNK;                                                     \
-        ptr = (char const **)realloc(ptr, sizeof(char *) * len);               \
+static void resize_if_necessary(const int count, int *len, const char ***ptr)                                   {
+    if (count >= *len - 1) {                                                    
+        *len += LIST_CHUNK;                                                     
+        *ptr = (const char **)realloc(ptr, sizeof(char *) * *len);               
     }
+}
 
 void print_event_descriptions() {
     printf("\taccess\t\tfile or directory contents were read\n");
@@ -88,12 +89,12 @@ void construct_path_list(int argc,
 		if ('@' == name[0] && strlen(name) == 1)
 			continue;
 		if ('@' == name[0]) {
-			resize_if_necessary(exclude_count, exclude_len,
-					    list->exclude_files);
+			resize_if_necessary(exclude_count, &exclude_len,
+					    &list->exclude_files);
 			list->exclude_files[exclude_count++] = strdup(&name[1]);
 		} else {
-			resize_if_necessary(watch_count, watch_len,
-					    list->watch_files);
+			resize_if_necessary(watch_count, &watch_len,
+					    &list->watch_files);
 			list->watch_files[watch_count++] = strdup(name);
 		}
 	}
@@ -107,12 +108,12 @@ void construct_path_list(int argc,
 		if ('@' == argv[i][0] && strlen(argv[i]) == 1)
 			continue;
 		if ('@' == argv[i][0]) {
-			resize_if_necessary(exclude_count, exclude_len,
-					    list->exclude_files);
+			resize_if_necessary(exclude_count, &exclude_len,
+					    &list->exclude_files);
 			list->exclude_files[exclude_count++] = &argv[i][1];
 		} else {
-			resize_if_necessary(watch_count, watch_len,
-					    list->watch_files);
+			resize_if_necessary(watch_count, &watch_len,
+					    &list->watch_files);
 			list->watch_files[watch_count++] = argv[i];
 		}
 	}
