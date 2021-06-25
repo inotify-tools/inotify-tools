@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <limits.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -28,22 +29,22 @@ extern int optind, opterr, optopt;
 #define nasprintf(...) niceassert(-1 != asprintf(__VA_ARGS__), "out of memory")
 
 // METHODS
-bool parse_opts(int* argc,
-		char*** argv,
-		int* events,
-		long int* timeout,
-		int* verbose,
-		int* zero,
-		int* sort,
-		int* recursive,
-		int* no_dereference,
-		char** fromfile,
-		char** exc_regex,
-		char** exc_iregex,
-		char** inc_regex,
-		char** inc_iregex,
-		int* fanotify,
-		bool* filesystem);
+static bool parse_opts(int* argc,
+		       char*** argv,
+		       int* events,
+		       long int* timeout,
+		       int* verbose,
+		       int* zero,
+		       int* sort,
+		       int* recursive,
+		       int* no_dereference,
+		       char** fromfile,
+		       char** exc_regex,
+		       char** exc_iregex,
+		       char** inc_regex,
+		       char** inc_iregex,
+		       int* fanotify,
+		       bool* filesystem);
 
 void print_help();
 
@@ -218,7 +219,12 @@ int main(int argc, char **argv) {
     signal(SIGTERM, handle_signal);
     if (timeout) {
         signal(SIGALRM, handle_signal);
-        alarm(timeout);
+
+	if (timeout < 0 || timeout > UINT_MAX) {
+		alarm(UINT_MAX);
+	} else {
+		alarm(timeout);
+	}
     }
     signal(SIGUSR1, print_info_now);
 
@@ -415,22 +421,22 @@ int print_info() {
     return EXIT_SUCCESS;
 }
 
-bool parse_opts(int* argc,
-		char*** argv,
-		int* e,
-		long int* timeout,
-		int* verbose,
-		int* z,
-		int* s,
-		int* recursive,
-		int* no_dereference,
-		char** fromfile,
-		char** exc_regex,
-		char** exc_iregex,
-		char** inc_regex,
-		char** inc_iregex,
-		int* fanotify,
-		bool* filesystem) {
+static bool parse_opts(int* argc,
+		       char*** argv,
+		       int* e,
+		       long int* timeout,
+		       int* verbose,
+		       int* z,
+		       int* s,
+		       int* recursive,
+		       int* no_dereference,
+		       char** fromfile,
+		       char** exc_regex,
+		       char** exc_iregex,
+		       char** inc_regex,
+		       char** inc_iregex,
+		       int* fanotify,
+		       bool* filesystem) {
 	assert(argc);
 	assert(argv);
 	assert(e);
