@@ -745,7 +745,8 @@ char * inotifytools_event_to_str_sep(int events, char sep)
  * Resolve filename from fid + name and return
  * static filename string.
  */
-const char* inotifytools_filename_from_fid(struct fanotify_event_fid* fid) {
+static const char* inotifytools_filename_from_fid(
+    struct fanotify_event_fid* fid) {
 #ifdef LINUX_FANOTIFY
 	static char filename[PATH_MAX];
 	struct fanotify_event_fid fsid = {};
@@ -803,12 +804,16 @@ const char* inotifytools_filename_from_fid(struct fanotify_event_fid* fid) {
 	}
 	char sym[30];
 	sprintf(sym, "/proc/self/fd/%d", dirfd);
-	len = readlink(sym, filename, PATH_MAX);
+
+	// PATH_MAX - 2 because we have to append two characters to this path,
+	// '/' and 0
+	len = readlink(sym, filename, PATH_MAX - 2);
 	if (len < 0) {
 		close(dirfd);
 		fprintf(stderr, "Failed to resolve path from directory fd.\n");
 		return NULL;
 	}
+
 	filename[len++] = '/';
 	filename[len] = 0;
 
