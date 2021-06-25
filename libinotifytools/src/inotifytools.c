@@ -468,7 +468,7 @@ int inotifytools_str_to_event_sep(char const * event, char sep) {
 		return -1;
 	}
 
-	int ret, ret1, len;
+	int ret, len;
 	char * event1, * event2;
         static const size_t eventstr_size = 4096;
         char eventstr[eventstr_size];
@@ -494,7 +494,7 @@ int inotifytools_str_to_event_sep(char const * event, char sep) {
 
 		eventstr[len] = 0;
 
-		ret1 = onestr_to_event( eventstr );
+		int ret1 = onestr_to_event(eventstr);
 		if ( 0 == ret1 || -1 == ret1 ) {
 			ret = ret1;
 			break;
@@ -1506,7 +1506,7 @@ more_events:
 	if (fanotify_mode) {
 		struct fanotify_event_metadata* meta = (void*)ret;
 		struct fanotify_event_info_fid* info = (void*)(meta + 1);
-		struct fanotify_event_fid *newfid, *fid = NULL;
+		struct fanotify_event_fid* fid = NULL;
 		const char* name = "";
 		int fid_len = 0;
 		int name_len = 0;
@@ -1562,7 +1562,8 @@ more_events:
 		ret = &event[MAX_EVENTS];
 		watch* w = watch_from_fid(fid);
 		if (!w) {
-			newfid = calloc(1, info->hdr.len);
+			struct fanotify_event_fid* newfid =
+			    calloc(1, info->hdr.len);
 			if (!newfid) {
 				fprintf(stderr, "Failed to allocate fid.\n");
 				return NULL;
