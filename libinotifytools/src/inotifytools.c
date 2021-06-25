@@ -2121,12 +2121,11 @@ int inotifytools_snprintf( struct nstring * out, int size,
 			if ( timefmt ) {
 				now = time(0);
                                 struct tm now_tm;
-                                if (0 >= strftime(timestr, MAX_STRLEN - 1,
-                                                  timefmt,
-                                                  localtime_r(&now, &now_tm))) {
-                                    // time format probably invalid
-                                    error = EINVAL;
-                                    return ind;
+				if (!strftime(timestr, MAX_STRLEN - 1, timefmt,
+					      localtime_r(&now, &now_tm))) {
+					// time format probably invalid
+					error = EINVAL;
+					return ind;
 				}
 			}
 			else {
