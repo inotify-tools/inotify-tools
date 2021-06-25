@@ -1553,7 +1553,7 @@ more_events:
 		if (verbosity > 1) {
 			printf(
 			    "fanotify_event: bytes=%zd, first_byte=%d, "
-			    "this_bytes=%zd, event_len=%d, fid_len=%d, "
+			    "this_bytes=%zd, event_len=%u, fid_len=%d, "
 			    "name_len=%d, name=%s\n",
 			    bytes, first_byte, this_bytes, meta->event_len,
 			    fid_len, name_len, name);
