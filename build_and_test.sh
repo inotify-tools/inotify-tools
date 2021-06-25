@@ -118,6 +118,20 @@ fi
 
 integration_test
 
+if command -v cppcheck; then
+  for i in {64..8}; do
+    linux_arch="x86_64-linux-gnu"
+    gcc_inc="/usr/lib/gcc/$linux_arch/$i/include"
+    if [ -d "$gcc_inc" ]; then
+      usr_inc="/usr/include"
+      inotifytools_inc="libinotifytools/src"
+      inc="-I$usr_inc -I$usr_inc/$linux_arch -I$gcc_inc -I$inotifytools_inc"
+      u="-Urestrict -U__REDIRECT -U__restrict_arr -U__restrict -U__REDIRECT_NTH"
+      find . -name "*.[c|h]" | xargs cppcheck -q --force $u --enable=all $inc
+      break
+    fi
+  done
+fi
 
 if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
   for i in {64..8}; do
