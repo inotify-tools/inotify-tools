@@ -127,7 +127,9 @@ if command -v cppcheck; then
       inotifytools_inc="libinotifytools/src"
       inc="-I$usr_inc -I$usr_inc/$linux_arch -I$gcc_inc -I$inotifytools_inc"
       u="-Urestrict -U__REDIRECT -U__restrict_arr -U__restrict -U__REDIRECT_NTH"
-      find . -name "*.[c|h]" | xargs cppcheck -q --force $u --enable=all $inc
+      suppress="--suppress=invalidPrintfArgType_sint --suppress=unknownMacro --suppress=missingInclude"
+      cppcheck_arg="-q --force $u --enable=all $inc $suppress"
+      find . -name "*.[c|h]" | xargs cppcheck $cppcheck_arg
       break
     fi
   done
