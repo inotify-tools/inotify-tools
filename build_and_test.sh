@@ -6,7 +6,7 @@ j=16
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..128}; do
+  for i in {1..1}; do
     cd t
     make -j$j
     cd -
@@ -15,9 +15,12 @@ integration_test() {
 
 arg1="$1"
 
+os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
+
 if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
   if [ "$os" != "freebsd" ]; then
-    sudo apt update && sudo apt install -y gcc-arm-linux-gnueabihf cppcheck
+    sudo apt update
+    sudo apt install -y gcc-arm-linux-gnueabihf cppcheck clang-tools
   fi
 
   for i in {64..8}; do
@@ -46,8 +49,6 @@ export CC=gcc
 ./autogen.sh
 ./configure
 make -j$j
-
-os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
 
 if [ "$os" != "freebsd" ]; then
   printf "\nunit test\n"
@@ -122,6 +123,41 @@ export CC=clang
 ./autogen.sh
 ./configure
 make -j$j
+
+if command -v scan-build > /dev/null; then
+  printf "\ngcc scan-build\n"
+  make distclean
+  if [ "$arg1" == "clean" ]; then
+    git clean -fdx 2>&1
+  fi
+
+  export CC=gcc
+  scan-build ./autogen.sh
+  scan-build ./configure
+  scan_build_args="-disable-checker unix.Malloc"
+  scan_build_args="$scan_build_args -disable-checker core.AttributeNonNull"
+  scan_build_args="$scan_build_args -disable-checker core.NonNullParamChecker"
+  scan_build=$(scan-build $scan_build_args make -j$j)
+  echo "$scan_build"
+  if ! echo "$scan_build" | grep -qi "no bugs found\|0 bugs found"; then
+    false
+  fi
+
+  printf "\nclang scan-build\n"
+  make distclean
+  if [ "$arg1" == "clean" ]; then
+    git clean -fdx 2>&1
+  fi
+
+  export CC=clang
+  scan-build ./autogen.sh
+  scan-build ./configure
+  scan_build=$(scan-build $scan_build_args make -j$j)
+  echo "$scan_build"
+  if ! echo "$scan_build" | grep -qi "no bugs found\|0 bugs found"; then
+    false
+  fi
+fi
 
 if [ "$os" != "freebsd" ]; then
   printf "\nunit test\n"

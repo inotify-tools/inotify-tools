@@ -248,44 +248,51 @@ int main(int argc, char **argv) {
         char *logfile = calloc(PATH_MAX + 1, sizeof(char));
         if (realpath(outfile, logfile) == NULL) {
             fprintf(stderr, "%s: %s\n", strerror(errno), outfile);
-
+	    free(logfile);
 	    goto failure;
 	}
 
 #ifdef HAVE_DAEMON
         if (daemon(0, 0)) {
             fprintf(stderr, "Failed to daemonize!\n");
-
+	    free(logfile);
 	    goto failure;
 	}
 #else
         pid_t pid = fork();
         if (pid < 0) {
             fprintf(stderr, "Failed to fork1 whilst daemonizing!\n");
-
+	    free(logfile);
 	    goto failure;
 	}
+
 	if (pid > 0) {
+		free(logfile);
 		goto success;
 	}
+
 	if (setsid() < 0) {
 		fprintf(stderr, "Failed to setsid whilst daemonizing!\n");
-
+		free(logfile);
 		goto failure;
 	}
+
 	signal(SIGHUP, SIG_IGN);
 	pid = fork();
 	if (pid < 0) {
 		fprintf(stderr, "Failed to fork2 whilst daemonizing!\n");
-
+		free(logfile);
 		goto failure;
 	}
+
 	if (pid > 0) {
+		free(logfile);
 		goto success;
 	}
+
 	if (chdir("/") < 0) {
 		fprintf(stderr, "Failed to chdir whilst daemonizing!\n");
-
+		free(logfile);
 		goto failure;
 	}
 #endif
@@ -306,6 +313,7 @@ int main(int argc, char **argv) {
 	    goto failure;
 	}
 	free(logfile);
+
 	if (fd != fileno(stdout)) {
 		dup2(fd, fileno(stdout));
 		close(fd);
