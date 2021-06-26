@@ -32,7 +32,7 @@ extern int optind, opterr, optopt;
 static bool parse_opts(int* argc,
 		       char*** argv,
 		       int* events,
-		       long int* timeout,
+		       unsigned int* timeout,
 		       int* verbose,
 		       int* zero,
 		       int* sort,
@@ -82,7 +82,7 @@ int zero;
 
 int main(int argc, char **argv) {
     events = 0;
-    long int timeout = BLOCKING_TIMEOUT;
+    unsigned int timeout = BLOCKING_TIMEOUT;
     int verbose = 0;
     zero = 0;
     int recursive = 0;
@@ -211,21 +211,20 @@ int main(int argc, char **argv) {
             "Finished establishing watches, now collecting statistics.\n");
 
     if (timeout && verbose) {
-        fprintf(stderr, "Will listen for events for %ld seconds.\n", timeout);
+	    fprintf(stderr, "Will listen for events for %u seconds.\n",
+		    timeout);
     }
 
     signal(SIGINT, handle_signal);
     signal(SIGHUP, handle_signal);
     signal(SIGTERM, handle_signal);
     if (timeout) {
-        signal(SIGALRM, handle_signal);
-
-	if (timeout < 0 || timeout > UINT_MAX) {
-		alarm(UINT_MAX);
-	} else {
-		alarm(timeout);
-	}
+	    signal(SIGALRM, handle_signal);
+	    alarm(timeout);
+    } else {
+	    alarm(UINT_MAX);
     }
+
     signal(SIGUSR1, print_info_now);
 
     inotifytools_initialize_stats();
@@ -424,7 +423,7 @@ int print_info() {
 static bool parse_opts(int* argc,
 		       char*** argv,
 		       int* e,
-		       long int* timeout,
+		       unsigned int* timeout,
 		       int* verbose,
 		       int* z,
 		       int* s,
@@ -749,7 +748,7 @@ void print_help() {
 	printf(
 	    "\t-t|--timeout <seconds>\n"
 	    "\t\tListen only for specified amount of time in seconds; if\n"
-	    "\t\tomitted or negative, %s will execute until receiving an\n"
+	    "\t\tomitted or zero, %s will execute until receiving an\n"
 	    "\t\tinterrupt signal.\n",
 	    TOOL_NAME);
 	printf(

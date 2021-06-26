@@ -145,45 +145,34 @@ void warn_inotify_init_error(int fanotify) {
 	}
 }
 
-bool is_timeout_option_valid(long int *timeout, char *o) {
-    if ((o == NULL) || (*o == '\0')) {
-        fprintf(stderr, "The provided value is not a valid timeout value.\n"
-                        "Please specify a long int value.\n");
-        return false;
-    }
+bool is_timeout_option_valid(unsigned int* timeout, char* o) {
+	if ((o == NULL) || (*o == '\0')) {
+		fprintf(stderr,
+			"The provided value is not a valid timeout value.\n"
+			"Please specify a long int value.\n");
+		return false;
+	}
 
-    char *timeout_end = NULL;
-    errno = 0;
-    *timeout = strtol(o, &timeout_end, 10);
+	char* timeout_end = NULL;
+	errno = 0;
+	*timeout = strtol(o, &timeout_end, 10);
 
-    const int err = errno;
-    if (err != 0) {
-        if (err == ERANGE) {
-            // Figure out on which side it overflows.
-            if (*timeout == LONG_MAX) {
-                fprintf(stderr, "The timeout value you provided is "
-                                "not in the representable range "
-                                "(higher than LONG_MAX).\n");
-            } else {
-                fprintf(stderr, "The timeout value you provided is "
-                                "not in the representable range "
-                                "(lower than LONG_MIN).\n");
-            }
+	const int err = errno;
+	if (err != 0) {
+		fprintf(stderr,
+			"Something went wrong with the timeout "
+			"value you provided.\n");
+		fprintf(stderr, "%s\n", strerror(err));
+		return false;
+	}
 
-        } else {
-            fprintf(stderr, "Something went wrong with the timeout "
-                            "value you provided.\n");
-            fprintf(stderr, "%s\n", strerror(err));
-        }
-        return false;
-    }
+	if (*timeout_end != '\0') {
+		fprintf(stderr,
+			"'%s' is not a valid timeout value.\n"
+			"Please specify a long int value.\n",
+			o);
+		return false;
+	}
 
-    if (*timeout_end != '\0') {
-        fprintf(stderr, "'%s' is not a valid timeout value.\n"
-                        "Please specify a long int value.\n",
-                o);
-        return false;
-    }
-
-    return true;
+	return true;
 }

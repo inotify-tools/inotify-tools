@@ -10,5 +10,5 @@ task:
     - ln -s /usr/local/bin/bash /bin/
 
   compile_script:
-    - ./build_and_test.sh
+    - ./build_and_test.sh clean
  

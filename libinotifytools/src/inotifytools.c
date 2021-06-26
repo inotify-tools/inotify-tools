@@ -1226,6 +1226,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 			fid = calloc(1, sizeof(*fid) + MAX_FID_LEN);
 			if (!fid) {
 				fprintf(stderr, "Failed to allocate fid");
+				free(dirname);
 				return 0;
 			}
 
@@ -1234,6 +1235,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 				free(fid);
 				fprintf(stderr, "Statfs failed on %s: %s\n",
 					filenames[i], strerror(errno));
+				free(dirname);
 				return 0;
 			}
 			memcpy(&fid->info.fsid, &buf.f_fsid,
@@ -1250,6 +1252,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					free(fid);
 					fprintf(stderr,
 						"Failed to allocate fsid");
+					free(dirname);
 					return 0;
 				}
 				fsid->info.fsid.val[0] = fid->info.fsid.val[0];
@@ -1264,6 +1267,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					fprintf(stderr,
 						"Failed to open %s: %s\n",
 						dirname, strerror(errno));
+					free(dirname);
 					return 0;
 				}
 				// Hash mount_fd without terminating /
@@ -1279,6 +1283,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 				free(fid);
 				fprintf(stderr, "Encode fid failed on %s: %s\n",
 					filenames[i], strerror(errno));
+				free(dirname);
 				return 0;
 			}
 			fid->info.hdr.info_type = dirname
@@ -1293,6 +1298,7 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
 					fprintf(stderr,
 						"Failed to open %s: %s\n",
 						dirname, strerror(errno));
+					free(dirname);
 					return 0;
 				}
 			}
@@ -1332,6 +1338,10 @@ int inotifytools_watch_files( char const * filenames[], int events ) {
  *       the @a timeout period begins again each time a matching event occurs.
  */
 struct inotify_event * inotifytools_next_event( long int timeout ) {
+	if (!timeout) {
+		timeout = -1;
+	}
+
 	return inotifytools_next_events( timeout, 1 );
 }
 
@@ -1399,25 +1409,6 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 	static jmp_buf jmp;
 	static struct nstring match_name;
 	static char match_name_string[MAX_STRLEN+1];
-
-#define RETURN(A) {\
-	if (regex) {\
-		inotifytools_snprintf(&match_name, MAX_STRLEN, A, "%w%f");\
-		memcpy(&match_name_string, &match_name.buf, match_name.len);\
-		match_name_string[match_name.len] = '\0';\
-		if (0 == regexec(regex, match_name_string, 0, 0, 0)) {\
-			if (!invert_regexp)\
-				longjmp(jmp,0);\
-		} else {\
-			if (invert_regexp)\
-				longjmp(jmp,0);\
-		}\
-	}\
-	if ( collect_stats ) {\
-		record_stats( A );\
-	}\
-	return A;\
-}
 
 	setjmp(jmp);
 
@@ -1575,8 +1566,10 @@ more_events:
 			    inotifytools_filename_from_fid(fid);
 			if (filename) {
 				w = create_watch(0, newfid, filename, 0);
-				if (!w)
+				if (!w) {
+					free(newfid);
 					return NULL;
+				}
 			}
 
 			if (verbosity) {
@@ -1606,9 +1599,24 @@ more_events:
 		first_byte = 0;
 	}
 
-	RETURN(ret);
+	if (regex) {
+		inotifytools_snprintf(&match_name, MAX_STRLEN, ret, "%w%f");
+		memcpy(&match_name_string, &match_name.buf, match_name.len);
+		match_name_string[match_name.len] = '\0';
+		if (0 == regexec(regex, match_name_string, 0, 0, 0)) {
+			if (!invert_regexp)
+				longjmp(jmp, 0);
+		} else {
+			if (invert_regexp)
+				longjmp(jmp, 0);
+		}
+	}
 
-#undef RETURN
+	if (collect_stats) {
+		record_stats(ret);
+	}
+
+	return ret;
 }
 
 /**

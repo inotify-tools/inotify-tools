@@ -13,9 +13,32 @@ integration_test() {
   done
 }
 
+arg1="$1"
+
+if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
+  if [ "$os" != "freebsd" ]; then
+    sudo apt update && sudo apt install -y gcc-arm-linux-gnueabihf cppcheck
+  fi
+
+  for i in {64..8}; do
+    if command -v "git-clang-format-$i" > /dev/null; then
+      CLANG_FMT_VER="clang-format-$i"
+      break
+    fi
+  done
+
+  if [ -n "$CLANG_FMT_VER" ]; then
+    if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
+      echo -e "\nPlease change style to the format defined in the" \
+              ".clang-format file:\n"
+      git diff --name-only
+      exit 1
+    fi
+  fi
+fi
 
 printf "gcc build\n"
-if [ "$1" == "clean" ]; then
+if [ "$arg1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
@@ -38,7 +61,7 @@ integration_test
 
 printf "gcc static build\n"
 make distclean
-if [ "$1" == "clean" ]; then
+if [ "$arg1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
@@ -57,9 +80,9 @@ fi
 integration_test
 
 if [ "$os" != "freebsd" ]; then
-  printf "gcc address sanitizer build\n"
+  printf "\ngcc address sanitizer build\n"
   make distclean
-  if [ "$1" == "clean" ]; then
+  if [ "$arg1" == "clean" ]; then
     git clean -fdx 2>&1
   fi
 
@@ -77,9 +100,21 @@ if [ "$os" != "freebsd" ]; then
   integration_test
 fi
 
+if command -v arm-linux-gnueabihf-gcc > /dev/null; then
+  printf "\ngcc arm32 build\n"
+  make distclean
+  if [ "$arg1" == "clean" ]; then
+    git clean -fdx 2>&1
+  fi
+
+  ./autogen.sh
+  ./configure --host=arm-linux-gnueabihf
+  make -j$j
+fi
+
 printf "\nclang build\n"
 make distclean
-if [ "$1" == "clean" ]; then
+if [ "$arg1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
@@ -100,7 +135,7 @@ integration_test
 
 printf "\nclang static build\n"
 make distclean
-if [ "$1" == "clean" ]; then
+if [ "$arg1" == "clean" ]; then
   git clean -fdx 2>&1
 fi
 
@@ -118,65 +153,44 @@ fi
 
 integration_test
 
-if command -v cppcheck; then
-  for i in {64..8}; do
-    linux_arch="x86_64-linux-gnu"
-    gcc_inc="/usr/lib/gcc/$linux_arch/$i/include"
-    if [ -d "$gcc_inc" ]; then
-      usr_inc="/usr/include"
-      inotifytools_inc="libinotifytools/src"
-      inc="-I$usr_inc -I$usr_inc/$linux_arch -I$gcc_inc -I$inotifytools_inc"
-      u="-Urestrict -U__REDIRECT -U__restrict_arr -U__restrict -U__REDIRECT_NTH"
-      suppress="--suppress=invalidPrintfArgType_sint --suppress=unknownMacro --suppress=missingInclude"
-      cppcheck_arg="-q --force $u --enable=all $inc $suppress"
-      find . -name "*.[c|h]" | xargs cppcheck $cppcheck_arg
-      break
-    fi
-  done
+if command -v cppcheck > /dev/null; then
+  usr_inc="/usr/include"
+  inotifytools_inc="libinotifytools/src"
+  inc="-I$usr_inc -I$inotifytools_inc"
+  u="-U restrict -U __REDIRECT -U __restrict_arr -U __restrict"
+  u="$u -U __REDIRECT_NTH -U _BSD_RUNE_T_ -U _TYPE_size_t -U __LDBL_REDIR1_DECL"
+  supp="--suppress=missingInclude --suppress=unusedFunction"
+  arg="-q --force $u --enable=all $inc $supp --error-exitcode=1"
+  cppcheck="xargs cppcheck $arg"
+  suppf="redblack.c"
+  if find . -name "*.[c|h]" | grep -v "$suppf" | $cppcheck 2>&1 | grep ^; then
+    false
+  fi
 fi
 
-if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
-  for i in {64..8}; do
-    if command -v "git-clang-format-$i"; then
-      CLANG_FMT_VER="clang-format-$i"
-      break
-    fi
-  done
-
-  if [ -n "$CLANG_FMT_VER" ]; then
-    if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
-      echo -e "\nPlease change style to the format defined in the" \
-              ".clang-format file:\n"
-      git diff --name-only
-      exit 1
-    fi
-  fi
-
-  if [ "$1" == "clean" ]; then
+if [ "$os" != "freebsd" ]; then
+  if [ "$arg1" == "clean" ]; then
     git clean -fdx 2>&1
   fi
 
+  file="/tmp/cov-analysis-${os}64.tar.gz"
+  project="inotifytools"
+  token="Dy7fkaSpHHjTg8JMFHKgOw"
+  curl -o "$file" https://scan.coverity.com/download/${os}64 \
+    --form project="$project" --form token="$token"
+  tar xf "$file"
   export CC=gcc
-
-  if [ "$os" != "freebsd" ]; then
-    file="/tmp/cov-analysis-${os}64.tar.gz"
-    project="inotifytools"
-    token="Dy7fkaSpHHjTg8JMFHKgOw"
-    curl -o "$file" https://scan.coverity.com/download/${os}64 \
-      --form project="$project" --form token="$token"
-    tar xf "$file"
-    ./autogen.sh
-    ./configure
-    cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j
-    tar cfz cov-int.tar.gz cov-int
-    version="$(git rev-parse HEAD)"
-    description="$(git show --no-patch --oneline)"
-    curl --form token="$token" \
-      --form email=ericcurtin17@gmail.com \
-      --form file=@cov-int.tar.gz \
-      --form version="$version" \
-      --form description="$description" \
-      https://scan.coverity.com/builds?project=$project
-  fi
+  ./autogen.sh
+  ./configure
+  cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j
+  tar cfz cov-int.tar.gz cov-int
+  version="$(git rev-parse HEAD)"
+  description="$(git show --no-patch --oneline)"
+  curl --form token="$token" \
+    --form email=ericcurtin17@gmail.com \
+    --form file=@cov-int.tar.gz \
+    --form version="$version" \
+    --form description="$description" \
+    https://scan.coverity.com/builds?project=$project
 fi
-
+ 

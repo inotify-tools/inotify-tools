@@ -38,7 +38,7 @@ static bool parse_opts(int* argc,
 		       int* events,
 		       bool* monitor,
 		       int* quiet,
-		       long int* timeout,
+		       unsigned int* timeout,
 		       int* recursive,
 		       bool* csv,
 		       bool* daemon,
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     int orig_events;
     bool monitor = false;
     int quiet = 0;
-    long int timeout = BLOCKING_TIMEOUT;
+    unsigned int timeout = BLOCKING_TIMEOUT;
     int recursive = 0;
     int fanotify = DEFAULT_FANOTIFY_MODE;
     bool filesystem = false;
@@ -502,7 +502,7 @@ static bool parse_opts(int* argc,
 		       int* events,
 		       bool* monitor,
 		       int* quiet,
-		       long int* timeout,
+		       unsigned int* timeout,
 		       int* recursive,
 		       bool* csv,
 		       bool* daemon,
@@ -908,7 +908,7 @@ void print_help() {
 	    "\t              \tWhen listening for a single event, time out "
 	    "after\n"
 	    "\t              \twaiting for an event for <seconds> seconds.\n"
-	    "\t              \tIf <seconds> is negative, %s will never time "
+	    "\t              \tIf <seconds> is zero, %s will never time "
 	    "out.\n",
 	    TOOL_NAME);
 	printf(

@@ -11,7 +11,7 @@
 
 #include <stdbool.h>
 
-#define BLOCKING_TIMEOUT -1
+#define BLOCKING_TIMEOUT 0
 
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS 0
@@ -44,6 +44,6 @@ void construct_path_list(int argc,
 
 void warn_inotify_init_error(int fanotify);
 
-bool is_timeout_option_valid(long int *timeout, char *optarg);
+bool is_timeout_option_valid(unsigned int* timeout, char* o);
 
 #endif

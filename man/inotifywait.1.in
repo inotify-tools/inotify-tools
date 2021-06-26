@@ -162,7 +162,7 @@ POSIX regular expression, case insensitive.
 .TP
 .B \-t <seconds>, \-\-timeout <seconds>
 Exit if an appropriate event has not occurred within <seconds> seconds. If
-<seconds> is a negative value (the default), wait indefinitely for an event.
+<seconds> is zero (the default), wait indefinitely for an event.
 
 .TP
 .B \-e <event>, \-\-event <event>

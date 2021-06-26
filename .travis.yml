@@ -7,5 +7,5 @@ matrix:
           compiler: gcc
           dist: xenial
 script:
- - ./build_and_test.sh
+ - ./build_and_test.sh clean
 
