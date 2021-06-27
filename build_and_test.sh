@@ -137,7 +137,7 @@ if command -v scan-build > /dev/null; then
   scan_build_args="-disable-checker unix.Malloc"
   scan_build_args="$scan_build_args -disable-checker core.AttributeNonNull"
   scan_build_args="$scan_build_args -disable-checker core.NonNullParamChecker"
-  scan_build=$(scan-build $scan_build_args make -j$j)
+  scan_build="$(scan-build $scan_build_args make -j$j)"
   echo "$scan_build"
   if ! echo "$scan_build" | grep -qi "no bugs found\|0 bugs found"; then
     false
@@ -212,13 +212,13 @@ if [ "$os" != "freebsd" ]; then
   file="/tmp/cov-analysis-${os}64.tar.gz"
   project="inotifytools"
   token="Dy7fkaSpHHjTg8JMFHKgOw"
-  curl -o "$file" https://scan.coverity.com/download/${os}64 \
+  curl -o "$file" "https://scan.coverity.com/download/${os}64" \
     --form project="$project" --form token="$token"
   tar xf "$file"
   export CC=gcc
   ./autogen.sh
   ./configure
-  cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j
+  "cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j"
   tar cfz cov-int.tar.gz cov-int
   version="$(git rev-parse HEAD)"
   description="$(git show --no-patch --oneline)"
