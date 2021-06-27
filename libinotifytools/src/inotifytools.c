@@ -241,12 +241,12 @@ int read_num_from_file( char * filename, int * num ) {
 	return 1;
 }
 
-int wd_compare(const void *d1, const void *d2, const void *config) {
+static int wd_compare(const void* d1, const void* d2, const void* config) {
 	if (!d1 || !d2) return d1 - d2;
 	return ((watch*)d1)->wd - ((watch*)d2)->wd;
 }
 
-int fid_compare(const void* d1, const void* d2, const void* config) {
+static int fid_compare(const void* d1, const void* d2, const void* config) {
 #ifdef LINUX_FANOTIFY
 	if (!d1 || !d2)
 		return d1 - d2;
@@ -263,7 +263,9 @@ int fid_compare(const void* d1, const void* d2, const void* config) {
 #endif
 }
 
-int filename_compare(const void *d1, const void *d2, const void *config) {
+static int filename_compare(const void* d1,
+			    const void* d2,
+			    const void* config) {
 	if (!d1 || !d2) return d1 - d2;
 	return strcmp(((watch*)d1)->filename, ((watch*)d2)->filename);
 }
@@ -409,9 +411,12 @@ struct replace_filename_data {
 /**
  * @internal
  */
-void replace_filename(const void *nodep, const VISIT which, const int depth,
-                      const struct replace_filename_data *data) {
-    if (which != endorder && which != leaf) return;
+static void replace_filename(const void* nodep,
+			     const VISIT which,
+			     const int depth,
+			     const struct replace_filename_data* data) {
+	if (which != endorder && which != leaf)
+		return;
 	watch *w = (watch*)nodep;
 	char *name;
 	if ( 0 == strncmp( data->old_name, w->filename, data->old_len ) ) {
@@ -430,10 +435,12 @@ void replace_filename(const void *nodep, const VISIT which, const int depth,
 /**
  * @internal
  */
-void get_num(const void *nodep,
-             const VISIT which,
-             const int depth, void *arg) {
-    if (which != endorder && which != leaf) return;
+static void get_num(const void* nodep,
+		    const VISIT which,
+		    const int depth,
+		    void* arg) {
+	if (which != endorder && which != leaf)
+		return;
 	++(*((int*)arg));
 }
 
