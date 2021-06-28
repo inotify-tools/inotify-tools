@@ -5,7 +5,7 @@ matrix:
         - os: linux
           arch: arm64
           compiler: gcc
-          dist: xenial
+          dist: focal
 script:
  - ./build_and_test.sh clean
 
