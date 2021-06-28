@@ -1,11 +1,18 @@
 language: c
-sudo: required
-matrix:
-    include:
-        - os: linux
-          arch: arm64
-          compiler: gcc
-          dist: focal
+
+arch:
+  - amd64
+  - arm64  # please note arm64-graviton2 requires explicit virt: [lxd|vm] tag so it's recommended for jobs.include, see below
+  - ppc64le
+  - s390x
+
+compiler:
+  - gcc
+  - clang
+
+dist: focal
+
+install: skip
+
 script:
  - ./build_and_test.sh clean
-
