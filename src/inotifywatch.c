@@ -26,8 +26,6 @@
 extern char *optarg;
 extern int optind, opterr, optopt;
 
-#define nasprintf(...) niceassert(-1 != asprintf(__VA_ARGS__), "out of memory")
-
 // METHODS
 static bool parse_opts(int* argc,
 		       char*** argv,

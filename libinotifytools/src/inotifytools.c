@@ -169,8 +169,6 @@ static int isdir( char const * path );
 void record_stats( struct inotify_event const * event );
 int onestr_to_event(char const * event);
 
-
-
 #define nasprintf(...) niceassert( -1 != asprintf(__VA_ARGS__), "out of memory")
 
 /**
