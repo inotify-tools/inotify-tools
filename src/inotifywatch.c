@@ -594,12 +594,14 @@ static bool parse_opts(int* argc,
 
 			// --ascending or -a
 			case 'a':
+				assert(optarg);
 				if (sort_set) {
 					fprintf(stderr,
 						"Please specify -a or -d once "
 						"only!\n");
 					return false;
 				}
+
 				if (0 == strcasecmp(optarg, "total")) {
 					(*s) = 0;
 				} else if (0 == strcasecmp(optarg, "move")) {
@@ -637,12 +639,14 @@ static bool parse_opts(int* argc,
 
 			// --descending or -d
 			case 'd':
+				assert(optarg);
 				if (sort_set) {
 					fprintf(stderr,
 						"Please specify -a or -d once "
 						"only!\n");
 					return false;
 				}
+
 				if (0 == strcasecmp(optarg, "total")) {
 					(*s) = -1;
 				} else {

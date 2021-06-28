@@ -112,7 +112,7 @@ void validate_format(char *fmt) {
     event->wd = 0;
     event->mask = IN_ALL_EVENTS;
     event->len = 3;
-    strcpy(event->name, "foo");
+    event->name[0] = 0;
     FILE *devnull = fopen("/dev/null", "a");
     if (!devnull) {
         fprintf(stderr, "Couldn't open /dev/null: %s\n", strerror(errno));
@@ -673,6 +673,7 @@ static bool parse_opts(int* argc,
 
 			// --format
 			case 'n':
+				assert(optarg);
 				if (!(*format)) {
 					*format =
 					    (char*)malloc(strlen(optarg) + 2);
@@ -773,7 +774,7 @@ static bool parse_opts(int* argc,
 	}
 
 	if (*format && !(*no_newline)) {
-		strcat(*format, "\n");
+		strncat(*format, "\n", 2);
 	}
 
 	if (*exc_regex && *exc_iregex) {

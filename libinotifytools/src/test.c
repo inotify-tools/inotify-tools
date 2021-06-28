@@ -233,7 +233,7 @@ void tst_inotifytools_snprintf() {
 
     RESET;
     test_event->mask = IN_ACCESS;
-    strcpy(test_event->name, "my_great_file");
+    strncpy(test_event->name, "my_great_file", 14);
     test_event->len = strlen(test_event->name) + 1;
     inotifytools_snprintf(&out, MAX_STRLEN, test_event, "Event %e %.e on %w %f %T");
     verify2(!strcmp(out.buf, "Event ACCESS ACCESS on " TEST_DIR "/ my_great_file "),

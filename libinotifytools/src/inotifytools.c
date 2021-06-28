@@ -203,25 +203,16 @@ void _niceassert( long cond, int line, char const * file,
 	}
 }
 
-/**
- * @internal
- * Construct a string from a character.
- *
- * @param ch A character.
- *
- * @return A string of length 1 consisting of the character @a ch.  The string
- *         will be overwritten in subsequent calls.
- */
-char * chrtostr(char ch) {
-	static char str[2] = { '\0', '\0' };
-	str[0] = ch;
-	return str;
+static void charcat(char* s, const char c) {
+	size_t l = strlen(s);
+	s[l] = c;
+	s[++l] = 0;
 }
 
 /**
  * @internal
  */
-int read_num_from_file( char * filename, int * num ) {
+static int read_num_from_file(char* filename, int* num) {
 	FILE * file = fopen( filename, "r" );
 	if ( !file ) {
 		error = errno;
@@ -668,76 +659,76 @@ char * inotifytools_event_to_str_sep(int events, char sep)
 	ret[1] = '\0';
 
 	if ( IN_ACCESS & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "ACCESS" );
+		charcat(ret, sep);
+		strncat(ret, "ACCESS", 7);
 	}
 	if ( IN_MODIFY & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "MODIFY" );
+		charcat(ret, sep);
+		strncat(ret, "MODIFY", 7);
 	}
 	if ( IN_ATTRIB & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "ATTRIB" );
+		charcat(ret, sep);
+		strncat(ret, "ATTRIB", 7);
 	}
 	if ( IN_CLOSE_WRITE & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "CLOSE_WRITE" );
+		charcat(ret, sep);
+		strncat(ret, "CLOSE_WRITE", 12);
 	}
 	if ( IN_CLOSE_NOWRITE & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "CLOSE_NOWRITE" );
+		charcat(ret, sep);
+		strncat(ret, "CLOSE_NOWRITE", 14);
 	}
 	if ( IN_OPEN & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "OPEN" );
+		charcat(ret, sep);
+		strncat(ret, "OPEN", 5);
 	}
 	if ( IN_MOVED_FROM & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "MOVED_FROM" );
+		charcat(ret, sep);
+		strncat(ret, "MOVED_FROM", 11);
 	}
 	if ( IN_MOVED_TO & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "MOVED_TO" );
+		charcat(ret, sep);
+		strncat(ret, "MOVED_TO", 9);
 	}
 	if ( IN_CREATE & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "CREATE" );
+		charcat(ret, sep);
+		strncat(ret, "CREATE", 7);
 	}
 	if ( IN_DELETE & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "DELETE" );
+		charcat(ret, sep);
+		strncat(ret, "DELETE", 7);
 	}
 	if ( IN_DELETE_SELF & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "DELETE_SELF" );
+		charcat(ret, sep);
+		strncat(ret, "DELETE_SELF", 12);
 	}
 	if ( IN_UNMOUNT & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "UNMOUNT" );
+		charcat(ret, sep);
+		strncat(ret, "UNMOUNT", 8);
 	}
 	if ( IN_Q_OVERFLOW & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "Q_OVERFLOW" );
+		charcat(ret, sep);
+		strncat(ret, "Q_OVERFLOW", 11);
 	}
 	if ( IN_IGNORED & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "IGNORED" );
+		charcat(ret, sep);
+		strncat(ret, "IGNORED", 8);
 	}
 	if ( IN_CLOSE & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "CLOSE" );
+		charcat(ret, sep);
+		strncat(ret, "CLOSE", 6);
 	}
 	if ( IN_MOVE_SELF & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "MOVE_SELF" );
+		charcat(ret, sep);
+		strncat(ret, "MOVE_SELF", 10);
 	}
 	if ( IN_ISDIR & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "ISDIR" );
+		charcat(ret, sep);
+		strncat(ret, "ISDIR", 6);
 	}
 	if ( IN_ONESHOT & events ) {
-		strcat( ret, chrtostr(sep) );
-		strcat( ret, "ONESHOT" );
+		charcat(ret, sep);
+		strncat(ret, "ONESHOT", 8);
 	}
 
 	// Maybe we didn't match any... ?
@@ -838,7 +829,7 @@ static const char* inotifytools_filename_from_fid(
 		}
 		memcpy(filename + len, name, name_len);
 		if (deleted)
-			strcat(filename, " (deleted)");
+			strncat(filename, " (deleted)", 11);
 	}
 	close(dirf);
 	return filename;
