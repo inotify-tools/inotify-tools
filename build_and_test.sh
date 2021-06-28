@@ -40,9 +40,10 @@ integration_test
 if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
   if [ "$os" != "freebsd" ]; then
     sudo apt update
-    pkgs="gcc-arm-linux-gnueabihf cppcheck clang-tools clang gcc clang-tidy"
+    pkgs="gcc-arm-linux-gnueabihf cppcheck clang gcc clang-tidy"
     pkgs="$pkgs clang-format"
-    sudo apt install -y $pkgs
+    sudo apt install -y $pkgs || true
+    sudo apt install -y clang-tools || true
   fi
 
   for i in {64..8}; do
