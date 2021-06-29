@@ -16,6 +16,7 @@ integration_test() {
 arg1="$1"
 
 os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
+uname_m=$(uname -m)
 
 printf "gcc build\n"
 if [ "$arg1" == "clean" ]; then
@@ -131,7 +132,18 @@ if command -v arm-linux-gnueabihf-gcc > /dev/null; then
 
   ./autogen.sh
   ./configure --host=arm-linux-gnueabihf
+  export CC=arm-linux-gnueabihf-gcc
   make -j$j
+
+  if [ "$uname_m" == "aarch64" ]; then
+    printf "\nunit test\n"
+    cd libinotifytools/src/
+    make -j$j test
+    ./test
+    cd -
+
+    integration_test
+  fi
 fi
 
 printf "\nclang build\n"
@@ -222,7 +234,7 @@ if command -v cppcheck > /dev/null; then
   fi
 fi
 
-if [ "$os" != "freebsd" ]; then
+if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
   printf "\ncov-build build\n"
   make distclean
   if [ "$arg1" == "clean" ]; then
