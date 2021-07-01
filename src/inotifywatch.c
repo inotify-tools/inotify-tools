@@ -153,52 +153,55 @@ int main(int argc, char **argv) {
     unsigned int status;
     fprintf(stderr, "Establishing watches...\n");
     for (int i = 0; list.watch_files[i]; ++i) {
-        char const *this_file = list.watch_files[i];
-	if (filesystem) {
-		fprintf(stderr, "Setting up filesystem watch on %s\n",
-			this_file);
-		if (!inotifytools_watch_files(list.watch_files, events)) {
-			fprintf(stderr,
-				"Couldn't add filesystem watch %s: %s\n",
-				this_file, strerror(inotifytools_error()));
-			goto failure;
-		}
-		break;
-	}
+	    char* this_file = list.watch_files[i];
+	    if (filesystem) {
+		    fprintf(stderr, "Setting up filesystem watch on %s\n",
+			    this_file);
+		    if (!inotifytools_watch_files(list.watch_files, events)) {
+			    fprintf(stderr,
+				    "Couldn't add filesystem watch %s: %s\n",
+				    this_file, strerror(inotifytools_error()));
+			    goto failure;
+		    }
+		    break;
+	    }
 
-	if (recursive && verbose) {
-            fprintf(stderr, "Setting up watch(es) on %s\n", this_file);
-        }
+	    if (recursive && verbose) {
+		    fprintf(stderr, "Setting up watch(es) on %s\n", this_file);
+	    }
 
-        if (recursive) {
-            status = inotifytools_watch_recursively_with_exclude(
-                this_file, events, list.exclude_files);
-        } else {
-            status = inotifytools_watch_file(this_file, events);
-        }
-        if (!status) {
-            if (inotifytools_error() == ENOSPC) {
-		    const char* backend = fanotify ? "fanotify" : "inotify";
-		    const char* resource = fanotify ? "marks" : "watches";
-		    fprintf(stderr,
-			    "Failed to watch %s; upper limit on %s %s "
-			    "reached!\n",
-			    this_file, backend, resource);
-		    fprintf(stderr,
-			    "Please increase the amount of %s %s "
-			    "allowed per user via `/proc/sys/fs/%s/"
-			    "max_user_%s'.\n",
-			    backend, resource, backend, resource);
+	    if (recursive) {
+		    status = inotifytools_watch_recursively_with_exclude(
+			this_file, events, list.exclude_files);
 	    } else {
-                fprintf(stderr, "Failed to watch %s: %s\n", this_file,
-                        strerror(inotifytools_error()));
-            }
+		    status = inotifytools_watch_file(this_file, events);
+	    }
+	    if (!status) {
+		    if (inotifytools_error() == ENOSPC) {
+			    const char* backend =
+				fanotify ? "fanotify" : "inotify";
+			    const char* resource =
+				fanotify ? "marks" : "watches";
+			    fprintf(stderr,
+				    "Failed to watch %s; upper limit on %s %s "
+				    "reached!\n",
+				    this_file, backend, resource);
+			    fprintf(stderr,
+				    "Please increase the amount of %s %s "
+				    "allowed per user via `/proc/sys/fs/%s/"
+				    "max_user_%s'.\n",
+				    backend, resource, backend, resource);
+		    } else {
+			    fprintf(stderr, "Failed to watch %s: %s\n",
+				    this_file, strerror(inotifytools_error()));
+		    }
 
-	    goto failure;
-	}
-	if (recursive && verbose) {
-		fprintf(stderr, "OK, %s is now being watched.\n", this_file);
-	}
+		    goto failure;
+	    }
+	    if (recursive && verbose) {
+		    fprintf(stderr, "OK, %s is now being watched.\n",
+			    this_file);
+	    }
     }
     num_watches = inotifytools_get_num_watches();
 
@@ -292,20 +295,17 @@ int main(int argc, char **argv) {
 
     } while (!done);
 
-    free(list.watch_files);
-    free(list.exclude_files);
+    free_list(argc, argv, &list);
 
     return print_info();
 
 failure:
-	free(list.watch_files);
-	free(list.exclude_files);
+	free_list(argc, argv, &list);
 
 	return EXIT_FAILURE;
 
 timeout:
-	free(list.watch_files);
-	free(list.exclude_files);
+	free_list(argc, argv, &list);
 
 	return EXIT_TIMEOUT;
 }

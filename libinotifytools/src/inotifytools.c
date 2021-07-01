@@ -1142,8 +1142,8 @@ int inotifytools_remove_watch_by_filename( char const * filename ) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_watch_file( char const * filename, int events ) {
-	static char const * filenames[2];
+int inotifytools_watch_file(char* filename, int events) {
+	static char* filenames[2];
 	filenames[0] = filename;
 	filenames[1] = NULL;
 	return inotifytools_watch_files( filenames, events );
@@ -1164,7 +1164,7 @@ int inotifytools_watch_file( char const * filename, int events ) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_watch_files( char const * filenames[], int events ) {
+int inotifytools_watch_files(char* filenames[], int events) {
 	niceassert( init, "inotifytools_initialize not called yet" );
 	error = 0;
 
@@ -1640,7 +1640,7 @@ more_events:
  *       created or removed within that directory tree, there are no guarantees
  *       as to whether or not those files will be watched.
  */
-int inotifytools_watch_recursively( char const * path, int events ) {
+int inotifytools_watch_recursively(char* path, int events) {
 	return inotifytools_watch_recursively_with_exclude( path, events, 0 );
 }
 
@@ -1676,8 +1676,9 @@ int inotifytools_watch_recursively( char const * path, int events ) {
  *       created or removed within that directory tree, there are no guarantees
  *       as to whether or not those files will be watched.
  */
-int inotifytools_watch_recursively_with_exclude( char const * path, int events,
-                                                 char const ** exclude_list ) {
+int inotifytools_watch_recursively_with_exclude(char* path,
+						int events,
+						char** exclude_list) {
 	niceassert( init, "inotifytools_initialize not called yet" );
 
 	DIR * dir;
@@ -1726,7 +1727,7 @@ int inotifytools_watch_recursively_with_exclude( char const * path, int events,
 				free( next_file );
 				nasprintf(&next_file,"%s%s/", my_path, ent->d_name);
 				static unsigned int no_watch;
-				static char const ** exclude_entry;
+				static char** exclude_entry;
 
 				no_watch = 0;
 				for (exclude_entry = exclude_list;

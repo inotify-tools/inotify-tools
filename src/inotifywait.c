@@ -316,41 +316,45 @@ int main(int argc, char **argv) {
 
     // now watch files
     for (int i = 0; list.watch_files[i]; ++i) {
-        char const *this_file = list.watch_files[i];
-	if (filesystem) {
-		if (!inotifytools_watch_files(list.watch_files, events)) {
-			output_error(sysl,
-				     "Couldn't add filesystem watch %s: %s\n",
-				     this_file, strerror(inotifytools_error()));
+	    char* this_file = list.watch_files[i];
+	    if (filesystem) {
+		    if (!inotifytools_watch_files(list.watch_files, events)) {
+			    output_error(
+				sysl, "Couldn't add filesystem watch %s: %s\n",
+				this_file, strerror(inotifytools_error()));
 
-			goto failure;
-		}
-		break;
-	}
-
-	if ((recursive &&
-             !inotifytools_watch_recursively_with_exclude(
-                 this_file, events, list.exclude_files)) ||
-            (!recursive && !inotifytools_watch_file(this_file, events))) {
-            if (inotifytools_error() == ENOSPC) {
-		    const char* backend = fanotify ? "fanotify" : "inotify";
-		    const char* resource = fanotify ? "marks" : "watches";
-		    output_error(sysl,
-				 "Failed to watch %s; upper limit on %s %s "
-				 "reached!\n",
-				 this_file, backend, resource);
-		    output_error(sysl,
-				 "Please increase the amount of %s %s "
-				 "allowed per user via `/proc/sys/fs/%s/"
-				 "max_user_%s'.\n",
-				 backend, resource, backend, resource);
-	    } else {
-		    output_error(sysl, "Couldn't watch %s: %s\n", this_file,
-				 strerror(inotifytools_error()));
+			    goto failure;
+		    }
+		    break;
 	    }
 
-	    goto failure;
-	}
+	    if ((recursive && !inotifytools_watch_recursively_with_exclude(
+				  this_file, events, list.exclude_files)) ||
+		(!recursive && !inotifytools_watch_file(this_file, events))) {
+		    if (inotifytools_error() == ENOSPC) {
+			    const char* backend =
+				fanotify ? "fanotify" : "inotify";
+			    const char* resource =
+				fanotify ? "marks" : "watches";
+			    output_error(
+				sysl,
+				"Failed to watch %s; upper limit on %s %s "
+				"reached!\n",
+				this_file, backend, resource);
+			    output_error(
+				sysl,
+				"Please increase the amount of %s %s "
+				"allowed per user via `/proc/sys/fs/%s/"
+				"max_user_%s'.\n",
+				backend, resource, backend, resource);
+		    } else {
+			    output_error(sysl, "Couldn't watch %s: %s\n",
+					 this_file,
+					 strerror(inotifytools_error()));
+		    }
+
+		    goto failure;
+	    }
     }
 
     if (!quiet) {
@@ -443,23 +447,17 @@ int main(int argc, char **argv) {
 	goto failure;
     }
 
-#ifndef HAVE_DAEMON
-success:
-#endif
-	free(list.watch_files);
-	free(list.exclude_files);
+    free_list(argc, argv, &list);
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 
 failure:
-	free(list.watch_files);
-	free(list.exclude_files);
+	free_list(argc, argv, &list);
 
 	return EXIT_FAILURE;
 
 timeout:
-	free(list.watch_files);
-	free(list.exclude_files);
+	free_list(argc, argv, &list);
 
 	return EXIT_TIMEOUT;
 }

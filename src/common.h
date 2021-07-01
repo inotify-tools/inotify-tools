@@ -33,9 +33,11 @@ void print_event_descriptions();
 int isdir(char const *path);
 
 typedef struct {
-    char const **watch_files;
-    char const **exclude_files;
+	char** watch_files;
+	char** exclude_files;
 } FileList;
+
+void free_list(int argc, char** argv, FileList* list);
 
 void construct_path_list(int argc,
 			 char** argv,

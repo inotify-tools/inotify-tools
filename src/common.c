@@ -16,11 +16,11 @@
 #define MAXLEN 4096
 #define LIST_CHUNK 1024
 
-static void resize_if_necessary(const int count, int *len, const char ***ptr)                                   {
-    if (count >= *len - 1) {                                                    
-        *len += LIST_CHUNK;                                                     
-        *ptr = (const char **)realloc(ptr, sizeof(char *) * *len);               
-    }
+static void resize_if_necessary(const int count, int* len, char*** ptr) {
+	if (count >= *len - 1) {
+		*len += LIST_CHUNK;
+		*ptr = realloc(ptr, sizeof(char*) * *len);
+	}
 }
 
 void print_event_descriptions() {
@@ -57,6 +57,36 @@ int isdir(char const *path) {
     return S_ISDIR(my_stat.st_mode) && !S_ISLNK(my_stat.st_mode);
 }
 
+void free_list(int argc, char** argv, FileList* list) {
+	char* start_of_stack = argv[0];
+	char* end_of_stack = argv[argc];
+	for (int i = 0; argv[i]; ++i) {
+		if (argv[i] < start_of_stack) {
+			start_of_stack = argv[i];
+		} else if (argv[i] > end_of_stack) {
+			end_of_stack = argv[i];
+		}
+	}
+
+	for (int i = 0; list->watch_files[i]; ++i) {
+		if (list->watch_files[i] < start_of_stack ||
+		    list->watch_files[i] > end_of_stack) {
+			free(list->watch_files[i]);
+		}
+	}
+
+	free(list->watch_files);
+
+	for (int i = 0; list->exclude_files[i]; ++i) {
+		if (list->exclude_files[i] < start_of_stack ||
+		    list->exclude_files[i] > end_of_stack) {
+			free(list->exclude_files[i]);
+		}
+	}
+
+	free(list->exclude_files);
+}
+
 void construct_path_list(int argc,
 			 char** argv,
 			 char const* filename,
@@ -77,8 +107,8 @@ void construct_path_list(int argc,
 	int exclude_len = LIST_CHUNK;
 	int watch_count = 0;
 	int exclude_count = 0;
-	list->watch_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
-	list->exclude_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	list->watch_files = malloc(sizeof(char*) * LIST_CHUNK);
+	list->exclude_files = malloc(sizeof(char*) * LIST_CHUNK);
 
 	char name[MAXLEN];
 	while (file && fgets(name, MAXLEN, file)) {

@@ -41,13 +41,17 @@ integration_test
 if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
   if [ "$os" != "freebsd" ]; then
     sudo apt update || true
-    pkgs="gcc-arm-linux-gnueabihf cppcheck clang gcc clang-tidy"
-    pkgs="$pkgs clang-format"
-    sudo apt install -y $pkgs || true
+    sudo apt install -y gcc-arm-linux-gnueabihf || true
+    sudo apt install -y cppcheck || true
+    sudo apt install -y clang || true
+    sudo apt install -y gcc || true
+    sudo apt install -y clang-tidy || true
+    sudo apt install -y clang-format || true
     sudo apt install -y clang-tools || true
+    sudo apt install -y clang-format-10 || true
   fi
 
-  for i in {64..8}; do
+  for i in {64..9}; do
     if command -v "git-clang-format-$i" > /dev/null; then
       CLANG_FMT_VER="clang-format-$i"
       break
