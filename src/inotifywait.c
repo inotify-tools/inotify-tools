@@ -250,65 +250,26 @@ int main(int argc, char **argv) {
 	    goto failure;
 	}
 
-#ifdef HAVE_DAEMON
-        if (daemon(0, 0)) {
-            fprintf(stderr, "Failed to daemonize!\n");
-	    free(logfile);
-	    goto failure;
-	}
-#else
-        pid_t pid = fork();
-        if (pid < 0) {
-            fprintf(stderr, "Failed to fork1 whilst daemonizing!\n");
-	    free(logfile);
-	    goto failure;
-	}
-
-	if (pid > 0) {
-		free(logfile);
-		goto success;
-	}
-
-	if (setsid() < 0) {
-		fprintf(stderr, "Failed to setsid whilst daemonizing!\n");
+	if (daemon(0, 0)) {
+		fprintf(stderr, "Failed to daemonize!\n");
 		free(logfile);
 		goto failure;
 	}
 
-	signal(SIGHUP, SIG_IGN);
-	pid = fork();
-	if (pid < 0) {
-		fprintf(stderr, "Failed to fork2 whilst daemonizing!\n");
+	// Redirect stdin from /dev/null
+	fd = open("/dev/null", O_RDONLY);
+	if (fd != fileno(stdin)) {
+		dup2(fd, fileno(stdin));
+		close(fd);
+	}
+
+	// Redirect stdout to a file
+	fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
+	if (fd < 0) {
+		fprintf(stderr, "Failed to open output file %s\n", logfile);
 		free(logfile);
+
 		goto failure;
-	}
-
-	if (pid > 0) {
-		free(logfile);
-		goto success;
-	}
-
-	if (chdir("/") < 0) {
-		fprintf(stderr, "Failed to chdir whilst daemonizing!\n");
-		free(logfile);
-		goto failure;
-	}
-#endif
-
-        // Redirect stdin from /dev/null
-        fd = open("/dev/null", O_RDONLY);
-        if (fd != fileno(stdin)) {
-            dup2(fd, fileno(stdin));
-            close(fd);
-        }
-
-        // Redirect stdout to a file
-        fd = open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
-        if (fd < 0) {
-            fprintf(stderr, "Failed to open output file %s\n", logfile);
-            free(logfile);
-
-	    goto failure;
 	}
 	free(logfile);
 
