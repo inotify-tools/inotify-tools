@@ -4,13 +4,35 @@ set -e
 
 j=16
 
+unit_test() {
+  if [ "$os" != "freebsd" ]; then
+    printf "\nunit test\n"
+    cd libinotifytools/src/
+    make -j$j test
+    ./test
+    cd -
+  fi
+}
+
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..128}; do
+  for i in {1..1}; do
     cd t
     make -j$j
     cd -
   done
+}
+
+tests() {
+  unit_test
+  integration_test
+}
+
+clean() {
+  make distclean || true
+  if [ "$arg1" == "clean" ]; then
+    git clean -fdx > /dev/null 2>&1
+  fi
 }
 
 arg1="$1"
@@ -19,24 +41,14 @@ os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
 uname_m=$(uname -m)
 
 printf "gcc build\n"
-if [ "$arg1" == "clean" ]; then
-  git clean -fdx > /dev/null 2>&1
-fi
+clean
 
 export CC=gcc
 ./autogen.sh
 ./configure
 make -j$j
 
-if [ "$os" != "freebsd" ]; then
-  printf "\nunit test\n"
-  cd libinotifytools/src/
-  make -j$j test
-  ./test
-  cd -
-fi
-
-integration_test
+tests
 
 if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
   if [ "$os" != "freebsd" ]; then
@@ -87,52 +99,29 @@ if command -v clang-tidy > /dev/null; then
 fi
 
 printf "gcc static build\n"
-make distclean
-if [ "$arg1" == "clean" ]; then
-  git clean -fdx > /dev/null 2>&1
-fi
+clean
 
 ./autogen.sh
 ./configure --enable-static --disable-shared
 make -j$j
 
-if [ "$os" != "freebsd" ]; then
-  printf "\nunit test\n"
-  cd libinotifytools/src/
-  make -j$j test
-  ./test
-  cd -
-fi
-
-integration_test
+tests
 
 if [ "$os" != "freebsd" ]; then
   printf "\ngcc address sanitizer build\n"
-  make distclean
-  if [ "$arg1" == "clean" ]; then
-    git clean -fdx > /dev/null 2>&1
-  fi
+  clean
 
   ./autogen.sh
   ./configure CFLAGS="-fsanitize=address -O0 -ggdb" \
     LDFLAGS="-fsanitize=address -O0 -ggdb"
   make -j$j
 
-  printf "\nunit test\n"
-  cd libinotifytools/src/
-  make -j$j test
-  ./test
-  cd -
-
-  integration_test
+  tests
 fi
 
 if command -v arm-linux-gnueabihf-gcc > /dev/null; then
   printf "\ngcc arm32 build\n"
-  make distclean
-  if [ "$arg1" == "clean" ]; then
-    git clean -fdx > /dev/null 2>&1
-  fi
+  clean
 
   ./autogen.sh
   ./configure --host=arm-linux-gnueabihf
@@ -140,21 +129,12 @@ if command -v arm-linux-gnueabihf-gcc > /dev/null; then
   make -j$j
 
   if [ "$uname_m" == "aarch64" ]; then
-    printf "\nunit test\n"
-    cd libinotifytools/src/
-    make -j$j test
-    ./test
-    cd -
-
-    integration_test
+    tests
   fi
 fi
 
 printf "\nclang build\n"
-make distclean
-if [ "$arg1" == "clean" ]; then
-  git clean -fdx > /dev/null 2>&1
-fi
+clean
 
 export CC=clang
 ./autogen.sh
@@ -163,10 +143,7 @@ make -j$j
 
 if command -v scan-build > /dev/null; then
   printf "\ngcc scan-build\n"
-  make distclean
-  if [ "$arg1" == "clean" ]; then
-    git clean -fdx > /dev/null 2>&1
-  fi
+  clean
 
   export CC=gcc
   scan-build ./autogen.sh
@@ -181,10 +158,7 @@ if command -v scan-build > /dev/null; then
   fi
 
   printf "\nclang scan-build\n"
-  make distclean
-  if [ "$arg1" == "clean" ]; then
-    git clean -fdx > /dev/null 2>&1
-  fi
+  clean
 
   export CC=clang
   scan-build ./autogen.sh
@@ -196,35 +170,16 @@ if command -v scan-build > /dev/null; then
   fi
 fi
 
-if [ "$os" != "freebsd" ]; then
-  printf "\nunit test\n"
-  cd libinotifytools/src/
-  make -j$j test
-  ./test
-  cd -
-fi
-
-integration_test
+tests
 
 printf "\nclang static build\n"
-make distclean
-if [ "$arg1" == "clean" ]; then
-  git clean -fdx > /dev/null 2>&1
-fi
+clean
 
 ./autogen.sh
 ./configure --enable-static --disable-shared
 make -j$j
 
-if [ "$os" != "freebsd" ]; then
-  printf "\nunit test\n"
-  cd libinotifytools/src/
-  make -j$j test
-  ./test
-  cd -
-fi
-
-integration_test
+tests
 
 if command -v cppcheck > /dev/null; then
   u="-U restrict -U __REDIRECT -U __restrict_arr -U __restrict"
@@ -238,12 +193,24 @@ if command -v cppcheck > /dev/null; then
   fi
 fi
 
+printf "\ngcc coverage build\n"
+clean
+
+export CC=gcc
+./autogen.sh
+./configure --enable-static --disable-shared CFLAGS="--coverage" \
+  LDFLAGS="--coverage"
+make -j$j
+
+tests
+
+pip install --user cpp-coveralls pyopenssl ndg-httpsclient pyasn1
+~/.local/bin/coveralls
+bash <(curl -s https://codecov.io/bash)
+
 if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
   printf "\ncov-build build\n"
-  make distclean
-  if [ "$arg1" == "clean" ]; then
-    git clean -fdx > /dev/null 2>&1
-  fi
+  clean
 
   file="/tmp/cov-analysis-${os}64.tar.gz"
   project="inotifytools"
@@ -265,4 +232,4 @@ if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
     --form description="$description" \
     https://scan.coverity.com/builds?project=$project
 fi
- 
+
