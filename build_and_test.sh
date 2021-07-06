@@ -16,7 +16,7 @@ unit_test() {
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..1}; do
+  for i in {1..128}; do
     cd t
     make -j$j
     cd -
@@ -35,6 +35,14 @@ clean() {
   fi
 }
 
+build() {
+  ./autogen.sh
+  ./configure $@
+  make -j$j
+  unset CFLAGS
+  unset LDFLAGS
+}
+
 arg1="$1"
 
 os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
@@ -42,12 +50,8 @@ uname_m=$(uname -m)
 
 printf "gcc build\n"
 clean
-
-export CC=gcc
-./autogen.sh
-./configure
-make -j$j
-
+export CC="gcc"
+build
 tests
 
 if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
@@ -100,34 +104,25 @@ fi
 
 printf "gcc static build\n"
 clean
-
-./autogen.sh
-./configure --enable-static --disable-shared
-make -j$j
-
+export CC="gcc"
+build --enable-static --disable-shared
 tests
 
 if [ "$os" != "freebsd" ]; then
   printf "\ngcc address sanitizer build\n"
   clean
-
-  ./autogen.sh
-  ./configure CFLAGS="-fsanitize=address -O0 -ggdb" \
-    LDFLAGS="-fsanitize=address -O0 -ggdb"
-  make -j$j
-
+  export CC="gcc"
+  export CFLAGS="-fsanitize=address -O0 -ggdb"
+  export LDFLAGS="-fsanitize=address -O0 -ggdb"
+  build
   tests
 fi
 
 if command -v arm-linux-gnueabihf-gcc > /dev/null; then
   printf "\ngcc arm32 build\n"
   clean
-
-  ./autogen.sh
-  ./configure --host=arm-linux-gnueabihf
-  export CC=arm-linux-gnueabihf-gcc
-  make -j$j
-
+  export CC="arm-linux-gnueabihf-gcc"
+  build --host=arm-linux-gnueabihf
   if [ "$uname_m" == "aarch64" ]; then
     tests
   fi
@@ -135,17 +130,15 @@ fi
 
 printf "\nclang build\n"
 clean
-
-export CC=clang
-./autogen.sh
-./configure
-make -j$j
+export CC="clang"
+build
+tests
 
 if command -v scan-build > /dev/null; then
   printf "\ngcc scan-build\n"
   clean
 
-  export CC=gcc
+  export CC="gcc"
   scan-build ./autogen.sh
   scan-build ./configure
   scan_build_args="-disable-checker unix.Malloc"
@@ -160,7 +153,7 @@ if command -v scan-build > /dev/null; then
   printf "\nclang scan-build\n"
   clean
 
-  export CC=clang
+  export CC="clang"
   scan-build ./autogen.sh
   scan-build ./configure
   scan_build=$(scan-build $scan_build_args make -j$j)
@@ -174,11 +167,8 @@ tests
 
 printf "\nclang static build\n"
 clean
-
-./autogen.sh
-./configure --enable-static --disable-shared
-make -j$j
-
+export CC="clang"
+build --enable-static --disable-shared
 tests
 
 if command -v cppcheck > /dev/null; then
@@ -195,17 +185,12 @@ fi
 
 printf "\ngcc coverage build\n"
 clean
-
-export CC=gcc
-./autogen.sh
-./configure --enable-static --disable-shared CFLAGS="--coverage" \
-  LDFLAGS="--coverage"
-make -j$j
-
+export CC="gcc"
+export CFLAGS="--coverage"
+export LDFLAGS="--coverage"
+build --enable-static --disable-shared
 tests
 
-pip install --user cpp-coveralls pyopenssl ndg-httpsclient pyasn1
-~/.local/bin/coveralls
 bash <(curl -s https://codecov.io/bash)
 
 if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
@@ -218,7 +203,7 @@ if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
   curl -o "$file" "https://scan.coverity.com/download/${os}64" \
     --form project="$project" --form token="$token"
   tar xf "$file"
-  export CC=gcc
+  export CC="gcc"
   ./autogen.sh
   ./configure
   cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j

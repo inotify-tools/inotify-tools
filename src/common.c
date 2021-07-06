@@ -59,7 +59,7 @@ int isdir(char const *path) {
 
 void free_list(int argc, char** argv, FileList* list) {
 	char* start_of_stack = argv[0];
-	char* end_of_stack = argv[argc];
+	char* end_of_stack = argv[argc - 1];
 	for (int i = 0; argv[i]; ++i) {
 		if (argv[i] < start_of_stack) {
 			start_of_stack = argv[i];
