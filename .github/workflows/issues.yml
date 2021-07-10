@@ -1,0 +1,16 @@
+name: 'Automatically close stale issues and PRs'
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v3
+        with:
+          stale-issue-message: 'We are clearing up our old issues and your ticket has been open for 2 years with no activity. Remove stale label or comment or this will be closed in 30 days.'
+          days-before-stale: 730
+          days-before-close: 30
+          operations-per-run: 500
+
