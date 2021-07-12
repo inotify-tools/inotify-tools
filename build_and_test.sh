@@ -37,7 +37,7 @@ clean() {
 
 build() {
   ./autogen.sh
-  ./configure $@
+  ./configure --prefix=/usr $@
   make -j$j
   unset CFLAGS
   unset LDFLAGS

@@ -68,6 +68,10 @@ void free_list(int argc, char** argv, FileList* list) {
 		}
 	}
 
+	while (*end_of_stack) {
+		++end_of_stack;
+	}
+
 	for (int i = 0; list->watch_files[i]; ++i) {
 		if (list->watch_files[i] < start_of_stack ||
 		    list->watch_files[i] > end_of_stack) {
