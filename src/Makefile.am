@@ -11,7 +11,7 @@ fsnotifywatch_SOURCES = inotifywatch.c common.c common.h
 fsnotifywatch_CPPFLAGS = -DENABLE_FANOTIFY
 endif
 
-AM_CFLAGS = -Wall -Wextra -Wshadow -Werror -std=c99 -I../libinotifytools/src
+AM_CFLAGS = -Wall -Wshadow -Werror -std=c99 -I../libinotifytools/src
 AM_CPPFLAGS = -I$(top_srcdir)/libinotifytools/src
 LDADD = ../libinotifytools/src/libinotifytools.la
 

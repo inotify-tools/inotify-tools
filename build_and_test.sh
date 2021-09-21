@@ -65,6 +65,7 @@ if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
     sudo apt install -y clang-format || true
     sudo apt install -y clang-tools || true
     sudo apt install -y clang-format-10 || true
+    sudo apt install -y doxygen || true
   fi
 
   for i in {64..9}; do
@@ -103,13 +104,21 @@ if command -v clang-tidy > /dev/null; then
   $c_t $q $w=* --checks=$s_c_t $(find . -name "*.[c|h]") -- $inc
 fi
 
+if command -v doxygen > /dev/null; then
+  printf "rh build\n"
+  clean
+  export CC="gcc"
+  ./rh_build.sh
+  tests
+fi
+
 printf "gcc static build\n"
 clean
 export CC="gcc"
 build --enable-static --disable-shared
 tests
 
-if [ "$os" != "freebsd" ]; then
+if [ "$os" != "freebsd" ] && ldconfig -p | grep -q libasan; then
   printf "\ngcc address sanitizer build\n"
   clean
   export CC="gcc"
