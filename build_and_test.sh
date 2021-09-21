@@ -96,6 +96,7 @@ if command -v clang-tidy > /dev/null; then
   s_c_t="$s_c_t,-clang-analyzer-valist.Uninitialized"
   s_c_t="$s_c_t,-clang-analyzer-unix.Malloc"
   s_c_t="$s_c_t,-clang-analyzer-security.insecureAPI.strcpy"
+  s_c_t="$s_c_t,-clang-diagnostic-incompatible-pointer-types-discards-qualifiers"
   c_t="clang-tidy"
   q="--quiet"
   w="--warnings-as-errors"

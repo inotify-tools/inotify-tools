@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
     unsigned int status;
     fprintf(stderr, "Establishing watches...\n");
     for (int i = 0; list.watch_files[i]; ++i) {
-	    char* this_file = list.watch_files[i];
+	    char const* this_file = list.watch_files[i];
 	    if (filesystem) {
 		    fprintf(stderr, "Setting up filesystem watch on %s\n",
 			    this_file);

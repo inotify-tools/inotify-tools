@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
 
     // now watch files
     for (int i = 0; list.watch_files[i]; ++i) {
-	    char* this_file = list.watch_files[i];
+	    char const* this_file = list.watch_files[i];
 	    if (filesystem) {
 		    if (!inotifytools_watch_files(list.watch_files, events)) {
 			    output_error(

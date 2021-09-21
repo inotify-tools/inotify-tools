@@ -46,12 +46,12 @@ const char* inotifytools_filename_from_wd(int wd);
 int inotifytools_wd_from_filename( char const * filename );
 int inotifytools_remove_watch_by_filename( char const * filename );
 int inotifytools_remove_watch_by_wd( int wd );
-int inotifytools_watch_file(char* filename, int events);
-int inotifytools_watch_files(char* filenames[], int events);
-int inotifytools_watch_recursively(char* path, int events);
-int inotifytools_watch_recursively_with_exclude(char* path,
+int inotifytools_watch_file(char const* filename, int events);
+int inotifytools_watch_files(char const* filenames[], int events);
+int inotifytools_watch_recursively(char const* path, int events);
+int inotifytools_watch_recursively_with_exclude(char const* path,
 						int events,
-						char** exclude_list);
+						char const** exclude_list);
 // [UH]
 int inotifytools_ignore_events_by_regex( char const *pattern, int flags );
 int inotifytools_ignore_events_by_inverted_regex( char const *pattern, int flags );
