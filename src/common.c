@@ -19,7 +19,7 @@
 static void resize_if_necessary(const int count, int* len, const char*** ptr) {
 	if (count >= *len - 1) {
 		*len += LIST_CHUNK;
-		*ptr = (const char**)realloc(ptr, sizeof(char*) * *len);
+		*ptr = (const char**)realloc(*ptr, sizeof(char*) * *len);
 	}
 }
 
