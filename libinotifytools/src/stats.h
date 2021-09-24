@@ -1,6 +1,6 @@
 #ifndef STATS_H
 #define STATS_H
-#include "inotifytools.h"
+#include "inotifytools/inotifytools.h"
 #include "inotifytools/inotify.h"
 #include "inotifytools_p.h"
 
