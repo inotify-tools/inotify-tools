@@ -64,11 +64,11 @@ if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
     sudo apt install -y clang-tidy || true
     sudo apt install -y clang-format || true
     sudo apt install -y clang-tools || true
-    sudo apt install -y clang-format-10 || true
+    sudo apt install -y clang-format-11 || true
     sudo apt install -y doxygen || true
   fi
 
-  for i in {64..9}; do
+  for i in {64..11}; do
     if command -v "git-clang-format-$i" > /dev/null; then
       CLANG_FMT_VER="clang-format-$i"
       break
