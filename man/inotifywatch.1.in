@@ -41,7 +41,7 @@ is similar to
 .B inotifywatch
 but it is using Linux's
 .BR fanotify(7)
-interface by default. If explicitly sepcified, it uses the
+interface by default. If explicitly specified, it uses the
 .BR inotify(7)
 interface.
 
@@ -195,7 +195,7 @@ modified.  This includes timestamps, file permissions, extended attributes etc.
 .TP
 .B close_write
 A watched file or a file within a watched directory was closed, after being
-opened in writeable mode.  This does not necessarily imply the file was written
+opened in writable mode.  This does not necessarily imply the file was written
 to.
 
 .TP
