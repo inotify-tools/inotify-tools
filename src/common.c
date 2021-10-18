@@ -151,17 +151,22 @@ finish:
 			continue;
 		if ('@' == argv[i][0]) {
 			resize_if_necessary(exclude_count, &exclude_len,
-					    &list->exclude_files);
-			list->exclude_files[exclude_count++] = &argv[i][1];
+			                    &list->exclude_files);
+			if (list->exclude_files)
+				list->exclude_files[exclude_count++] = &argv[i][1];
 		} else {
 			resize_if_necessary(watch_count, &watch_len,
-					    &list->watch_files);
-			list->watch_files[watch_count++] = argv[i];
+			                    &list->watch_files);
+			if (list->watch_files)
+				list->watch_files[watch_count++] = argv[i];
 		}
 	}
 
-	list->exclude_files[exclude_count] = 0;
-	list->watch_files[watch_count] = 0;
+	if (list->exclude_files && list->watch_files)
+	{
+		list->exclude_files[exclude_count] = 0;
+		list->watch_files[watch_count] = 0;
+	}
 }
 
 void warn_inotify_init_error(int fanotify) {
