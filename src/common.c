@@ -107,7 +107,7 @@ void construct_path_list(int argc,
 			// do this check to avoid the unecessary allocations below
 			if (!file) {
 				fprintf(stderr, "failed to open file %s : %s\n", filename, strerror(errno));
-				return;
+				goto finish;
 			}
 		}
 	}
@@ -118,6 +118,12 @@ void construct_path_list(int argc,
 	int exclude_count = 0;
 	list->watch_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
 	list->exclude_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+
+	if (!(list->watch_files && list->exclude_files))
+	{
+		fprintf(stderr, "memory allocation failed\n";
+		goto finish;
+	}
 
 	char name[MAXLEN];
 	while (file && fgets(name, MAXLEN, file)) {
@@ -141,6 +147,9 @@ void construct_path_list(int argc,
 	if (file && file != stdin)
 		fclose(file);
 
+	goto finish;
+
+finish:
 	for (int i = 0; i < argc; ++i) {
 		if (strlen(argv[i]) == 0)
 			continue;
