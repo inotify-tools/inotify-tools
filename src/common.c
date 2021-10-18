@@ -106,8 +106,8 @@ void construct_path_list(int argc,
 			file = fopen(filename, "r");
 			// do this check to avoid the unecessary allocations below
 			if (!file) {
-				fprintf(stderr, "failed to open file %s : %s", filename, strerror(errno));
-                return;
+				fprintf(stderr, "failed to open file %s : %s\n", filename, strerror(errno));
+				return;
 			}
 		}
 	}
