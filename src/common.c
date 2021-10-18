@@ -108,7 +108,7 @@ void construct_path_list(int argc,
 			file = stdin;
 		} else {
 			file = fopen(filename, "r");
-			// do this check to avoid the unecessary allocations below
+			// do this check to avoid the unnecessary allocations below
 			if (!file) {
 				fprintf(stderr, "failed to open file %s : %s\n", filename, strerror(errno));
 				goto finish;
