@@ -104,6 +104,10 @@ void construct_path_list(int argc,
 			file = stdin;
 		} else {
 			file = fopen(filename, "r");
+			if (!file) {
+				fprintf(stderr, "Couldn't open %s: %s\n",
+					filename, strerror(errno));
+			}
 		}
 	}
 
