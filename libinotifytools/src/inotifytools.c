@@ -17,6 +17,7 @@
 #include "inotifytools_p.h"
 #include "stats.h"
 
+#include <limits.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
