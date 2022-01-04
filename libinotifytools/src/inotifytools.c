@@ -55,12 +55,6 @@ struct fanotify_event_fid {
 	struct fanotify_event_info_fid info;
 	struct file_handle handle;
 };
-
-#ifndef __GLIBC__
-#define val __val
-#define __kernel_fsid_t fsid_t
-#endif
-
 #endif
 
 /**
