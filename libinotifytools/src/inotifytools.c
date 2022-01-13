@@ -44,9 +44,6 @@ struct fanotify_event_fid;
 #define FAN_EVENT_INFO_TYPE_DFID 3
 
 #else
-// Linux only
-#define LINUX_FANOTIFY
-
 #include <fcntl.h>
 #include <sys/vfs.h>
 #include "inotifytools/fanotify.h"
