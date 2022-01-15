@@ -6,7 +6,8 @@ jobs:
   build-1804:
 
     runs-on: ubuntu-18.04
-
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v1
     - name: build_and_test
@@ -15,7 +16,8 @@ jobs:
   build-2004:
 
     runs-on: ubuntu-20.04
-
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v1
     - name: build_and_test
