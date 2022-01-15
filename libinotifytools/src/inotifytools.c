@@ -896,18 +896,47 @@ const char* inotifytools_filename_from_wd(int wd) {
 const char* inotifytools_dirname_from_event(struct inotify_event* event,
 					    size_t* dirnamelen) {
 	const char* filename = inotifytools_filename_from_wd(event->wd);
-	char* dirsep;
+	const char* dirsep = NULL;
 
 	if (!filename) {
 		return NULL;
 	}
 
-	dirsep = strrchr(filename, '/');
+	/* Split dirname from filename for fanotify event */
+	if (fanotify_mode)
+		dirsep = strrchr(filename, '/');
 	if (!dirsep) {
-		return NULL;
+		*dirnamelen = strlen(filename);
+		return filename;
 	}
 
 	*dirnamelen = dirsep - filename + 1;
+	return filename;
+}
+
+/**
+ * Get the watched path and filename from an event.
+ *
+ * Returns the filename either recorded for event->wd or
+ * from event->name and the watched filename for event->wd.
+ *
+ * The caller should NOT free() the returned strings.
+ */
+const char* inotifytools_filename_from_event(struct inotify_event* event,
+					     char const** eventname,
+					     size_t* dirnamelen) {
+	if (event->len > 0)
+		*eventname = event->name;
+	else
+		*eventname = "";
+
+	const char* filename =
+	    inotifytools_dirname_from_event(event, dirnamelen);
+
+	/* On fanotify watch, filename includes event->name */
+	if (filename && filename[*dirnamelen])
+		*eventname = filename + *dirnamelen;
+
 	return filename;
 }
 
@@ -2039,22 +2068,16 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  */
 int inotifytools_snprintf( struct nstring * out, int size,
                            struct inotify_event* event, char* fmt ) {
-	static const char* filename;
-	static char *eventname, *eventstr;
+	const char* eventstr;
 	static unsigned int i, ind;
 	static char ch1;
 	static char timestr[MAX_STRLEN];
         static time_t now;
 
-        if ( event->len > 0 ) {
-		eventname = event->name;
-	}
-	else {
-		eventname = NULL;
-	}
-
 	size_t dirnamelen = 0;
-	filename = inotifytools_dirname_from_event(event, &dirnamelen);
+	const char* eventname;
+	const char* filename =
+	    inotifytools_filename_from_event(event, &eventname, &dirnamelen);
 
 	if ( !fmt || 0 == strlen(fmt) ) {
 		error = EINVAL;

@@ -132,15 +132,20 @@ void validate_format(char *fmt) {
 
 void output_event_csv(struct inotify_event *event) {
 	size_t dirnamelen = 0;
-	const char* dirname =
-	    inotifytools_dirname_from_event(event, &dirnamelen);
-	const char* filename = csv_escape_len(dirname, dirnamelen);
-	if (filename != NULL)
+	const char* eventname;
+	const char* filename =
+	    inotifytools_filename_from_event(event, &eventname, &dirnamelen);
+	filename = csv_escape_len(filename, dirnamelen);
+	if (filename && *filename)
 		printf("%s,", filename);
+	// eventname may be pointing into snprintf buffer
+	char* name = strdup(eventname);
 
 	printf("%s,", csv_escape(inotifytools_event_to_str(event->mask)));
-	if (event->len > 0)
-		printf("%s", csv_escape(event->name));
+	if (name) {
+		printf("%s", csv_escape(name));
+		free(name);
+	}
 	printf("\n");
 }
 

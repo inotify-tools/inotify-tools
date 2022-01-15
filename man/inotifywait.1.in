@@ -196,12 +196,14 @@ The following conversions are supported:
 .TP
 %w
 This will be replaced with the name of the Watched file on which an event occurred.
+When an event occurs within a Watched directory or when watching with fanotify,
+this will be replaced with the name of the Directory in which the event occurred.
 
 .TP
 %f
-When an event occurs within a directory, this will be replaced with the name of the
-File which caused the event to occur.  Otherwise, this will be replaced with an
-empty string.
+When an event occurs within a Watched directory or when watching with fanotify,
+this will be replaced with the name of the File which caused the event to occur.
+Otherwise, this will be replaced with an empty string.
 
 .TP
 %e
