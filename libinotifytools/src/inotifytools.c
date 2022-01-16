@@ -161,6 +161,7 @@ int init = 0;
 int verbosity = 0;
 int fanotify_mode = 0;
 int fanotify_mark_type = 0;
+static pid_t self_pid = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
@@ -305,6 +306,7 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 	// Try to initialise inotify/fanotify
 	if (fanotify) {
 #ifdef LINUX_FANOTIFY
+		self_pid = getpid();
 		fanotify_mode = 1;
 		fanotify_mark_type =
 		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
@@ -1409,6 +1411,7 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 
 	setjmp(jmp);
 
+	pid_t event_pid = 0;
 	error = 0;
 
 	// first_byte is index into event buffer
@@ -1584,6 +1587,7 @@ more_events:
 		ret->len = name_len;
 		if (name_len > 0)
 			memcpy(ret->name, name, name_len);
+		event_pid = meta->pid;
 	} else {
 		first_byte += sizeof(struct inotify_event) + ret->len;
 	}
@@ -1594,6 +1598,11 @@ more_events:
 	                                 "almost certainly screw up." );
 	if ( first_byte == bytes ) {
 		first_byte = 0;
+	}
+
+	/* Skip events from self due to open_by_handle_at() */
+	if (self_pid && self_pid == event_pid) {
+		longjmp(jmp, 0);
 	}
 
 	if (regex) {
