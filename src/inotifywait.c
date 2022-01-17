@@ -560,7 +560,6 @@ static bool parse_opts(int* argc,
 				print_help();
 				// Shouldn't process any further...
 				return false;
-				break;
 
 			// --monitor or -m
 			case 'm':
