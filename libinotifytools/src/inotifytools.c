@@ -161,6 +161,7 @@ int init = 0;
 int verbosity = 0;
 int fanotify_mode = 0;
 int fanotify_mark_type = 0;
+static pid_t self_pid = 0;
 static char* timefmt = 0;
 static regex_t* regex = 0;
 /* 0: --exclude[i], 1: --include[i] */
@@ -305,6 +306,7 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 	// Try to initialise inotify/fanotify
 	if (fanotify) {
 #ifdef LINUX_FANOTIFY
+		self_pid = getpid();
 		fanotify_mode = 1;
 		fanotify_mark_type =
 		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
@@ -894,18 +896,47 @@ const char* inotifytools_filename_from_wd(int wd) {
 const char* inotifytools_dirname_from_event(struct inotify_event* event,
 					    size_t* dirnamelen) {
 	const char* filename = inotifytools_filename_from_wd(event->wd);
-	char* dirsep;
+	const char* dirsep = NULL;
 
 	if (!filename) {
 		return NULL;
 	}
 
-	dirsep = strrchr(filename, '/');
+	/* Split dirname from filename for fanotify event */
+	if (fanotify_mode)
+		dirsep = strrchr(filename, '/');
 	if (!dirsep) {
-		return NULL;
+		*dirnamelen = strlen(filename);
+		return filename;
 	}
 
 	*dirnamelen = dirsep - filename + 1;
+	return filename;
+}
+
+/**
+ * Get the watched path and filename from an event.
+ *
+ * Returns the filename either recorded for event->wd or
+ * from event->name and the watched filename for event->wd.
+ *
+ * The caller should NOT free() the returned strings.
+ */
+const char* inotifytools_filename_from_event(struct inotify_event* event,
+					     char const** eventname,
+					     size_t* dirnamelen) {
+	if (event->len > 0)
+		*eventname = event->name;
+	else
+		*eventname = "";
+
+	const char* filename =
+	    inotifytools_dirname_from_event(event, dirnamelen);
+
+	/* On fanotify watch, filename includes event->name */
+	if (filename && filename[*dirnamelen])
+		*eventname = filename + *dirnamelen;
+
 	return filename;
 }
 
@@ -1409,6 +1440,7 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 
 	setjmp(jmp);
 
+	pid_t event_pid = 0;
 	error = 0;
 
 	// first_byte is index into event buffer
@@ -1584,6 +1616,7 @@ more_events:
 		ret->len = name_len;
 		if (name_len > 0)
 			memcpy(ret->name, name, name_len);
+		event_pid = meta->pid;
 	} else {
 		first_byte += sizeof(struct inotify_event) + ret->len;
 	}
@@ -1594,6 +1627,11 @@ more_events:
 	                                 "almost certainly screw up." );
 	if ( first_byte == bytes ) {
 		first_byte = 0;
+	}
+
+	/* Skip events from self due to open_by_handle_at() */
+	if (self_pid && self_pid == event_pid) {
+		longjmp(jmp, 0);
 	}
 
 	if (regex) {
@@ -2030,22 +2068,16 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  */
 int inotifytools_snprintf( struct nstring * out, int size,
                            struct inotify_event* event, char* fmt ) {
-	static const char* filename;
-	static char *eventname, *eventstr;
+	const char* eventstr;
 	static unsigned int i, ind;
 	static char ch1;
 	static char timestr[MAX_STRLEN];
         static time_t now;
 
-        if ( event->len > 0 ) {
-		eventname = event->name;
-	}
-	else {
-		eventname = NULL;
-	}
-
 	size_t dirnamelen = 0;
-	filename = inotifytools_dirname_from_event(event, &dirnamelen);
+	const char* eventname;
+	const char* filename =
+	    inotifytools_filename_from_event(event, &eventname, &dirnamelen);
 
 	if ( !fmt || 0 == strlen(fmt) ) {
 		error = EINVAL;
