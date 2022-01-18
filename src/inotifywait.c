@@ -73,6 +73,7 @@ static char* csv_escape_len(const char* string, size_t len) {
 	    !strchr(string, '\n') && string[0] != ' ' &&
 	    string[len - 1] != ' ') {
 		strncpy(csv, string, len);
+		csv[len] = '\0';
 		return csv;
 	}
 
