@@ -1510,8 +1510,8 @@ struct inotify_event * inotifytools_next_events( long int timeout, int num_event
 		return NULL;
 	}
 
-	this_bytes = read(inotify_fd, &event[0] + bytes,
-	                  sizeof(struct inotify_event)*MAX_EVENTS - bytes);
+	this_bytes = read(inotify_fd, (char*)&event[0] + bytes,
+			  sizeof(struct inotify_event) * MAX_EVENTS - bytes);
 	if ( this_bytes < 0 ) {
 		error = errno;
 		return NULL;
