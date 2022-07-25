@@ -7,7 +7,7 @@
 
 #ifdef SYS_FANOTIFY_H_EXISTS_AND_WORKS
 #include <sys/fanotify.h>
-#else
+#elif !defined __ANDROID__
 /*
  * Assuming sys/fanotify.h does exist, but linux/fanotify.h doesn't have
  * FAN_REPORT_DFID_NAME, so include our own copy of linux/fanotify.h
@@ -15,6 +15,8 @@
  */
 #include "fanotify-dfid-name.h"
 #include <sys/fanotify.h>
+#else
+#include <linux/fanotify.h>
 #endif // SYS_FANOTIFY_H_EXISTS_AND_WORKS
 
 

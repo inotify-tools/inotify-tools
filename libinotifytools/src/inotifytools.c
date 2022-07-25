@@ -43,7 +43,7 @@ struct fanotify_event_fid;
 #define FAN_EVENT_INFO_TYPE_DFID_NAME 2
 #define FAN_EVENT_INFO_TYPE_DFID 3
 
-#else
+#elif !defined __ANDROID__
 // Linux only
 #define LINUX_FANOTIFY
 
