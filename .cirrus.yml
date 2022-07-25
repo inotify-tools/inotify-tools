@@ -2,8 +2,8 @@ task:
   name: FreeBSD
   freebsd_instance:
     matrix:
-      image_family: freebsd-12-2
-      image_family: freebsd-11-4
+      image_family: freebsd-13-1
+      image_family: freebsd-12-3
 
   pkginstall_script:
     - pkg install -y autoconf automake libtool bash git gcc
