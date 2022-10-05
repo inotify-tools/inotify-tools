@@ -157,7 +157,7 @@ struct rbtree *tree_wd = 0;
 struct rbtree* tree_fid = 0;
 struct rbtree *tree_filename = 0;
 static int error = 0;
-int init = 0;
+int initialized = 0;
 int verbosity = 0;
 int fanotify_mode = 0;
 int fanotify_mark_type = 0;
@@ -299,7 +299,8 @@ watch *watch_from_filename( char const *filename ) {
  *         obtained from inotifytools_error().
  */
 int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
-	if (init) return 1;
+	if (initialized)
+		return 1;
 
 	error = 0;
 	verbosity = verbose;
@@ -323,7 +324,7 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 	}
 
 	collect_stats = 0;
-	init = 1;
+	initialized = 1;
 	tree_wd = rbinit(wd_compare, 0);
 	tree_fid = rbinit(fid_compare, 0);
 	tree_filename = rbinit(filename_compare, 0);
@@ -366,9 +367,10 @@ void cleanup_tree(const void *nodep,
  * again before any other functions can be used.
  */
 void inotifytools_cleanup() {
-	if (!init) return;
+	if (!initialized)
+		return;
 
-	init = 0;
+	initialized = 0;
 	close(inotify_fd);
 	collect_stats = 0;
 	error = 0;
@@ -875,7 +877,7 @@ const char* inotifytools_filename_from_watch(watch* w) {
  *       filename returned will still be the original name.
  */
 const char* inotifytools_filename_from_wd(int wd) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	if (!wd)
 		return "";
 	watch *w = watch_from_wd(wd);
@@ -980,7 +982,7 @@ char* inotifytools_dirpath_from_event(struct inotify_event* event) {
  *       establish the watch.
  */
 int inotifytools_wd_from_filename( char const * filename ) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	if (!filename || !*filename)
 		return -1;
 	watch *w = watch_from_filename(filename);
@@ -1003,7 +1005,7 @@ int inotifytools_wd_from_filename( char const * filename ) {
  * @param filename New filename.
  */
 void inotifytools_set_filename_by_wd( int wd, char const * filename ) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	watch *w = watch_from_wd(wd);
 	if (!w) return;
 	if (w->filename) free(w->filename);
@@ -1125,7 +1127,7 @@ watch* create_watch(int wd,
  *         obtained from inotifytools_error().
  */
 int inotifytools_remove_watch_by_wd( int wd ) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	watch *w = watch_from_wd(wd);
 	if (!w) return 1;
 
@@ -1150,7 +1152,7 @@ int inotifytools_remove_watch_by_wd( int wd ) {
  *       establish the watch.
  */
 int inotifytools_remove_watch_by_filename( char const * filename ) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	watch *w = watch_from_filename(filename);
 	if (!w) return 1;
 
@@ -1197,7 +1199,7 @@ int inotifytools_watch_file(char const* filename, int events) {
  *         obtained from inotifytools_error().
  */
 int inotifytools_watch_files(char const* filenames[], int events) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	error = 0;
 
 	static int i;
@@ -1423,7 +1425,7 @@ struct inotify_event * inotifytools_next_event( long int timeout ) {
  *       the @a timeout period begins again each time a matching event occurs.
  */
 struct inotify_event * inotifytools_next_events( long int timeout, int num_events ) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 	niceassert( num_events <= MAX_EVENTS, "too many events requested" );
 
 	if ( num_events < 1 ) return NULL;
@@ -1718,7 +1720,7 @@ int inotifytools_watch_recursively(char const* path, int events) {
 int inotifytools_watch_recursively_with_exclude(char const* path,
 						int events,
 						char const** exclude_list) {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 
 	DIR * dir;
 	char * my_path;

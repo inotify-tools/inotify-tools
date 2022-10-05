@@ -45,7 +45,7 @@ void _niceassert( long cond, int line, char const * file,
                   char const * condstr, char const * mesg );
 
 struct rbtree *inotifytools_wd_sorted_by_event(int sort_event);
-extern int init;
+extern int initialized;
 
 struct fanotify_event_fid;
 
