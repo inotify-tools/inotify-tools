@@ -250,7 +250,7 @@ int inotifytools_get_stat_by_filename( char const * filename,
  * event tallies to 0.
  */
 void inotifytools_initialize_stats() {
-	niceassert( init, "inotifytools_initialize not called yet" );
+	niceassert(initialized, "inotifytools_initialize not called yet");
 
 	// if already collecting stats, reset stats
 	if (collect_stats) {
