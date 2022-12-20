@@ -17,6 +17,9 @@ AC_PROG_CC
 AM_INIT_AUTOMAKE
 LT_INIT
 
+# Add option for largefile support
+AC_SYS_LARGEFILE
+
 AC_PATH_PROG(DOXYGEN, doxygen, NO_DOXYGEN)
 
 AC_ARG_ENABLE(doxygen,
