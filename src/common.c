@@ -45,14 +45,15 @@ void print_event_descriptions() {
 }
 
 int isdir(char const *path) {
-    static struct stat my_stat;
+	static struct stat my_stat;
 
-    if (-1 == lstat(path, &my_stat)) {
-        if (errno == ENOENT)
-            return 0;
-        fprintf(stderr, "Stat failed on %s: %s\n", path, strerror(errno));
-        return 0;
-    }
+	if (-1 == lstat(path, &my_stat)) {
+		if (errno == ENOENT)
+			return 0;
+		fprintf(stderr, "Stat failed on %s: %s\n", path,
+			strerror(errno));
+		return 0;
+	}
 
     return S_ISDIR(my_stat.st_mode) && !S_ISLNK(my_stat.st_mode);
 }
