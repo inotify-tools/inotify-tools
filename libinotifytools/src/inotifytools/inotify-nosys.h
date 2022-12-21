@@ -13,11 +13,6 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#ifdef __FreeBSD__
-#define stat64 stat
-#define lstat64 lstat
-#endif
-
 /*
  * struct inotify_event - structure read from the inotify device for each event
  *
