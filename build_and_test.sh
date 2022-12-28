@@ -55,7 +55,6 @@ fi
 if command -v apt; then
   $pre apt update || true
   $pre apt install -y gcc-arm-linux-gnueabihf || true
-  $pre apt install -y cppcheck || true
   $pre apt install -y clang || true
   $pre apt install -y gcc || true
   $pre apt install -y clang-tidy || true
@@ -68,7 +67,7 @@ if command -v apt; then
   $pre apt install -y libtool || true
 elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
-    clang-extra-tools cppcheck lld linux-headers
+    clang-extra-tools lld linux-headers
 fi
 
 #!/bin/bash
@@ -190,21 +189,6 @@ clean
 export CC="clang"
 build --enable-static --disable-shared
 tests
-
-if command -v cppcheck > /dev/null; then
-  vers=$(cppcheck --version | awk '{print $NF}')
-  if echo "$vers 2.7" | awk '{exit !($1 >= $2)}'; then
-    u="-U restrict -U __REDIRECT -U __restrict_arr -U __restrict"
-    u="$u -U __REDIRECT_NTH -U _BSD_RUNE_T_ -U _TYPE_size_t -U __LDBL_REDIR1_DECL"
-    supp="--suppress=missingInclude --suppress=unusedFunction"
-    arg="-q --force $u --enable=all $inc $supp --error-exitcode=1"
-    cppcheck="xargs cppcheck $arg"
-    suppf="redblack.c"
-    if find . -name "*.[c|h]" | grep -v "$suppf" | $cppcheck 2>&1 | grep ^; then
-      false
-    fi
-  fi
-fi
 
 printf "\ngcc coverage build\n"
 clean
