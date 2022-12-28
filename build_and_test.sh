@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -30,7 +30,7 @@ tests() {
 
 clean() {
   make distclean || true
-  if [ "$arg1" == "clean" ]; then
+  if [ "$arg1" = "clean" ]; then
     git clean -fdx > /dev/null 2>&1
   fi
 }
@@ -48,43 +48,51 @@ arg1="$1"
 os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
 uname_m=$(uname -m)
 
+if command -v sudo; then
+  pre="sudo"
+fi
+
+if command -v apt; then
+  $pre apt update || true
+  $pre apt install -y gcc-arm-linux-gnueabihf || true
+  $pre apt install -y cppcheck || true
+  $pre apt install -y clang || true
+  $pre apt install -y gcc || true
+  $pre apt install -y clang-tidy || true
+  $pre apt install -y clang-format || true
+  $pre apt install -y clang-tools || true
+  $pre apt install -y clang-format-11 || true
+  $pre apt install -y doxygen || true
+  $pre apt install -y make || true
+  $pre apt install -y autoconf || true
+  $pre apt install -y libtool || true
+elif command -v apk; then
+  apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
+    clang-extra-tools cppcheck lld linux-headers
+fi
+
+for i in {64..11}; do
+  if command -v "git-clang-format-$i" > /dev/null; then
+    CLANG_FMT_VER="clang-format-$i"
+    break
+  fi
+done
+
+if [ -n "$CLANG_FMT_VER" ]; then
+  printf "\nclang-format build\n"
+  if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
+    echo -e "\nPlease change style to the format defined in the" \
+            ".clang-format file:\n"
+    git diff --name-only
+    exit 1
+  fi
+fi
+
 printf "gcc build\n"
 clean
 export CC="gcc"
 build
 tests
-
-if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
-  if [ "$os" != "freebsd" ]; then
-    sudo apt update || true
-    sudo apt install -y gcc-arm-linux-gnueabihf || true
-    sudo apt install -y cppcheck || true
-    sudo apt install -y clang || true
-    sudo apt install -y gcc || true
-    sudo apt install -y clang-tidy || true
-    sudo apt install -y clang-format || true
-    sudo apt install -y clang-tools || true
-    sudo apt install -y clang-format-11 || true
-    sudo apt install -y doxygen || true
-  fi
-
-  for i in {64..11}; do
-    if command -v "git-clang-format-$i" > /dev/null; then
-      CLANG_FMT_VER="clang-format-$i"
-      break
-    fi
-  done
-
-  if [ -n "$CLANG_FMT_VER" ]; then
-    printf "\nclang-format build\n"
-    if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
-      echo -e "\nPlease change style to the format defined in the" \
-              ".clang-format file:\n"
-      git diff --name-only
-      exit 1
-    fi
-  fi
-fi
 
 usr_inc="/usr/include"
 inotifytools_inc="libinotifytools/src"

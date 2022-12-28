@@ -14,4 +14,5 @@ dist: focal
 install: skip
 
 script:
- - ./build_and_test.sh clean
+ - ./build_and_test_multi.sh clean
+

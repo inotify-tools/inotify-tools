@@ -9,8 +9,8 @@ elif command -v docker > /dev/null; then
 fi
 
 container_run() {
-  cmd="./build_and_test.sh"
-  id=$(sudo $container run --privileged -d -it $1 /bin/bash)
+  cmd="./build_and_test.sh $1"
+  id=$(sudo $container run --privileged -d -it $1 /bin/sh)
   sudo $container exec -it $id /bin/sh -c "mkdir -p $PWD"
   sudo $container cp $PWD $id:$PWD/..
   sudo $container exec -it $id /bin/sh -c "cd $PWD && $cmd"
@@ -18,9 +18,9 @@ container_run() {
 }
 
 if [ -n "$container" ]; then
-  container_run "alpine:3.17"
-  container_run "centos:stream9"
-  container_run "fedora:37"
+#  container_run "alpine:3.17"
+#  container_run "centos:stream9"
+#  container_run "fedora:37"
   container_run "ubuntu:22.04"
   exit 0
 fi
