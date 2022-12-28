@@ -66,9 +66,10 @@ if command -v apt; then
   $pre apt install -y autoconf || true
   $pre apt install -y libtool || true
   $pre apt install -y curl || true
+  $pre apt install -y git || true
 elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
-    clang-extra-tools lld linux-headers curl
+    clang-extra-tools lld linux-headers curl git
 fi
 
 #!/bin/bash
