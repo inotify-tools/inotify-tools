@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -30,7 +30,7 @@ tests() {
 
 clean() {
   make distclean || true
-  if [ "$arg1" == "clean" ]; then
+  if [ "$arg1" = "clean" ]; then
     git clean -fdx > /dev/null 2>&1
   fi
 }
@@ -48,43 +48,57 @@ arg1="$1"
 os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
 uname_m=$(uname -m)
 
+if command -v sudo; then
+  pre="sudo"
+fi
+
+if command -v apt; then
+  $pre apt update || true
+  $pre apt install -y gcc-arm-linux-gnueabihf || true
+  $pre apt install -y clang || true
+  $pre apt install -y gcc || true
+  $pre apt install -y clang-tidy || true
+  $pre apt install -y clang-format || true
+  $pre apt install -y clang-tools || true
+  $pre apt install -y clang-format-11 || true
+  $pre apt install -y doxygen || true
+  $pre apt install -y make || true
+  $pre apt install -y autoconf || true
+  $pre apt install -y libtool || true
+  $pre apt install -y curl || true
+  $pre apt install -y git || true
+  $pre apt install -y zip || true
+elif command -v apk; then
+  apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
+    clang-extra-tools lld linux-headers curl git zip
+fi
+
+#!/bin/bash
+
+set -e
+
+for i in {64..11}; do
+  if command -v "git-clang-format-$i" > /dev/null; then
+    CLANG_FMT_VER="clang-format-$i"
+    break
+  fi
+done
+
+if [ -n "$CLANG_FMT_VER" ]; then
+  printf "\nclang-format build\n"
+  if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
+    echo -e "\nPlease change style to the format defined in the" \
+            ".clang-format file:\n"
+    git diff --name-only
+    exit 1
+  fi
+fi
+
 printf "gcc build\n"
 clean
 export CC="gcc"
 build
 tests
-
-if [ -n "$TRAVIS" ] || [ -n "$CI" ]; then
-  if [ "$os" != "freebsd" ]; then
-    sudo apt update || true
-    sudo apt install -y gcc-arm-linux-gnueabihf || true
-    sudo apt install -y cppcheck || true
-    sudo apt install -y clang || true
-    sudo apt install -y gcc || true
-    sudo apt install -y clang-tidy || true
-    sudo apt install -y clang-format || true
-    sudo apt install -y clang-tools || true
-    sudo apt install -y clang-format-11 || true
-    sudo apt install -y doxygen || true
-  fi
-
-  for i in {64..11}; do
-    if command -v "git-clang-format-$i" > /dev/null; then
-      CLANG_FMT_VER="clang-format-$i"
-      break
-    fi
-  done
-
-  if [ -n "$CLANG_FMT_VER" ]; then
-    printf "\nclang-format build\n"
-    if ! git $CLANG_FMT_VER HEAD^ | grep -q "modif"; then
-      echo -e "\nPlease change style to the format defined in the" \
-              ".clang-format file:\n"
-      git diff --name-only
-      exit 1
-    fi
-  fi
-fi
 
 usr_inc="/usr/include"
 inotifytools_inc="libinotifytools/src"
@@ -181,18 +195,6 @@ export CC="clang"
 build --enable-static --disable-shared
 tests
 
-if command -v cppcheck > /dev/null; then
-  u="-U restrict -U __REDIRECT -U __restrict_arr -U __restrict"
-  u="$u -U __REDIRECT_NTH -U _BSD_RUNE_T_ -U _TYPE_size_t -U __LDBL_REDIR1_DECL"
-  supp="--suppress=missingInclude --suppress=unusedFunction"
-  arg="-q --force $u --enable=all $inc $supp --error-exitcode=1"
-  cppcheck="xargs cppcheck $arg"
-  suppf="redblack.c"
-  if find . -name "*.[c|h]" | grep -v "$suppf" | $cppcheck 2>&1 | grep ^; then
-    false
-  fi
-fi
-
 printf "\ngcc coverage build\n"
 clean
 export CC="gcc"
@@ -201,9 +203,9 @@ export LDFLAGS="--coverage"
 build --enable-static --disable-shared
 tests
 
-bash <(curl -s https://codecov.io/bash)
+curl -s https://codecov.io/bash | /bin/bash
 
-if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
+if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
   printf "\ncov-build build\n"
   clean
 
