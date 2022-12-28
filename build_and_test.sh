@@ -73,6 +73,8 @@ fi
 
 #!/bin/bash
 
+set -e
+
 for i in {64..11}; do
   if command -v "git-clang-format-$i" > /dev/null; then
     CLANG_FMT_VER="clang-format-$i"
@@ -201,7 +203,7 @@ tests
 
 curl -s https://codecov.io/bash | /bin/bash
 
-if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
+if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
   printf "\ncov-build build\n"
   clean
 
