@@ -198,7 +198,7 @@ export LDFLAGS="--coverage"
 build --enable-static --disable-shared
 tests
 
-bash <(curl -s https://codecov.io/bash)
+curl -s https://codecov.io/bash | /bin/bash
 
 if [ "$os" != "freebsd" ] && [ "$(uname -m)" == "x86_64" ]; then
   printf "\ncov-build build\n"
