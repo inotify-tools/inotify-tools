@@ -43,19 +43,21 @@ build() {
   unset LDFLAGS
 }
 
-vercomp() {
+vercomp () {
   if [[ $1 == $2 ]]; then
     return 0
   fi
 
   local IFS=.
-  local i ver1=($1) ver2=($2)
+  local i
+  local ver1=($1)
+  local ver2=($2)
   # fill empty fields in ver1 with zeros
-  for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
-    ver1[i]=0
+  for ((i=${#ver1[@]}; i<${#ver2[@]}; ++i)); do
+      ver1[i]=0
   done
 
-  for ((i=0; i<${#ver1[@]}; i++)); do
+  for ((i=0; i<${#ver1[@]}; ++i)); do
     if [[ -z ${ver2[i]} ]]; then
       # fill empty fields in ver2 with zeros
       ver2[i]=0
@@ -100,6 +102,8 @@ elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
     clang-extra-tools cppcheck lld linux-headers
 fi
+
+#!/bin/bash
 
 for i in {64..11}; do
   if command -v "git-clang-format-$i" > /dev/null; then
