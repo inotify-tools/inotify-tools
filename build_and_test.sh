@@ -43,38 +43,6 @@ build() {
   unset LDFLAGS
 }
 
-vercomp () {
-  if [[ $1 == $2 ]]; then
-    return 0
-  fi
-
-  local IFS=.
-  local i
-  local ver1=($1)
-  local ver2=($2)
-  # fill empty fields in ver1 with zeros
-  for ((i=${#ver1[@]}; i<${#ver2[@]}; ++i)); do
-      ver1[i]=0
-  done
-
-  for ((i=0; i<${#ver1[@]}; ++i)); do
-    if [[ -z ${ver2[i]} ]]; then
-      # fill empty fields in ver2 with zeros
-      ver2[i]=0
-    fi
-
-    if ((10#${ver1[i]} > 10#${ver2[i]})); then
-      return 1
-    fi
-
-    if ((10#${ver1[i]} < 10#${ver2[i]})); then
-      return 2
-    fi
-  done
-
-  return 0
-}
-
 arg1="$1"
 
 os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
@@ -225,7 +193,7 @@ tests
 
 if command -v cppcheck > /dev/null; then
   vers=$(cppcheck --version | awk '{print $NF}')
-  if vercomp $vers >= 2.7; then
+  if echo "$vers 2.7" | awk '{exit !($1 >= $2)}'; then
     u="-U restrict -U __REDIRECT -U __restrict_arr -U __restrict"
     u="$u -U __REDIRECT_NTH -U _BSD_RUNE_T_ -U _TYPE_size_t -U __LDBL_REDIR1_DECL"
     supp="--suppress=missingInclude --suppress=unusedFunction"
