@@ -230,6 +230,13 @@ if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
     --form description="$description" \
     https://scan.coverity.com/builds?project=$project
 
+  id=$(grep ^ID= /etc/os-release | sed "s/^ID=//g")
+
+  # Don't do sonarcloud on alpine
+  if [ "$id" = "alpine" ]; then
+    exit 0
+  fi
+
   # sonarcloud
   export SONAR_TOKEN="0bc5d48614caa711d6b908f80c039464aff99611"
   mkdir -p $HOME/.sonar
