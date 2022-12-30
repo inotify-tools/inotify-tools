@@ -70,7 +70,7 @@ if command -v apt; then
   $pre apt install -y zip || true
 elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
-    clang-extra-tools lld linux-headers curl git zip
+    clang-extra-tools lld linux-headers curl git zip gcompat
 fi
 
 #!/bin/bash
@@ -112,6 +112,7 @@ if command -v clang-tidy > /dev/null; then
   s_c_t="$s_c_t,-clang-analyzer-unix.Malloc"
   s_c_t="$s_c_t,-clang-analyzer-security.insecureAPI.strcpy"
   s_c_t="$s_c_t,-clang-diagnostic-incompatible-pointer-types-discards-qualifiers"
+  s_c_t="$s_c_t,-clang-diagnostic-gnu-variable-sized-type-not-at-end"
   c_t="clang-tidy"
   q="--quiet"
   w="--warnings-as-errors"
@@ -228,6 +229,13 @@ if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
     --form version="$version" \
     --form description="$description" \
     https://scan.coverity.com/builds?project=$project
+
+  id=$(grep ^ID= /etc/os-release | sed "s/^ID=//g")
+
+  # Don't do sonarcloud on alpine
+  if [ "$id" = "alpine" ]; then
+    exit 0
+  fi
 
   # sonarcloud
   export SONAR_TOKEN="0bc5d48614caa711d6b908f80c039464aff99611"

@@ -51,10 +51,16 @@ struct fanotify_event_fid;
 #include <sys/vfs.h>
 #include "inotifytools/fanotify.h"
 
+#ifndef __GLIBC__
+#define val __val
+#define __kernel_fsid_t fsid_t
+#endif
+
 struct fanotify_event_fid {
 	struct fanotify_event_info_fid info;
 	struct file_handle handle;
 };
+
 #endif
 
 /**
@@ -1746,14 +1752,14 @@ int inotifytools_watch_recursively_with_exclude(char const* path,
 
 	static struct dirent * ent;
 	char * next_file;
-	static struct stat64 my_stat;
+	static struct stat my_stat;
 	ent = readdir( dir );
 	// Watch each directory within this directory
 	while ( ent ) {
 		if ( (0 != strcmp( ent->d_name, "." )) &&
 		     (0 != strcmp( ent->d_name, ".." )) ) {
 			nasprintf(&next_file,"%s%s", my_path, ent->d_name);
-			if ( -1 == lstat64( next_file, &my_stat ) ) {
+			if (-1 == lstat(next_file, &my_stat)) {
 				error = errno;
 				free( next_file );
 				if ( errno != EACCES ) {
@@ -1762,9 +1768,8 @@ int inotifytools_watch_recursively_with_exclude(char const* path,
 					closedir( dir );
 					return 0;
 				}
-			}
-			else if ( S_ISDIR( my_stat.st_mode ) &&
-			          !S_ISLNK( my_stat.st_mode )) {
+			} else if (S_ISDIR(my_stat.st_mode) &&
+				   !S_ISLNK(my_stat.st_mode)) {
 				free( next_file );
 				nasprintf(&next_file,"%s%s/", my_path, ent->d_name);
 				static unsigned int no_watch;
@@ -1802,7 +1807,7 @@ int inotifytools_watch_recursively_with_exclude(char const* path,
 					}
 				} // if !no_watch
 				free( next_file );
-			} // if isdir and not islnk
+			}  // if isdir and not islnk
 			else {
 				free( next_file );
 			}
@@ -1836,9 +1841,9 @@ int inotifytools_error() {
  * @internal
  */
 static int isdir( char const * path ) {
-	static struct stat64 my_stat;
+	static struct stat my_stat;
 
-	if ( -1 == lstat64( path, &my_stat ) ) {
+	if (-1 == lstat(path, &my_stat)) {
 		if (errno == ENOENT) return 0;
 		fprintf(stderr, "Stat failed on %s: %s\n", path, strerror(errno));
 		return 0;
