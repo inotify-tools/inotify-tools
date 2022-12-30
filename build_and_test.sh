@@ -112,6 +112,7 @@ if command -v clang-tidy > /dev/null; then
   s_c_t="$s_c_t,-clang-analyzer-unix.Malloc"
   s_c_t="$s_c_t,-clang-analyzer-security.insecureAPI.strcpy"
   s_c_t="$s_c_t,-clang-diagnostic-incompatible-pointer-types-discards-qualifiers"
+  s_c_t="$s_c_t,-clang-diagnostic-gnu-variable-sized-type-not-at-end"
   c_t="clang-tidy"
   q="--quiet"
   w="--warnings-as-errors"
