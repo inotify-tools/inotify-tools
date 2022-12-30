@@ -70,7 +70,7 @@ if command -v apt; then
   $pre apt install -y zip || true
 elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
-    clang-extra-tools lld linux-headers curl git zip
+    clang-extra-tools lld linux-headers curl git zip gcompat
 fi
 
 #!/bin/bash
