@@ -41,8 +41,11 @@
 *
 * @param  mesg  A human-readable error message shown if assertion fails.
 */
-void _niceassert( long cond, int line, char const * file,
-                  char const * condstr, char const * mesg );
+long _niceassert(long cond,
+		 int line,
+		 char const* file,
+		 char const* condstr,
+		 char const* mesg);
 
 struct rbtree *inotifytools_wd_sorted_by_event(int sort_event);
 extern int initialized;

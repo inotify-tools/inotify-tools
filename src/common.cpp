@@ -24,27 +24,36 @@ static void resize_if_necessary(const int count, int* len, const char*** ptr) {
 }
 
 void print_event_descriptions() {
-    printf("\taccess\t\tfile or directory contents were read\n");
-    printf("\tmodify\t\tfile or directory contents were written\n");
-    printf("\tattrib\t\tfile or directory attributes changed\n");
-    printf("\tclose_write\tfile or directory closed, after being opened in\n"
-           "\t           \twritable mode\n");
-    printf("\tclose_nowrite\tfile or directory closed, after being opened in\n"
-           "\t           \tread-only mode\n");
-    printf("\tclose\t\tfile or directory closed, regardless of read/write "
-           "mode\n");
-    printf("\topen\t\tfile or directory opened\n");
-    printf("\tmoved_to\tfile or directory moved to watched directory\n");
-    printf("\tmoved_from\tfile or directory moved from watched directory\n");
-    printf("\tmove\t\tfile or directory moved to or from watched directory\n");
-    printf("\tmove_self\t\tA watched file or directory was moved.\n");
-    printf("\tcreate\t\tfile or directory created within watched directory\n");
-    printf("\tdelete\t\tfile or directory deleted within watched directory\n");
-    printf("\tdelete_self\tfile or directory was deleted\n");
-    printf("\tunmount\t\tfile system containing file or directory unmounted\n");
+	printf("\taccess\t\tfile or directory contents were read\n");
+	printf("\tmodify\t\tfile or directory contents were written\n");
+	printf("\tattrib\t\tfile or directory attributes changed\n");
+	printf(
+	    "\tclose_write\tfile or directory closed, after being opened in\n"
+	    "\t           \twritable mode\n");
+	printf(
+	    "\tclose_nowrite\tfile or directory closed, after being opened in\n"
+	    "\t           \tread-only mode\n");
+	printf(
+	    "\tclose\t\tfile or directory closed, regardless of read/write "
+	    "mode\n");
+	printf("\topen\t\tfile or directory opened\n");
+	printf("\tmoved_to\tfile or directory moved to watched directory\n");
+	printf(
+	    "\tmoved_from\tfile or directory moved from watched directory\n");
+	printf(
+	    "\tmove\t\tfile or directory moved to or from watched directory\n");
+	printf("\tmove_self\t\tA watched file or directory was moved.\n");
+	printf(
+	    "\tcreate\t\tfile or directory created within watched directory\n");
+	printf(
+	    "\tdelete\t\tfile or directory deleted within watched directory\n");
+	printf("\tdelete_self\tfile or directory was deleted\n");
+	printf(
+	    "\tunmount\t\tfile system containing file or directory "
+	    "unmounted\n");
 }
 
-int isdir(char const *path) {
+int isdir(char const* path) {
 	static struct stat my_stat;
 
 	if (-1 == lstat(path, &my_stat)) {
@@ -55,17 +64,20 @@ int isdir(char const *path) {
 		return 0;
 	}
 
-    return S_ISDIR(my_stat.st_mode) && !S_ISLNK(my_stat.st_mode);
+	return S_ISDIR(my_stat.st_mode) && !S_ISLNK(my_stat.st_mode);
 }
 
-void free_list(int argc, char** argv, FileList* list) {
-	char* start_of_stack = argv[0];
-	char* end_of_stack = argv[argc - 1];
-	for (int i = 0; argv[i]; ++i) {
-		if (argv[i] < start_of_stack) {
-			start_of_stack = argv[i];
-		} else if (argv[i] > end_of_stack) {
-			end_of_stack = argv[i];
+FileList::FileList(int argc, char** argv)
+    : watch_files_(0), exclude_files_(0), argc_(argc), argv_(argv) {}
+
+FileList::~FileList() {
+	char* start_of_stack = argv_[0];
+	char* end_of_stack = argv_[argc_ - 1];
+	for (int i = 0; argv_[i]; ++i) {
+		if (argv_[i] < start_of_stack) {
+			start_of_stack = argv_[i];
+		} else if (argv_[i] > end_of_stack) {
+			end_of_stack = argv_[i];
 		}
 	}
 
@@ -73,31 +85,31 @@ void free_list(int argc, char** argv, FileList* list) {
 		++end_of_stack;
 	}
 
-	for (int i = 0; list->watch_files[i]; ++i) {
-		if (list->watch_files[i] < start_of_stack ||
-		    list->watch_files[i] > end_of_stack) {
-			free((void*)list->watch_files[i]);
+	for (int i = 0; watch_files_[i]; ++i) {
+		if (watch_files_[i] < start_of_stack ||
+		    watch_files_[i] > end_of_stack) {
+			free((void*)watch_files_[i]);
 		}
 	}
 
-	free(list->watch_files);
+	free(watch_files_);
 
-	for (int i = 0; list->exclude_files[i]; ++i) {
-		if (list->exclude_files[i] < start_of_stack ||
-		    list->exclude_files[i] > end_of_stack) {
-			free((void*)list->exclude_files[i]);
+	for (int i = 0; exclude_files_[i]; ++i) {
+		if (exclude_files_[i] < start_of_stack ||
+		    exclude_files_[i] > end_of_stack) {
+			free((void*)exclude_files_[i]);
 		}
 	}
 
-	free(list->exclude_files);
+	free(exclude_files_);
 }
 
 void construct_path_list(int argc,
 			 char** argv,
 			 char const* filename,
 			 FileList* list) {
-	list->watch_files = 0;
-	list->exclude_files = 0;
+	list->watch_files_ = 0;
+	list->exclude_files_ = 0;
 	FILE* file = 0;
 
 	if (filename) {
@@ -116,8 +128,8 @@ void construct_path_list(int argc,
 	int exclude_len = LIST_CHUNK;
 	int watch_count = 0;
 	int exclude_count = 0;
-	list->watch_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
-	list->exclude_files = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	list->watch_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	list->exclude_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
 
 	char name[MAXLEN];
 	while (file && fgets(name, MAXLEN, file)) {
@@ -129,12 +141,13 @@ void construct_path_list(int argc,
 			continue;
 		if ('@' == name[0]) {
 			resize_if_necessary(exclude_count, &exclude_len,
-					    &list->exclude_files);
-			list->exclude_files[exclude_count++] = strdup(&name[1]);
+					    &list->exclude_files_);
+			list->exclude_files_[exclude_count++] =
+			    strdup(&name[1]);
 		} else {
 			resize_if_necessary(watch_count, &watch_len,
-					    &list->watch_files);
-			list->watch_files[watch_count++] = strdup(name);
+					    &list->watch_files_);
+			list->watch_files_[watch_count++] = strdup(name);
 		}
 	}
 
@@ -148,17 +161,17 @@ void construct_path_list(int argc,
 			continue;
 		if ('@' == argv[i][0]) {
 			resize_if_necessary(exclude_count, &exclude_len,
-					    &list->exclude_files);
-			list->exclude_files[exclude_count++] = &argv[i][1];
+					    &list->exclude_files_);
+			list->exclude_files_[exclude_count++] = &argv[i][1];
 		} else {
 			resize_if_necessary(watch_count, &watch_len,
-					    &list->watch_files);
-			list->watch_files[watch_count++] = argv[i];
+					    &list->watch_files_);
+			list->watch_files_[watch_count++] = argv[i];
 		}
 	}
 
-	list->exclude_files[exclude_count] = 0;
-	list->watch_files[watch_count] = 0;
+	list->exclude_files_[exclude_count] = 0;
+	list->watch_files_[watch_count] = 0;
 }
 
 void warn_inotify_init_error(int fanotify) {

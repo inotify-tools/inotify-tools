@@ -1,29 +1,30 @@
 #include "stats.h"
 
-static unsigned  num_access;
-static unsigned  num_modify;
-static unsigned  num_attrib;
-static unsigned  num_close_nowrite;
-static unsigned  num_close_write;
-static unsigned  num_open;
-static unsigned  num_move_self;
-static unsigned  num_moved_to;
-static unsigned  num_moved_from;
-static unsigned  num_create;
-static unsigned  num_delete;
-static unsigned  num_delete_self;
-static unsigned  num_unmount;
-static unsigned  num_total;
-
+static unsigned num_access;
+static unsigned num_modify;
+static unsigned num_attrib;
+static unsigned num_close_nowrite;
+static unsigned num_close_write;
+static unsigned num_open;
+static unsigned num_move_self;
+static unsigned num_moved_to;
+static unsigned num_moved_from;
+static unsigned num_create;
+static unsigned num_delete;
+static unsigned num_delete_self;
+static unsigned num_unmount;
+static unsigned num_total;
 
 /**
  * @internal
  */
-void empty_stats(const void *nodep,
-                 const VISIT which,
-                 const int depth, void *arg) {
-    if (which != endorder && which != leaf) return;
-	watch *w = (watch*)nodep;
+void empty_stats(const void* nodep,
+		 const VISIT which,
+		 const int depth,
+		 void* arg) {
+	if (which != endorder && which != leaf)
+		return;
+	watch* w = (watch*)nodep;
 	w->hit_access = 0;
 	w->hit_modify = 0;
 	w->hit_attrib = 0;
@@ -43,97 +44,97 @@ void empty_stats(const void *nodep,
 /**
  * @internal
  */
-void record_stats( struct inotify_event const * event ) {
-	if (!event) return;
-	watch *w = watch_from_wd(event->wd);
-	if (!w) return;
-	if ( IN_ACCESS & event->mask ) {
+void record_stats(struct inotify_event const* event) {
+	if (!event)
+		return;
+	watch* w = watch_from_wd(event->wd);
+	if (!w)
+		return;
+	if (IN_ACCESS & event->mask) {
 		++w->hit_access;
 		++num_access;
 	}
-	if ( IN_MODIFY & event->mask ) {
+	if (IN_MODIFY & event->mask) {
 		++w->hit_modify;
 		++num_modify;
 	}
-	if ( IN_ATTRIB & event->mask ) {
+	if (IN_ATTRIB & event->mask) {
 		++w->hit_attrib;
 		++num_attrib;
 	}
-	if ( IN_CLOSE_WRITE & event->mask ) {
+	if (IN_CLOSE_WRITE & event->mask) {
 		++w->hit_close_write;
 		++num_close_write;
 	}
-	if ( IN_CLOSE_NOWRITE & event->mask ) {
+	if (IN_CLOSE_NOWRITE & event->mask) {
 		++w->hit_close_nowrite;
 		++num_close_nowrite;
 	}
-	if ( IN_OPEN & event->mask ) {
+	if (IN_OPEN & event->mask) {
 		++w->hit_open;
 		++num_open;
 	}
-	if ( IN_MOVED_FROM & event->mask ) {
+	if (IN_MOVED_FROM & event->mask) {
 		++w->hit_moved_from;
 		++num_moved_from;
 	}
-	if ( IN_MOVED_TO & event->mask ) {
+	if (IN_MOVED_TO & event->mask) {
 		++w->hit_moved_to;
 		++num_moved_to;
 	}
-	if ( IN_CREATE & event->mask ) {
+	if (IN_CREATE & event->mask) {
 		++w->hit_create;
 		++num_create;
 	}
-	if ( IN_DELETE & event->mask ) {
+	if (IN_DELETE & event->mask) {
 		++w->hit_delete;
 		++num_delete;
 	}
-	if ( IN_DELETE_SELF & event->mask ) {
+	if (IN_DELETE_SELF & event->mask) {
 		++w->hit_delete_self;
 		++num_delete_self;
 	}
-	if ( IN_UNMOUNT & event->mask ) {
+	if (IN_UNMOUNT & event->mask) {
 		++w->hit_unmount;
 		++num_unmount;
 	}
-	if ( IN_MOVE_SELF & event->mask ) {
+	if (IN_MOVE_SELF & event->mask) {
 		++w->hit_move_self;
 		++num_move_self;
 	}
 
 	++w->hit_total;
 	++num_total;
-
 }
 
-unsigned int *stat_ptr(watch *w, int event)
-{
-	if ( IN_ACCESS == event )
+unsigned int* stat_ptr(watch* w, int event) {
+	if (IN_ACCESS == event)
 		return &w->hit_access;
-	if ( IN_MODIFY == event )
+	if (IN_MODIFY == event)
 		return &w->hit_modify;
-	if ( IN_ATTRIB == event )
+	if (IN_ATTRIB == event)
 		return &w->hit_attrib;
-	if ( IN_CLOSE_WRITE == event )
+	if (IN_CLOSE_WRITE == event)
 		return &w->hit_close_write;
-	if ( IN_CLOSE_NOWRITE == event )
+	if (IN_CLOSE_NOWRITE == event)
 		return &w->hit_close_nowrite;
-	if ( IN_OPEN == event )
+	if (IN_OPEN == event)
 		return &w->hit_open;
-	if ( IN_MOVED_FROM == event )
+	if (IN_MOVED_FROM == event)
 		return &w->hit_moved_from;
-	if ( IN_MOVED_TO == event )
+	if (IN_MOVED_TO == event)
 		return &w->hit_moved_to;
-	if ( IN_CREATE == event )
+	if (IN_CREATE == event)
 		return &w->hit_create;
-	if ( IN_DELETE == event )
+	if (IN_DELETE == event)
 		return &w->hit_delete;
-	if ( IN_DELETE_SELF == event )
+	if (IN_DELETE_SELF == event)
 		return &w->hit_delete_self;
-	if ( IN_UNMOUNT == event )
+	if (IN_UNMOUNT == event)
 		return &w->hit_unmount;
-	if ( IN_MOVE_SELF == event )
+	if (IN_MOVE_SELF == event)
 		return &w->hit_move_self;
-	if ( 0 == event )
+	if (0 == event)
 		return &w->hit_total;
 	return 0;
 }
@@ -153,13 +154,16 @@ unsigned int *stat_ptr(watch *w, int event)
  *         the watch descriptor specified by @a wd since stats collection was
  *         enabled, or -1 if @a event or @a wd are invalid.
  */
-int inotifytools_get_stat_by_wd( int wd, int event ) {
-	if (!collect_stats) return -1;
+int inotifytools_get_stat_by_wd(int wd, int event) {
+	if (!collect_stats)
+		return -1;
 
-	watch *w = watch_from_wd(wd);
-	if (!w) return -1;
-	unsigned int *i = stat_ptr(w, event);
-	if (!i) return -1;
+	watch* w = watch_from_wd(wd);
+	if (!w)
+		return -1;
+	unsigned int* i = stat_ptr(w, event);
+	if (!i)
+		return -1;
 	return *i;
 }
 
@@ -176,36 +180,37 @@ int inotifytools_get_stat_by_wd( int wd, int event ) {
  *         all watches since stats collection was enabled, or -1 if @a event
  *         is not a valid event.
  */
-int inotifytools_get_stat_total( int event ) {
-	if (!collect_stats) return -1;
-	if ( IN_ACCESS == event )
+int inotifytools_get_stat_total(int event) {
+	if (!collect_stats)
+		return -1;
+	if (IN_ACCESS == event)
 		return num_access;
-	if ( IN_MODIFY == event )
+	if (IN_MODIFY == event)
 		return num_modify;
-	if ( IN_ATTRIB == event )
+	if (IN_ATTRIB == event)
 		return num_attrib;
-	if ( IN_CLOSE_WRITE == event )
+	if (IN_CLOSE_WRITE == event)
 		return num_close_write;
-	if ( IN_CLOSE_NOWRITE == event )
+	if (IN_CLOSE_NOWRITE == event)
 		return num_close_nowrite;
-	if ( IN_OPEN == event )
+	if (IN_OPEN == event)
 		return num_open;
-	if ( IN_MOVED_FROM == event )
+	if (IN_MOVED_FROM == event)
 		return num_moved_from;
-	if ( IN_MOVED_TO == event )
+	if (IN_MOVED_TO == event)
 		return num_moved_to;
-	if ( IN_CREATE == event )
+	if (IN_CREATE == event)
 		return num_create;
-	if ( IN_DELETE == event )
+	if (IN_DELETE == event)
 		return num_delete;
-	if ( IN_DELETE_SELF == event )
+	if (IN_DELETE_SELF == event)
 		return num_delete_self;
-	if ( IN_UNMOUNT == event )
+	if (IN_UNMOUNT == event)
 		return num_unmount;
-	if ( IN_MOVE_SELF == event )
+	if (IN_MOVE_SELF == event)
 		return num_move_self;
 
-	if ( 0 == event )
+	if (0 == event)
 		return num_total;
 
 	return -1;
@@ -230,12 +235,10 @@ int inotifytools_get_stat_total( int event ) {
  * @note The filename specified must always be the original name used to
  *       establish the watch.
  */
-int inotifytools_get_stat_by_filename( char const * filename,
-                                                int event ) {
-	return inotifytools_get_stat_by_wd( inotifytools_wd_from_filename(
-	       filename ), event );
+int inotifytools_get_stat_by_filename(char const* filename, int event) {
+	return inotifytools_get_stat_by_wd(
+	    inotifytools_wd_from_filename(filename), event);
 }
-
 
 /**
  * Initialize or reset statistics.
@@ -274,4 +277,3 @@ void inotifytools_initialize_stats() {
 
 	collect_stats = 1;
 }
-

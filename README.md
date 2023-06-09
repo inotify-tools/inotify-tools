@@ -2,7 +2,6 @@
 [![Travis Build Status](https://travis-ci.com/inotify-tools/inotify-tools.svg?branch=master)](https://travis-ci.com/inotify-tools/inotify-tools)
 [![Cirrus Build Status](https://api.cirrus-ci.com/github/inotify-tools/inotify-tools.svg?branch=master)](https://cirrus-ci.com/github/inotify-tools/inotify-tools)
 [![Coverity Build Status](https://scan.coverity.com/projects/23295/badge.svg)](https://scan.coverity.com/projects/inotifytools)
-[![Language Grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/inotify-tools/inotify-tools.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/inotify-tools/inotify-tools/context:cpp)
 [![Coverage Status](https://codecov.io/gh/inotify-tools/inotify-tools/coverage.svg?branch=master)](https://codecov.io/gh/inotify-tools/inotify-tools?branch=master)
 
 inotify-tools
