@@ -28,12 +28,16 @@
 void print_event_descriptions();
 int isdir(char const *path);
 
-typedef struct {
-	char const** watch_files;
-	char const** exclude_files;
-} FileList;
+struct FileList {
+	char const** watch_files_;
+	char const** exclude_files_;
+        int argc_;
+	char** argv_;
 
-void free_list(int argc, char** argv, FileList* list);
+        FileList(int argc, char** argv);
+	~FileList();
+};
+
 
 void construct_path_list(int argc,
 			 char** argv,

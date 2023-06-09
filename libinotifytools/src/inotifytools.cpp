@@ -218,7 +218,7 @@ static void charcat(char* s, const char c) {
 /**
  * @internal
  */
-static int read_num_from_file(char* filename, int* num) {
+static int read_num_from_file(const char* filename, int* num) {
 	FILE * file = fopen( filename, "r" );
 	if ( !file ) {
 		error = errno;
@@ -238,12 +238,12 @@ static int read_num_from_file(char* filename, int* num) {
 	return 1;
 }
 
-static int wd_compare(const void* d1, const void* d2, const void* config) {
+static int wd_compare(const char* d1, const char* d2, const void* config) {
 	if (!d1 || !d2) return d1 - d2;
 	return ((watch*)d1)->wd - ((watch*)d2)->wd;
 }
 
-static int fid_compare(const void* d1, const void* d2, const void* config) {
+static int fid_compare(const char* d1, const char* d2, const void* config) {
 #ifdef LINUX_FANOTIFY
 	if (!d1 || !d2)
 		return d1 - d2;
@@ -260,8 +260,8 @@ static int fid_compare(const void* d1, const void* d2, const void* config) {
 #endif
 }
 
-static int filename_compare(const void* d1,
-			    const void* d2,
+static int filename_compare(const char* d1,
+			    const char* d2,
 			    const void* config) {
 	if (!d1 || !d2) return d1 - d2;
 	return strcmp(((watch*)d1)->filename, ((watch*)d2)->filename);
@@ -411,10 +411,11 @@ struct replace_filename_data {
 /**
  * @internal
  */
-static void replace_filename(const void* nodep,
-			     const VISIT which,
-			     const int depth,
-			     const struct replace_filename_data* data) {
+static void replace_filename_impl(const void* nodep,
+                                  const VISIT which,
+                                  const int depth,
+                                  const struct replace_filename_data* data) {
+
 	if (which != endorder && which != leaf)
 		return;
 	watch *w = (watch*)nodep;
@@ -430,6 +431,16 @@ static void replace_filename(const void* nodep,
 			rbsearch(w, tree_filename);
 		}
 	}
+}
+
+/**
+ * @internal
+ */
+static void replace_filename(const void* nodep,
+                             const VISIT which,
+                             const int depth,
+                             void* data) {
+  replace_filename_impl(nodep, which, depth, (const struct replace_filename_data*) data);
 }
 
 /**
@@ -1072,7 +1083,7 @@ void inotifytools_replace_filename( char const * oldname,
 	data.old_name = oldname;
 	data.new_name = newname;
 	data.old_len = strlen(oldname);
-        rbwalk(tree_filename, (void *)replace_filename, (void *)&data);
+        rbwalk(tree_filename, replace_filename, (void *)&data);
 }
 
 /**
@@ -1259,7 +1270,7 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 		struct fanotify_event_fid* fid = NULL;
 #ifdef LINUX_FANOTIFY
 		if (!wd) {
-			fid = calloc(1, sizeof(*fid) + MAX_FID_LEN);
+			fid = (fanotify_event_fid*) calloc(1, sizeof(*fid) + MAX_FID_LEN);
 			if (!fid) {
 				fprintf(stderr, "Failed to allocate fid");
 				free(dirname);
@@ -1283,7 +1294,7 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 			if (dirname && !mnt) {
 				struct fanotify_event_fid* fsid;
 
-				fsid = calloc(1, sizeof(*fsid));
+				fsid = (fanotify_event_fid*) calloc(1, sizeof(*fsid));
 				if (!fsid) {
 					free(fid);
 					fprintf(stderr,
@@ -1314,7 +1325,7 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 
 			fid->handle.handle_bytes = MAX_FID_LEN;
 			ret = name_to_handle_at(AT_FDCWD, filenames[i],
-						(void*)&fid->handle, &mntid, 0);
+						&fid->handle, &mntid, 0);
 			if (ret || fid->handle.handle_bytes > MAX_FID_LEN) {
 				free(fid);
 				fprintf(stderr, "Encode fid failed on %s: %s\n",
@@ -1534,8 +1545,8 @@ more_events:
 #ifdef LINUX_FANOTIFY
 	// convert fanotify events to inotify events
 	if (fanotify_mode) {
-		struct fanotify_event_metadata* meta = (void*)ret;
-		struct fanotify_event_info_fid* info = (void*)(meta + 1);
+		struct fanotify_event_metadata* meta = (fanotify_event_metadata*) ret;
+		struct fanotify_event_info_fid* info = (fanotify_event_info_fid*) (meta + 1);
 		struct fanotify_event_fid* fid = NULL;
 		const char* name = "";
 		int fid_len = 0;
@@ -1548,7 +1559,7 @@ more_events:
 				case FAN_EVENT_INFO_TYPE_FID:
 				case FAN_EVENT_INFO_TYPE_DFID:
 				case FAN_EVENT_INFO_TYPE_DFID_NAME:
-					fid = (void*)info;
+					fid = (fanotify_event_fid*) info;
 					fid_len = sizeof(*fid) +
 						  fid->handle.handle_bytes;
 					if (info->hdr.info_type ==
@@ -1593,7 +1604,7 @@ more_events:
 		watch* w = watch_from_fid(fid);
 		if (!w) {
 			struct fanotify_event_fid* newfid =
-			    calloc(1, info->hdr.len);
+			    (fanotify_event_fid*) calloc(1, info->hdr.len);
 			if (!newfid) {
 				fprintf(stderr, "Failed to allocate fid.\n");
 				return NULL;
@@ -1909,7 +1920,7 @@ int inotifytools_get_num_watches() {
  * // "in mydir/, file myfile had event(s): CLOSE_NOWRITE.CLOSE.ISDIR\n"
  * @endcode
  */
-int inotifytools_printf( struct inotify_event* event, char* fmt ) {
+int inotifytools_printf( struct inotify_event* event, const char* fmt ) {
 	return inotifytools_fprintf( stdout, event, fmt );
 }
 
@@ -1958,7 +1969,7 @@ int inotifytools_printf( struct inotify_event* event, char* fmt ) {
  * // "in mydir/, file myfile had event(s): CLOSE_NOWRITE.CLOSE.ISDIR\n"
  * @endcode
  */
-int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
+int inotifytools_fprintf( FILE* file, struct inotify_event* event, const char* fmt ) {
 	static struct nstring out;
 	static int ret;
 	ret = inotifytools_sprintf( &out, event, fmt );
@@ -2018,7 +2029,7 @@ int inotifytools_fprintf( FILE* file, struct inotify_event* event, char* fmt ) {
  * // "in mydir/, file myfile had event(s): CLOSE_WRITE.CLOSE.ISDIR\n"
  * @endcode
  */
-int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, char* fmt ) {
+int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, const char* fmt ) {
 	return inotifytools_snprintf( out, MAX_STRLEN, event, fmt );
 }
 
@@ -2074,7 +2085,7 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, cha
  * @endcode
  */
 int inotifytools_snprintf( struct nstring * out, int size,
-                           struct inotify_event* event, char* fmt ) {
+                           struct inotify_event* event, const char* fmt ) {
 	const char* eventstr;
 	static unsigned int i, ind;
 	static char ch1;
@@ -2326,7 +2337,7 @@ int inotifytools_ignore_events_by_inverted_regex( char const *pattern, int flags
 	return do_ignore_events_by_regex(pattern, flags, 1);
 }
 
-int event_compare(const void *p1, const void *p2, const void *config)
+int event_compare(const char *p1, const char *p2, const void *config)
 {
 	if (!p1 || !p2) return p1 - p2;
 	char asc = 1;

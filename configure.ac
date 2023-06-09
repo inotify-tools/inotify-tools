@@ -4,16 +4,15 @@
 AC_PREREQ(2.59)
 AC_INIT([inotify-tools], [3.22.6.0])
 AC_CONFIG_AUX_DIR([config])
-AC_CONFIG_SRCDIR([src/inotifywait.c])
+AC_CONFIG_SRCDIR([src/inotifywait.cpp])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_HEADERS([libinotifytools/src/inotifytools/inotify.h])
 AC_CONFIG_HEADERS([libinotifytools/src/inotifytools/fanotify.h])
 AC_CONFIG_MACRO_DIR([m4])
-AC_DEFINE([_GNU_SOURCE], [], [For a few GNU-specific functions])
 AC_PROG_MAKE_SET
 
 # Checks for programs.
-AC_PROG_CC
+AC_PROG_CXX
 AM_INIT_AUTOMAKE
 LT_INIT
 
