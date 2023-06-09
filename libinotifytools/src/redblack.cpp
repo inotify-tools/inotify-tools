@@ -132,7 +132,7 @@ static void RB_ENTRY(_closelist)(RBLIST *);
  */
 #ifndef RB_CUSTOMIZE
 RB_STATIC struct RB_ENTRY(tree) *
-rbinit(int (*cmp)(const void *, const void *, const void *), const void *config)
+rbinit(int (*cmp)(const char *, const char *, const void *), const void *config)
 #else
 RB_STATIC struct RB_ENTRY(tree) *RB_ENTRY(init)(void)
 #endif /* RB_CUSTOMIZE */
@@ -302,7 +302,7 @@ RB_ENTRY(_traverse)(int insert, const RB_ENTRY(data_t) *key, struct RB_ENTRY(tre
 		y=x;
 		/* printf("key=%s, RB_GET(x, key)=%s\n", key, RB_GET(x, key)); */
 #ifndef RB_CUSTOMIZE
-		cmp=RB_CMP(key, RB_GET(x, key), rbinfo->rb_config);
+		cmp=RB_CMP((const char*)key, RB_GET((const char*)x, key), rbinfo->rb_config);
 #else
 		cmp=RB_CMP(key, RB_GET(x, key));
 #endif /* RB_CUSTOMIZE */
@@ -333,7 +333,7 @@ RB_ENTRY(_traverse)(int insert, const RB_ENTRY(data_t) *key, struct RB_ENTRY(tre
 	else
 	{
 #ifndef RB_CUSTOMIZE
-		cmp=RB_CMP(RB_GET(z, key), RB_GET(y, key), rbinfo->rb_config);
+		cmp=RB_CMP(RB_GET((const char*)z, key), RB_GET((const char*)y, key), rbinfo->rb_config);
 #else
 		cmp=RB_CMP(RB_GET(z, key), RB_GET(y, key));
 #endif /* RB_CUSTOMIZE */
@@ -474,7 +474,7 @@ RB_ENTRY(_lookup)(int mode, const RB_ENTRY(data_t) *key, struct RB_ENTRY(tree) *
 		y=x;
 		/* printf("key=%s, RB_GET(x, key)=%s\n", key, RB_GET(x, key)); */
 #ifndef RB_CUSTOMIZE
-		cmp=RB_CMP(key, RB_GET(x, key), rbinfo->rb_config);
+		cmp=RB_CMP((const char*) key, RB_GET((const char*) x, key), rbinfo->rb_config);
 #else
 		cmp=RB_CMP(key, RB_GET(x, key));
 #endif /* RB_CUSTOMIZE */

@@ -82,7 +82,7 @@ const struct RB_ENTRY(node) *nextp;
 struct RB_ENTRY(tree) {
 #ifndef RB_CUSTOMIZE
 		/* comparison routine */
-int (*rb_cmp)(const void *, const void *, const void *);
+int (*rb_cmp)(const char *, const char *, const void *);
 		/* config data to be passed to rb_cmp */
 const void *rb_config;
 		/* root of tree */
@@ -91,7 +91,7 @@ struct RB_ENTRY(node) *rb_root;
 };
 
 #ifndef RB_CUSTOMIZE
-RB_STATIC struct RB_ENTRY(tree) *rbinit(int (*)(const void *, const void *, const void *),
+RB_STATIC struct RB_ENTRY(tree) *rbinit(int (*)(const char *, const char *, const void *),
 		 const void *);
 #else
 RB_STATIC struct RB_ENTRY(tree) *RB_ENTRY(init)(void);

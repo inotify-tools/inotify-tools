@@ -1,13 +1,13 @@
 bin_PROGRAMS = inotifywait inotifywatch
-inotifywait_SOURCES = inotifywait.c common.c common.h
-inotifywatch_SOURCES = inotifywatch.c common.c common.h
+inotifywait_SOURCES = inotifywait.cpp common.cpp common.h
+inotifywatch_SOURCES = inotifywatch.cpp common.cpp common.h
 
 if ENABLE_FANOTIFY
 # Build the fsnotify* tools with fanotify as the default backend
 bin_PROGRAMS += fsnotifywait fsnotifywatch
-fsnotifywait_SOURCES = inotifywait.c common.c common.h
+fsnotifywait_SOURCES = inotifywait.cpp common.cpp common.h
 fsnotifywait_CPPFLAGS = -DENABLE_FANOTIFY
-fsnotifywatch_SOURCES = inotifywatch.c common.c common.h
+fsnotifywatch_SOURCES = inotifywatch.cpp common.cpp common.h
 fsnotifywatch_CPPFLAGS = -DENABLE_FANOTIFY
 endif
 

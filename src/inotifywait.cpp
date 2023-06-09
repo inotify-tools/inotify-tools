@@ -149,7 +149,7 @@ void output_event_csv(struct inotify_event *event) {
 	printf("\n");
 }
 
-void output_error(bool syslog, char *fmt, ...) {
+void output_error(bool syslog, const char *fmt, ...) {
     va_list va;
     va_start(va, fmt);
     if (syslog) {
@@ -237,29 +237,29 @@ int main(int argc, char **argv) {
 	    events |= IN_ISDIR;
     }
 
-    FileList list;
+    FileList list(argc, argv);
     construct_path_list(argc, argv, fromfile, &list);
 
-    if (0 == list.watch_files[0]) {
+    if (0 == list.watch_files_[0]) {
         fprintf(stderr, "No files specified to watch!\n");
 
-	goto failure;
+	return EXIT_FAILURE;
     }
 
     // Daemonize - BSD double-fork approach
     if (dodaemon) {
         // Absolute path for outfile before entering the child.
-        char *logfile = calloc(PATH_MAX + 1, sizeof(char));
+        char *logfile = (char*) calloc(PATH_MAX + 1, sizeof(char));
         if (realpath(outfile, logfile) == NULL) {
             fprintf(stderr, "%s: %s\n", strerror(errno), outfile);
 	    free(logfile);
-	    goto failure;
+	    return EXIT_FAILURE;
 	}
 
 	if (daemon(0, 0)) {
 		fprintf(stderr, "Failed to daemonize!\n");
 		free(logfile);
-		goto failure;
+		return EXIT_FAILURE;
 	}
 
 	// Redirect stdin from /dev/null
@@ -275,7 +275,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Failed to open output file %s\n", logfile);
 		free(logfile);
 
-		goto failure;
+		return EXIT_FAILURE;
 	}
 	free(logfile);
 
@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
         if (fd < 0) {
             fprintf(stderr, "Failed to open output file %s\n", outfile);
 
-	    goto failure;
+	    return EXIT_FAILURE;
 	}
 	if (fd != fileno(stdout)) {
 		dup2(fd, fileno(stdout));
@@ -321,21 +321,21 @@ int main(int argc, char **argv) {
     }
 
     // now watch files
-    for (int i = 0; list.watch_files[i]; ++i) {
-	    char const* this_file = list.watch_files[i];
+    for (int i = 0; list.watch_files_[i]; ++i) {
+	    char const* this_file = list.watch_files_[i];
 	    if (filesystem) {
-		    if (!inotifytools_watch_files(list.watch_files, events)) {
+		    if (!inotifytools_watch_files(list.watch_files_, events)) {
 			    output_error(
 				sysl, "Couldn't add filesystem watch %s: %s\n",
 				this_file, strerror(inotifytools_error()));
 
-			    goto failure;
+			    return EXIT_FAILURE;
 		    }
 		    break;
 	    }
 
 	    if ((recursive && !inotifytools_watch_recursively_with_exclude(
-				  this_file, events, list.exclude_files)) ||
+				  this_file, events, list.exclude_files_)) ||
 		(!recursive && !inotifytools_watch_file(this_file, events))) {
 		    if (inotifytools_error() == ENOSPC) {
 			    const char* backend =
@@ -359,7 +359,7 @@ int main(int argc, char **argv) {
 					 strerror(inotifytools_error()));
 		    }
 
-		    goto failure;
+		    return EXIT_FAILURE;
 	    }
     }
 
@@ -375,11 +375,11 @@ int main(int argc, char **argv) {
         event = inotifytools_next_event(timeout);
         if (!event) {
             if (!inotifytools_error()) {
-		    goto timeout;
+		    return EXIT_TIMEOUT;
 	    } else {
 		    output_error(sysl, "%s\n", strerror(inotifytools_error()));
 
-		    goto failure;
+		    return EXIT_FAILURE;
 	    }
 	}
 
@@ -450,22 +450,10 @@ int main(int argc, char **argv) {
     // If we weren't trying to listen for this event...
     if ((events & event->mask) == 0) {
         // ...then most likely something bad happened, like IGNORE etc.
-	goto failure;
+	return EXIT_FAILURE;
     }
 
-    free_list(argc, argv, &list);
-
     return EXIT_SUCCESS;
-
-failure:
-	free_list(argc, argv, &list);
-
-	return EXIT_FAILURE;
-
-timeout:
-	free_list(argc, argv, &list);
-
-	return EXIT_TIMEOUT;
 }
 
 static bool parse_opts(int* argc,

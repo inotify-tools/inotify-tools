@@ -141,27 +141,27 @@ int main(int argc, char **argv) {
     if (fanotify)
 	    events |= IN_ISDIR;
 
-    FileList list;
+    FileList list(argc, argv);
     construct_path_list(argc, argv, fromfile, &list);
 
-    if (0 == list.watch_files[0]) {
+    if (0 == list.watch_files_[0]) {
         fprintf(stderr, "No files specified to watch!\n");
-	goto failure;
+	return EXIT_FAILURE;
     }
 
     unsigned int num_watches = 0;
     unsigned int status;
     fprintf(stderr, "Establishing watches...\n");
-    for (int i = 0; list.watch_files[i]; ++i) {
-	    char const* this_file = list.watch_files[i];
+    for (int i = 0; list.watch_files_[i]; ++i) {
+	    char const* this_file = list.watch_files_[i];
 	    if (filesystem) {
 		    fprintf(stderr, "Setting up filesystem watch on %s\n",
 			    this_file);
-		    if (!inotifytools_watch_files(list.watch_files, events)) {
+		    if (!inotifytools_watch_files(list.watch_files_, events)) {
 			    fprintf(stderr,
 				    "Couldn't add filesystem watch %s: %s\n",
 				    this_file, strerror(inotifytools_error()));
-			    goto failure;
+			    return EXIT_FAILURE;
 		    }
 		    break;
 	    }
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
 
 	    if (recursive) {
 		    status = inotifytools_watch_recursively_with_exclude(
-			this_file, events, list.exclude_files);
+			this_file, events, list.exclude_files_);
 	    } else {
 		    status = inotifytools_watch_file(this_file, events);
 	    }
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
 				    this_file, strerror(inotifytools_error()));
 		    }
 
-		    goto failure;
+		    return EXIT_FAILURE;
 	    }
 	    if (recursive && verbose) {
 		    fprintf(stderr, "OK, %s is now being watched.\n",
@@ -237,11 +237,11 @@ int main(int argc, char **argv) {
         event = inotifytools_next_event(BLOCKING_TIMEOUT);
         if (!event) {
             if (!inotifytools_error()) {
-		    goto timeout;
+		    return EXIT_TIMEOUT;
 	    } else if (inotifytools_error() != EINTR) {
 		    fprintf(stderr, "%s\n", strerror(inotifytools_error()));
 
-		    goto failure;
+		    return EXIT_FAILURE;
 	    } else {
 		    continue;
 	    }
@@ -295,19 +295,7 @@ int main(int argc, char **argv) {
 
     } while (!done);
 
-    free_list(argc, argv, &list);
-
     return print_info();
-
-failure:
-	free_list(argc, argv, &list);
-
-	return EXIT_FAILURE;
-
-timeout:
-	free_list(argc, argv, &list);
-
-	return EXIT_TIMEOUT;
 }
 
 int print_info() {
