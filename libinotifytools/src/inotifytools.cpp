@@ -57,8 +57,8 @@ struct fanotify_event_fid;
 #endif
 
 struct fanotify_event_fid {
-	struct fanotify_event_info_fid info;
 	struct file_handle handle;
+	struct fanotify_event_info_fid info;
 };
 
 #endif
@@ -1580,7 +1580,7 @@ more_events:
 					// "." name in fid hash, but keep it for
 					// debug print.
 					if (name_len &&
-					    (!*name || !strcmp(name, "."))) {
+					    (!*name || name[0] == '.')) {
 						info->hdr.len -= name_len;
 						name_len = 0;
 					}
