@@ -172,6 +172,10 @@ static pid_t self_pid = 0;
 struct str {
   char* c_str = 0;
 
+  bool empty() {
+    return !c_str || !c_str[0];
+  }
+
   ~str() {
     free(c_str);
   }
@@ -2183,7 +2187,7 @@ int inotifytools_snprintf( struct nstring * out, int size,
 
 		if ( ch1 == 'T' ) {
 
-			if ( timefmt.c_str ) {
+			if ( timefmt.empty() ) {
 				now = time(0);
                                 struct tm now_tm;
 				if (!strftime(timestr, MAX_STRLEN - 1, timefmt.c_str,
