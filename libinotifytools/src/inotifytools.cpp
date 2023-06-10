@@ -176,6 +176,11 @@ struct str {
     return !c_str || !c_str[0];
   }
 
+  void clear() {
+    if (c_str)
+      c_str[0] = 0;
+  }
+
   ~str() {
     free(c_str);
   }
@@ -347,7 +352,7 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 	tree_wd = rbinit(wd_compare, 0);
 	tree_fid = rbinit(fid_compare, 0);
 	tree_filename = rbinit(filename_compare, 0);
-	timefmt.c_str[0] = 0;
+	timefmt.clear();
 
 	return 1;
 }
@@ -393,7 +398,7 @@ void inotifytools_cleanup() {
 	close(inotify_fd);
 	collect_stats = 0;
 	error = 0;
-	timefmt.c_str[0] = 0;
+	timefmt.clear();
 
 	if (regex) {
 		regfree(regex);
@@ -2187,9 +2192,10 @@ int inotifytools_snprintf( struct nstring * out, int size,
 
 		if ( ch1 == 'T' ) {
 
-			if ( timefmt.empty() ) {
+			if ( ! timefmt.empty() ) {
 				now = time(0);
                                 struct tm now_tm;
+                                printf("ERIC: '%s'\n", timefmt.c_str);
 				if (!strftime(timestr, MAX_STRLEN - 1, timefmt.c_str,
 					      localtime_r(&now, &now_tm))) {
 					// time format probably invalid
@@ -2236,7 +2242,11 @@ int inotifytools_snprintf( struct nstring * out, int size,
  *            incorrect results.
  */
 void inotifytools_set_printf_timefmt( const char * fmt ) {
-	asprintf(&timefmt.c_str, "%s", fmt);
+	nasprintf(&timefmt.c_str, "%s", fmt);
+}
+
+void inotifytools_clear_timefmt() {
+        timefmt.clear();
 }
 
 /**
