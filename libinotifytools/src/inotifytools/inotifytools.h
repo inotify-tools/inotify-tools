@@ -72,6 +72,7 @@ int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, con
 int inotifytools_snprintf( struct nstring * out, int size, struct inotify_event* event,
                            const char* fmt );
 void inotifytools_set_printf_timefmt( const char * fmt );
+void inotifytools_clear_timefmt();
 
 int inotifytools_get_max_user_watches();
 int inotifytools_get_max_user_instances();
