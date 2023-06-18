@@ -170,19 +170,29 @@ int fanotify_mark_type = 0;
 static pid_t self_pid = 0;
 
 struct str {
-  char* c_str = 0;
+  char* c_str_ = 0;
+  int size_ = 0;
+  int capacity_ = 0;
 
   bool empty() {
-    return !c_str || !c_str[0];
+    return !size_;
   }
 
   void clear() {
-    if (c_str)
-      c_str[0] = 0;
+    if (c_str_) {
+      c_str_[0] = 0;
+size_ = 0;
+  }
+  }
+
+  void set_size(int size) {
+    size_ = size;
+    if (size > capacity_)
+      capacity_ = size;
   }
 
   ~str() {
-    free(c_str);
+    free(c_str_);
   }
 };
 
@@ -214,9 +224,9 @@ int onestr_to_event(char const * event);
  *
  * @param  mesg  A human-readable error message shown if assertion fails.
  */
-void _niceassert( long cond, int line, char const * file,
+long _niceassert( long cond, int line, char const * file,
                   char const * condstr, char const * mesg ) {
-	if ( cond ) return;
+	if ( cond ) return cond;
 
 	if ( mesg ) {
 		fprintf(stderr, "%s:%d assertion ( %s ) failed: %s\n", file, line,
@@ -225,6 +235,8 @@ void _niceassert( long cond, int line, char const * file,
 	else {
 		fprintf(stderr, "%s:%d assertion ( %s ) failed.\n", file, line, condstr);
 	}
+
+        return cond;
 }
 
 static void charcat(char* s, const char c) {
@@ -2195,8 +2207,7 @@ int inotifytools_snprintf( struct nstring * out, int size,
 			if ( ! timefmt.empty() ) {
 				now = time(0);
                                 struct tm now_tm;
-                                printf("ERIC: '%s'\n", timefmt.c_str);
-				if (!strftime(timestr, MAX_STRLEN - 1, timefmt.c_str,
+				if (!strftime(timestr, MAX_STRLEN - 1, timefmt.c_str_,
 					      localtime_r(&now, &now_tm))) {
 					// time format probably invalid
 					error = EINVAL;
@@ -2242,7 +2253,7 @@ int inotifytools_snprintf( struct nstring * out, int size,
  *            incorrect results.
  */
 void inotifytools_set_printf_timefmt( const char * fmt ) {
-	nasprintf(&timefmt.c_str, "%s", fmt);
+	timefmt.set_size(nasprintf(&timefmt.c_str_, "%s", fmt));
 }
 
 void inotifytools_clear_timefmt() {
