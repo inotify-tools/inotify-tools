@@ -23,7 +23,7 @@
 #include <inotifytools/inotify.h>
 #include <inotifytools/inotifytools.h>
 
-extern char *optarg;
+extern char* optarg;
 extern int optind, opterr, optopt;
 
 // METHODS
@@ -49,361 +49,379 @@ void print_help();
 static bool done;
 
 void handle_impatient_user(int signal __attribute__((unused))) {
-    static int times_called = 0;
-    if (times_called) {
-        fprintf(stderr, "No statistics collected, asked to abort before all "
-                        "watches could be established.\n");
-        exit(1);
-    }
-    fprintf(stderr,
-            "No statistics have been collected because I haven't "
-            "finished establishing\n"
-            "inotify watches yet.  If you are sure you want me to exit, "
-            "interrupt me again.\n");
-    ++times_called;
+	static int times_called = 0;
+	if (times_called) {
+		fprintf(stderr,
+			"No statistics collected, asked to abort before all "
+			"watches could be established.\n");
+		exit(1);
+	}
+	fprintf(stderr,
+		"No statistics have been collected because I haven't "
+		"finished establishing\n"
+		"inotify watches yet.  If you are sure you want me to exit, "
+		"interrupt me again.\n");
+	++times_called;
 }
 
 void handle_signal(int signal __attribute__((unused))) {
-    done = true;
+	done = true;
 }
 
 int print_info();
 
 void print_info_now(int signal __attribute__((unused))) {
-    print_info();
-    printf("\n");
+	print_info();
+	printf("\n");
 }
 
 int events;
 int sort;
 int zero;
 
-int main(int argc, char **argv) {
-    events = 0;
-    unsigned int timeout = BLOCKING_TIMEOUT;
-    int verbose = 0;
-    zero = 0;
-    int recursive = 0;
-    int fanotify = DEFAULT_FANOTIFY_MODE;
-    bool filesystem = false;
-    int no_dereference = 0;
-    char *fromfile = 0;
-    sort = -1;
-    done = false;
-    char *exc_regex = NULL;
-    char *exc_iregex = NULL;
-    char *inc_regex = NULL;
-    char *inc_iregex = NULL;
-    int rc;
+int main(int argc, char** argv) {
+	events = 0;
+	unsigned int timeout = BLOCKING_TIMEOUT;
+	int verbose = 0;
+	zero = 0;
+	int recursive = 0;
+	int fanotify = DEFAULT_FANOTIFY_MODE;
+	bool filesystem = false;
+	int no_dereference = 0;
+	char* fromfile = 0;
+	sort = -1;
+	done = false;
+	char* exc_regex = NULL;
+	char* exc_iregex = NULL;
+	char* inc_regex = NULL;
+	char* inc_iregex = NULL;
+	int rc;
 
-    signal(SIGINT, handle_impatient_user);
+	signal(SIGINT, handle_impatient_user);
 
-    // Parse commandline options, aborting if something goes wrong
-    if (!parse_opts(&argc, &argv, &events, &timeout, &verbose, &zero, &sort,
-		    &recursive, &no_dereference, &fromfile, &exc_regex,
-		    &exc_iregex, &inc_regex, &inc_iregex, &fanotify,
-		    &filesystem)) {
-	    return EXIT_FAILURE;
-    }
+	// Parse commandline options, aborting if something goes wrong
+	if (!parse_opts(&argc, &argv, &events, &timeout, &verbose, &zero, &sort,
+			&recursive, &no_dereference, &fromfile, &exc_regex,
+			&exc_iregex, &inc_regex, &inc_iregex, &fanotify,
+			&filesystem)) {
+		return EXIT_FAILURE;
+	}
 
-    if ((exc_regex &&
-         !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED)) ||
-        (exc_iregex &&
-         !inotifytools_ignore_events_by_regex(exc_iregex,
-                                              REG_EXTENDED | REG_ICASE))) {
-        fprintf(stderr, "Error in `exclude' regular expression.\n");
-        return EXIT_FAILURE;
-    }
+	if ((exc_regex &&
+	     !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED)) ||
+	    (exc_iregex && !inotifytools_ignore_events_by_regex(
+			       exc_iregex, REG_EXTENDED | REG_ICASE))) {
+		fprintf(stderr, "Error in `exclude' regular expression.\n");
+		return EXIT_FAILURE;
+	}
 
-    if ((inc_regex &&
-         !inotifytools_ignore_events_by_inverted_regex(inc_regex,
-                                                       REG_EXTENDED)) ||
-        (inc_iregex &&
-         !inotifytools_ignore_events_by_inverted_regex(
-             inc_iregex, REG_EXTENDED | REG_ICASE))) {
-        fprintf(stderr, "Error in `include' regular expression.\n");
-        return EXIT_FAILURE;
-    }
+	if ((inc_regex && !inotifytools_ignore_events_by_inverted_regex(
+			      inc_regex, REG_EXTENDED)) ||
+	    (inc_iregex && !inotifytools_ignore_events_by_inverted_regex(
+			       inc_iregex, REG_EXTENDED | REG_ICASE))) {
+		fprintf(stderr, "Error in `include' regular expression.\n");
+		return EXIT_FAILURE;
+	}
 
-    rc = inotifytools_init(fanotify, filesystem, verbose);
-    if (!rc) {
-	    warn_inotify_init_error(fanotify);
-	    return EXIT_FAILURE;
-    }
+	rc = inotifytools_init(fanotify, filesystem, verbose);
+	if (!rc) {
+		warn_inotify_init_error(fanotify);
+		return EXIT_FAILURE;
+	}
 
-    // Attempt to watch file
-    // If events is still 0, make it all events.
-    if (!events)
-        events = IN_ALL_EVENTS;
-    if (no_dereference)
-        events = events | IN_DONT_FOLLOW;
+	// Attempt to watch file
+	// If events is still 0, make it all events.
+	if (!events)
+		events = IN_ALL_EVENTS;
+	if (no_dereference)
+		events = events | IN_DONT_FOLLOW;
 
-    if (fanotify)
-	    events |= IN_ISDIR;
+	if (fanotify)
+		events |= IN_ISDIR;
 
-    FileList list(argc, argv);
-    construct_path_list(argc, argv, fromfile, &list);
+	FileList list(argc, argv);
+	construct_path_list(argc, argv, fromfile, &list);
 
-    if (0 == list.watch_files_[0]) {
-        fprintf(stderr, "No files specified to watch!\n");
-	return EXIT_FAILURE;
-    }
+	if (0 == list.watch_files_[0]) {
+		fprintf(stderr, "No files specified to watch!\n");
+		return EXIT_FAILURE;
+	}
 
-    unsigned int num_watches = 0;
-    unsigned int status;
-    fprintf(stderr, "Establishing watches...\n");
-    for (int i = 0; list.watch_files_[i]; ++i) {
-	    char const* this_file = list.watch_files_[i];
-	    if (filesystem) {
-		    fprintf(stderr, "Setting up filesystem watch on %s\n",
-			    this_file);
-		    if (!inotifytools_watch_files(list.watch_files_, events)) {
-			    fprintf(stderr,
+	unsigned int num_watches = 0;
+	unsigned int status;
+	fprintf(stderr, "Establishing watches...\n");
+	for (int i = 0; list.watch_files_[i]; ++i) {
+		char const* this_file = list.watch_files_[i];
+		if (filesystem) {
+			fprintf(stderr, "Setting up filesystem watch on %s\n",
+				this_file);
+			if (!inotifytools_watch_files(list.watch_files_,
+						      events)) {
+				fprintf(
+				    stderr,
 				    "Couldn't add filesystem watch %s: %s\n",
 				    this_file, strerror(inotifytools_error()));
-			    return EXIT_FAILURE;
-		    }
-		    break;
-	    }
+				return EXIT_FAILURE;
+			}
+			break;
+		}
 
-	    if (recursive && verbose) {
-		    fprintf(stderr, "Setting up watch(es) on %s\n", this_file);
-	    }
+		if (recursive && verbose) {
+			fprintf(stderr, "Setting up watch(es) on %s\n",
+				this_file);
+		}
 
-	    if (recursive) {
-		    status = inotifytools_watch_recursively_with_exclude(
-			this_file, events, list.exclude_files_);
-	    } else {
-		    status = inotifytools_watch_file(this_file, events);
-	    }
-	    if (!status) {
-		    if (inotifytools_error() == ENOSPC) {
-			    const char* backend =
-				fanotify ? "fanotify" : "inotify";
-			    const char* resource =
-				fanotify ? "marks" : "watches";
-			    fprintf(stderr,
+		if (recursive) {
+			status = inotifytools_watch_recursively_with_exclude(
+			    this_file, events, list.exclude_files_);
+		} else {
+			status = inotifytools_watch_file(this_file, events);
+		}
+		if (!status) {
+			if (inotifytools_error() == ENOSPC) {
+				const char* backend =
+				    fanotify ? "fanotify" : "inotify";
+				const char* resource =
+				    fanotify ? "marks" : "watches";
+				fprintf(
+				    stderr,
 				    "Failed to watch %s; upper limit on %s %s "
 				    "reached!\n",
 				    this_file, backend, resource);
-			    fprintf(stderr,
-				    "Please increase the amount of %s %s "
-				    "allowed per user via `/proc/sys/fs/%s/"
-				    "max_user_%s'.\n",
-				    backend, resource, backend, resource);
-		    } else {
-			    fprintf(stderr, "Failed to watch %s: %s\n",
-				    this_file, strerror(inotifytools_error()));
-		    }
+				fprintf(stderr,
+					"Please increase the amount of %s %s "
+					"allowed per user via `/proc/sys/fs/%s/"
+					"max_user_%s'.\n",
+					backend, resource, backend, resource);
+			} else {
+				fprintf(stderr, "Failed to watch %s: %s\n",
+					this_file,
+					strerror(inotifytools_error()));
+			}
 
-		    return EXIT_FAILURE;
-	    }
-	    if (recursive && verbose) {
-		    fprintf(stderr, "OK, %s is now being watched.\n",
-			    this_file);
-	    }
-    }
-    num_watches = inotifytools_get_num_watches();
+			return EXIT_FAILURE;
+		}
+		if (recursive && verbose) {
+			fprintf(stderr, "OK, %s is now being watched.\n",
+				this_file);
+		}
+	}
+	num_watches = inotifytools_get_num_watches();
 
-    if (verbose) {
-	    fprintf(stderr, "Total of %u watches.\n", num_watches);
-    }
-    fprintf(stderr,
-            "Finished establishing watches, now collecting statistics.\n");
+	if (verbose) {
+		fprintf(stderr, "Total of %u watches.\n", num_watches);
+	}
+	fprintf(stderr,
+		"Finished establishing watches, now collecting statistics.\n");
 
-    if (timeout && verbose) {
-	    fprintf(stderr, "Will listen for events for %u seconds.\n",
-		    timeout);
-    }
-
-    signal(SIGINT, handle_signal);
-    signal(SIGHUP, handle_signal);
-    signal(SIGTERM, handle_signal);
-    if (timeout) {
-	    signal(SIGALRM, handle_signal);
-	    alarm(timeout);
-    } else {
-	    alarm(UINT_MAX);
-    }
-
-    signal(SIGUSR1, print_info_now);
-
-    inotifytools_initialize_stats();
-    // Now wait till we get event
-    struct inotify_event *event;
-    char *moved_from = 0;
-
-    do {
-        event = inotifytools_next_event(BLOCKING_TIMEOUT);
-        if (!event) {
-            if (!inotifytools_error()) {
-		    return EXIT_TIMEOUT;
-	    } else if (inotifytools_error() != EINTR) {
-		    fprintf(stderr, "%s\n", strerror(inotifytools_error()));
-
-		    return EXIT_FAILURE;
-	    } else {
-		    continue;
-	    }
+	if (timeout && verbose) {
+		fprintf(stderr, "Will listen for events for %u seconds.\n",
+			timeout);
 	}
 
-	// TODO: replace filename of renamed filesystem watch entries
-	if (filesystem)
-		continue;
+	signal(SIGINT, handle_signal);
+	signal(SIGHUP, handle_signal);
+	signal(SIGTERM, handle_signal);
+	if (timeout) {
+		signal(SIGALRM, handle_signal);
+		alarm(timeout);
+	} else {
+		alarm(UINT_MAX);
+	}
 
-	// if we last had MOVED_FROM and don't currently have MOVED_TO,
-        // moved_from file must have been moved outside of tree - so unwatch it.
-        if (moved_from && !(event->mask & IN_MOVED_TO)) {
-            if (!inotifytools_remove_watch_by_filename(moved_from)) {
-                fprintf(stderr, "Error removing watch on %s: %s\n", moved_from,
-                        strerror(inotifytools_error()));
-            }
-            free(moved_from);
-            moved_from = 0;
-        }
+	signal(SIGUSR1, print_info_now);
 
-        if (recursive) {
-            if ((event->mask & IN_CREATE) ||
-                (!moved_from && (event->mask & IN_MOVED_TO))) {
-                // New file - if it is a directory, watch it
-		char* new_file = inotifytools_dirpath_from_event(event);
-		if (new_file && *new_file && isdir(new_file) &&
-		    !inotifytools_watch_recursively(new_file, events)) {
-			fprintf(stderr, "Couldn't watch new directory %s: %s\n",
-				new_file, strerror(inotifytools_error()));
+	inotifytools_initialize_stats();
+	// Now wait till we get event
+	struct inotify_event* event;
+	char* moved_from = 0;
+
+	do {
+		event = inotifytools_next_event(BLOCKING_TIMEOUT);
+		if (!event) {
+			if (!inotifytools_error()) {
+				return EXIT_TIMEOUT;
+			} else if (inotifytools_error() != EINTR) {
+				fprintf(stderr, "%s\n",
+					strerror(inotifytools_error()));
+
+				return EXIT_FAILURE;
+			} else {
+				continue;
+			}
 		}
-		free(new_file);
-            } // IN_CREATE
-            else if (event->mask & IN_MOVED_FROM) {
-		    moved_from = inotifytools_dirpath_from_event(event);
-		    // if not watched...
-		    if (inotifytools_wd_from_filename(moved_from) == -1) {
-			    free(moved_from);
-			    moved_from = 0;
-                }
-            } // IN_MOVED_FROM
-            else if (event->mask & IN_MOVED_TO) {
-                if (moved_from) {
-			char* new_name = inotifytools_dirpath_from_event(event);
-			inotifytools_replace_filename(moved_from, new_name);
-			free(new_name);
+
+		// TODO: replace filename of renamed filesystem watch entries
+		if (filesystem)
+			continue;
+
+		// if we last had MOVED_FROM and don't currently have MOVED_TO,
+		// moved_from file must have been moved outside of tree - so
+		// unwatch it.
+		if (moved_from && !(event->mask & IN_MOVED_TO)) {
+			if (!inotifytools_remove_watch_by_filename(
+				moved_from)) {
+				fprintf(
+				    stderr, "Error removing watch on %s: %s\n",
+				    moved_from, strerror(inotifytools_error()));
+			}
 			free(moved_from);
 			moved_from = 0;
-                } // moved_from
-            }
-        }
+		}
 
-    } while (!done);
+		if (recursive) {
+			if ((event->mask & IN_CREATE) ||
+			    (!moved_from && (event->mask & IN_MOVED_TO))) {
+				// New file - if it is a directory, watch it
+				char* new_file =
+				    inotifytools_dirpath_from_event(event);
+				if (new_file && *new_file && isdir(new_file) &&
+				    !inotifytools_watch_recursively(new_file,
+								    events)) {
+					fprintf(stderr,
+						"Couldn't watch new directory "
+						"%s: %s\n",
+						new_file,
+						strerror(inotifytools_error()));
+				}
+				free(new_file);
+			}  // IN_CREATE
+			else if (event->mask & IN_MOVED_FROM) {
+				moved_from =
+				    inotifytools_dirpath_from_event(event);
+				// if not watched...
+				if (inotifytools_wd_from_filename(moved_from) ==
+				    -1) {
+					free(moved_from);
+					moved_from = 0;
+				}
+			}  // IN_MOVED_FROM
+			else if (event->mask & IN_MOVED_TO) {
+				if (moved_from) {
+					char* new_name =
+					    inotifytools_dirpath_from_event(
+						event);
+					inotifytools_replace_filename(
+					    moved_from, new_name);
+					free(new_name);
+					free(moved_from);
+					moved_from = 0;
+				}  // moved_from
+			}
+		}
 
-    return print_info();
+	} while (!done);
+
+	return print_info();
 }
 
 int print_info() {
-    if (!inotifytools_get_stat_total(0)) {
-        fprintf(stderr, "No events occurred.\n");
-        return EXIT_SUCCESS;
-    }
+	if (!inotifytools_get_stat_total(0)) {
+		fprintf(stderr, "No events occurred.\n");
+		return EXIT_SUCCESS;
+	}
 
-    // OK, go through the watches and print stats.
-    printf("total  ");
-    if ((IN_ACCESS & events) &&
-        (zero || inotifytools_get_stat_total(IN_ACCESS)))
-        printf("access  ");
-    if ((IN_MODIFY & events) &&
-        (zero || inotifytools_get_stat_total(IN_MODIFY)))
-        printf("modify  ");
-    if ((IN_ATTRIB & events) &&
-        (zero || inotifytools_get_stat_total(IN_ATTRIB)))
-        printf("attrib  ");
-    if ((IN_CLOSE_WRITE & events) &&
-        (zero || inotifytools_get_stat_total(IN_CLOSE_WRITE)))
-        printf("close_write  ");
-    if ((IN_CLOSE_NOWRITE & events) &&
-        (zero || inotifytools_get_stat_total(IN_CLOSE_NOWRITE)))
-        printf("close_nowrite  ");
-    if ((IN_OPEN & events) && (zero || inotifytools_get_stat_total(IN_OPEN)))
-        printf("open  ");
-    if ((IN_MOVED_FROM & events) &&
-        (zero || inotifytools_get_stat_total(IN_MOVED_FROM)))
-        printf("moved_from  ");
-    if ((IN_MOVED_TO & events) &&
-        (zero || inotifytools_get_stat_total(IN_MOVED_TO)))
-        printf("moved_to  ");
-    if ((IN_MOVE_SELF & events) &&
-        (zero || inotifytools_get_stat_total(IN_MOVE_SELF)))
-        printf("move_self  ");
-    if ((IN_CREATE & events) &&
-        (zero || inotifytools_get_stat_total(IN_CREATE)))
-        printf("create  ");
-    if ((IN_DELETE & events) &&
-        (zero || inotifytools_get_stat_total(IN_DELETE)))
-        printf("delete  ");
-    if ((IN_DELETE_SELF & events) &&
-        (zero || inotifytools_get_stat_total(IN_DELETE_SELF)))
-        printf("delete_self  ");
-    if ((IN_UNMOUNT & events) &&
-        (zero || inotifytools_get_stat_total(IN_UNMOUNT)))
-        printf("unmount  ");
+	// OK, go through the watches and print stats.
+	printf("total  ");
+	if ((IN_ACCESS & events) &&
+	    (zero || inotifytools_get_stat_total(IN_ACCESS)))
+		printf("access  ");
+	if ((IN_MODIFY & events) &&
+	    (zero || inotifytools_get_stat_total(IN_MODIFY)))
+		printf("modify  ");
+	if ((IN_ATTRIB & events) &&
+	    (zero || inotifytools_get_stat_total(IN_ATTRIB)))
+		printf("attrib  ");
+	if ((IN_CLOSE_WRITE & events) &&
+	    (zero || inotifytools_get_stat_total(IN_CLOSE_WRITE)))
+		printf("close_write  ");
+	if ((IN_CLOSE_NOWRITE & events) &&
+	    (zero || inotifytools_get_stat_total(IN_CLOSE_NOWRITE)))
+		printf("close_nowrite  ");
+	if ((IN_OPEN & events) &&
+	    (zero || inotifytools_get_stat_total(IN_OPEN)))
+		printf("open  ");
+	if ((IN_MOVED_FROM & events) &&
+	    (zero || inotifytools_get_stat_total(IN_MOVED_FROM)))
+		printf("moved_from  ");
+	if ((IN_MOVED_TO & events) &&
+	    (zero || inotifytools_get_stat_total(IN_MOVED_TO)))
+		printf("moved_to  ");
+	if ((IN_MOVE_SELF & events) &&
+	    (zero || inotifytools_get_stat_total(IN_MOVE_SELF)))
+		printf("move_self  ");
+	if ((IN_CREATE & events) &&
+	    (zero || inotifytools_get_stat_total(IN_CREATE)))
+		printf("create  ");
+	if ((IN_DELETE & events) &&
+	    (zero || inotifytools_get_stat_total(IN_DELETE)))
+		printf("delete  ");
+	if ((IN_DELETE_SELF & events) &&
+	    (zero || inotifytools_get_stat_total(IN_DELETE_SELF)))
+		printf("delete_self  ");
+	if ((IN_UNMOUNT & events) &&
+	    (zero || inotifytools_get_stat_total(IN_UNMOUNT)))
+		printf("unmount  ");
 
-    printf("filename\n");
+	printf("filename\n");
 
-    struct rbtree *tree = inotifytools_wd_sorted_by_event(sort);
-    RBLIST *rblist = rbopenlist(tree);
-    watch *w = (watch *)rbreadlist(rblist);
+	struct rbtree* tree = inotifytools_wd_sorted_by_event(sort);
+	RBLIST* rblist = rbopenlist(tree);
+	watch* w = (watch*)rbreadlist(rblist);
 
-    while (w) {
-        if (!zero && !w->hit_total) {
-            w = (watch *)rbreadlist(rblist);
-            continue;
-        }
-        printf("%-5u  ", w->hit_total);
-        if ((IN_ACCESS & events) &&
-            (zero || inotifytools_get_stat_total(IN_ACCESS)))
-            printf("%-6u  ", w->hit_access);
-        if ((IN_MODIFY & events) &&
-            (zero || inotifytools_get_stat_total(IN_MODIFY)))
-            printf("%-6u  ", w->hit_modify);
-        if ((IN_ATTRIB & events) &&
-            (zero || inotifytools_get_stat_total(IN_ATTRIB)))
-            printf("%-6u  ", w->hit_attrib);
-        if ((IN_CLOSE_WRITE & events) &&
-            (zero || inotifytools_get_stat_total(IN_CLOSE_WRITE)))
-            printf("%-11u  ", w->hit_close_write);
-        if ((IN_CLOSE_NOWRITE & events) &&
-            (zero || inotifytools_get_stat_total(IN_CLOSE_NOWRITE)))
-            printf("%-13u  ", w->hit_close_nowrite);
-        if ((IN_OPEN & events) &&
-            (zero || inotifytools_get_stat_total(IN_OPEN)))
-            printf("%-4u  ", w->hit_open);
-        if ((IN_MOVED_FROM & events) &&
-            (zero || inotifytools_get_stat_total(IN_MOVED_FROM)))
-            printf("%-10u  ", w->hit_moved_from);
-        if ((IN_MOVED_TO & events) &&
-            (zero || inotifytools_get_stat_total(IN_MOVED_TO)))
-            printf("%-8u  ", w->hit_moved_to);
-        if ((IN_MOVE_SELF & events) &&
-            (zero || inotifytools_get_stat_total(IN_MOVE_SELF)))
-            printf("%-9u  ", w->hit_move_self);
-        if ((IN_CREATE & events) &&
-            (zero || inotifytools_get_stat_total(IN_CREATE)))
-            printf("%-6u  ", w->hit_create);
-        if ((IN_DELETE & events) &&
-            (zero || inotifytools_get_stat_total(IN_DELETE)))
-            printf("%-6u  ", w->hit_delete);
-        if ((IN_DELETE_SELF & events) &&
-            (zero || inotifytools_get_stat_total(IN_DELETE_SELF)))
-            printf("%-11u  ", w->hit_delete_self);
-        if ((IN_UNMOUNT & events) &&
-            (zero || inotifytools_get_stat_total(IN_UNMOUNT)))
-            printf("%-7u  ", w->hit_unmount);
+	while (w) {
+		if (!zero && !w->hit_total) {
+			w = (watch*)rbreadlist(rblist);
+			continue;
+		}
+		printf("%-5u  ", w->hit_total);
+		if ((IN_ACCESS & events) &&
+		    (zero || inotifytools_get_stat_total(IN_ACCESS)))
+			printf("%-6u  ", w->hit_access);
+		if ((IN_MODIFY & events) &&
+		    (zero || inotifytools_get_stat_total(IN_MODIFY)))
+			printf("%-6u  ", w->hit_modify);
+		if ((IN_ATTRIB & events) &&
+		    (zero || inotifytools_get_stat_total(IN_ATTRIB)))
+			printf("%-6u  ", w->hit_attrib);
+		if ((IN_CLOSE_WRITE & events) &&
+		    (zero || inotifytools_get_stat_total(IN_CLOSE_WRITE)))
+			printf("%-11u  ", w->hit_close_write);
+		if ((IN_CLOSE_NOWRITE & events) &&
+		    (zero || inotifytools_get_stat_total(IN_CLOSE_NOWRITE)))
+			printf("%-13u  ", w->hit_close_nowrite);
+		if ((IN_OPEN & events) &&
+		    (zero || inotifytools_get_stat_total(IN_OPEN)))
+			printf("%-4u  ", w->hit_open);
+		if ((IN_MOVED_FROM & events) &&
+		    (zero || inotifytools_get_stat_total(IN_MOVED_FROM)))
+			printf("%-10u  ", w->hit_moved_from);
+		if ((IN_MOVED_TO & events) &&
+		    (zero || inotifytools_get_stat_total(IN_MOVED_TO)))
+			printf("%-8u  ", w->hit_moved_to);
+		if ((IN_MOVE_SELF & events) &&
+		    (zero || inotifytools_get_stat_total(IN_MOVE_SELF)))
+			printf("%-9u  ", w->hit_move_self);
+		if ((IN_CREATE & events) &&
+		    (zero || inotifytools_get_stat_total(IN_CREATE)))
+			printf("%-6u  ", w->hit_create);
+		if ((IN_DELETE & events) &&
+		    (zero || inotifytools_get_stat_total(IN_DELETE)))
+			printf("%-6u  ", w->hit_delete);
+		if ((IN_DELETE_SELF & events) &&
+		    (zero || inotifytools_get_stat_total(IN_DELETE_SELF)))
+			printf("%-11u  ", w->hit_delete_self);
+		if ((IN_UNMOUNT & events) &&
+		    (zero || inotifytools_get_stat_total(IN_UNMOUNT)))
+			printf("%-7u  ", w->hit_unmount);
 
-	printf("%s\n", inotifytools_filename_from_watch(w));
-	w = (watch *)rbreadlist(rblist);
-    }
-    rbcloselist(rblist);
-    rbdestroy(tree);
+		printf("%s\n", inotifytools_filename_from_watch(w));
+		w = (watch*)rbreadlist(rblist);
+	}
+	rbcloselist(rblist);
+	rbdestroy(tree);
 
-    return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
 
 static bool parse_opts(int* argc,

@@ -66,12 +66,18 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose);
 void inotifytools_cleanup();
 int inotifytools_get_num_watches();
 
-int inotifytools_printf( struct inotify_event* event, const char* fmt );
-int inotifytools_fprintf( FILE* file, struct inotify_event* event, const char* fmt );
-int inotifytools_sprintf( struct nstring * out, struct inotify_event* event, const char* fmt );
-int inotifytools_snprintf( struct nstring * out, int size, struct inotify_event* event,
-                           const char* fmt );
-void inotifytools_set_printf_timefmt( const char * fmt );
+int inotifytools_printf(struct inotify_event* event, const char* fmt);
+int inotifytools_fprintf(FILE* file,
+			 struct inotify_event* event,
+			 const char* fmt);
+int inotifytools_sprintf(struct nstring* out,
+			 struct inotify_event* event,
+			 const char* fmt);
+int inotifytools_snprintf(struct nstring* out,
+			  int size,
+			  struct inotify_event* event,
+			  const char* fmt);
+void inotifytools_set_printf_timefmt(const char* fmt);
 void inotifytools_clear_timefmt();
 
 int inotifytools_get_max_user_watches();

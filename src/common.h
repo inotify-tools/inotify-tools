@@ -31,13 +31,12 @@ int isdir(char const *path);
 struct FileList {
 	char const** watch_files_;
 	char const** exclude_files_;
-        int argc_;
+	int argc_;
 	char** argv_;
 
-        FileList(int argc, char** argv);
+	FileList(int argc, char** argv);
 	~FileList();
 };
-
 
 void construct_path_list(int argc,
 			 char** argv,
