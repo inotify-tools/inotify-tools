@@ -65,6 +65,7 @@ fi
 if command -v apt; then
   $pre apt update || true
   $pre apt install -y gcc-arm-linux-gnueabihf || true
+  $pre apt install -y g++-arm-linux-gnueabihf || true
   $pre apt install -y clang || true
   $pre apt install -y gcc || true
   $pre apt install -y g++ || true
