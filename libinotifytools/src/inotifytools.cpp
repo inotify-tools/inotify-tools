@@ -1610,7 +1610,7 @@ more_events:
 					// "." name in fid hash, but keep it for
 					// debug print.
 					if (name_len &&
-					    (!*name || name[0] == '.')) {
+					    (!*name || (name[0] == '.' && name[1] == NULL))) {
 						info->hdr.len -= name_len;
 						name_len = 0;
 					}
