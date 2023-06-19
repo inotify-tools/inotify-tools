@@ -57,8 +57,8 @@ struct fanotify_event_fid;
 #endif
 
 struct fanotify_event_fid {
-	struct file_handle handle;
 	struct fanotify_event_info_fid info;
+	struct file_handle handle;
 };
 
 #endif
