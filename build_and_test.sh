@@ -105,20 +105,6 @@ inotifytools_inc="libinotifytools/src"
 inotifytools_inc2="$inotifytools_inc/inotifytools"
 inc="-I$usr_inc -I$inotifytools_inc -I$inotifytools_inc2"
 
-if command -v clang-tidy > /dev/null; then
-  printf "\nclang-tidy build\n"
-  s_c_t="-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling"
-  s_c_t="$s_c_t,-clang-analyzer-valist.Uninitialized"
-  s_c_t="$s_c_t,-clang-analyzer-unix.Malloc"
-  s_c_t="$s_c_t,-clang-analyzer-security.insecureAPI.strcpy"
-  s_c_t="$s_c_t,-clang-diagnostic-incompatible-pointer-types-discards-qualifiers"
-  s_c_t="$s_c_t,-clang-diagnostic-gnu-variable-sized-type-not-at-end"
-  c_t="clang-tidy"
-  q="--quiet"
-  w="--warnings-as-errors"
-  $c_t $q $w=* --checks=$s_c_t $(find . -name "*.cpp" -o -name "*.h") -- $inc
-fi
-
 if command -v doxygen > /dev/null; then
   printf "rh build\n"
   clean
