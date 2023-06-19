@@ -205,7 +205,7 @@ void tst_inotifytools_snprintf() {
         memset(test_event, 0, sizeof(struct inotify_event));                   \
         test_event->wd = inotifytools_wd_from_filename(TEST_DIR "/");          \
         verify(test_event->wd >= 0);                                           \
-        inotifytools_clear_timefmt();                                    \
+        inotifytools_set_printf_timefmt(0);                                    \
     } while (0)
 
     struct nstring out;

@@ -2260,10 +2260,6 @@ void inotifytools_clear_timefmt() {
         timefmt.clear();
 }
 
-void inotifytools_clear_timefmt() {
-        timefmt.clear();
-}
-
 /**
  * Get the event queue size.
  *
