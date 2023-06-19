@@ -43,6 +43,16 @@ build() {
   unset LDFLAGS
 }
 
+set_gcc() {
+  export CC=gcc
+  export CXX=g++
+}
+
+set_clang() {
+  export CC=clang
+  export CXX=clang++
+}
+
 arg1="$1"
 
 os=$(uname -o | sed "s#GNU/##g" | tr '[:upper:]' '[:lower:]')
@@ -96,7 +106,7 @@ fi
 
 printf "gcc build\n"
 clean
-export CC="gcc"
+set_gcc
 build
 tests
 
@@ -108,21 +118,21 @@ inc="-I$usr_inc -I$inotifytools_inc -I$inotifytools_inc2"
 if command -v doxygen > /dev/null; then
   printf "rh build\n"
   clean
-  export CC="gcc"
+  set_gcc
   ./rh_build.sh
   tests
 fi
 
 printf "gcc static build\n"
 clean
-export CC="gcc"
+set_gcc
 build --enable-static --disable-shared
 tests
 
 if [ "$os" != "freebsd" ] && ldconfig -p | grep -q libasan; then
   printf "\ngcc address sanitizer build\n"
   clean
-  export CC="gcc"
+  set_gcc
   export CFLAGS="-fsanitize=address -O0 -ggdb"
   export LDFLAGS="-fsanitize=address -O0 -ggdb"
   build
@@ -133,6 +143,7 @@ if command -v arm-linux-gnueabihf-gcc > /dev/null; then
   printf "\ngcc arm32 build\n"
   clean
   export CC="arm-linux-gnueabihf-gcc"
+  export CXX="arm-linux-gnueabihf-g++"
   build --host=arm-linux-gnueabihf
   if [ "$uname_m" == "aarch64" ]; then
     tests
@@ -141,7 +152,7 @@ fi
 
 printf "\nclang build\n"
 clean
-export CC="clang"
+set_clang
 build
 tests
 
@@ -149,7 +160,7 @@ if command -v scan-build > /dev/null; then
   printf "\ngcc scan-build\n"
   clean
 
-  export CC="gcc"
+  set_gcc
   scan-build ./autogen.sh
   scan-build ./configure
   scan_build_args="-disable-checker unix.Malloc"
@@ -164,7 +175,7 @@ if command -v scan-build > /dev/null; then
   printf "\nclang scan-build\n"
   clean
 
-  export CC="clang"
+  set_clang
   scan-build ./autogen.sh
   scan-build ./configure
   scan_build=$(scan-build $scan_build_args make -j$j)
@@ -178,14 +189,15 @@ tests
 
 printf "\nclang static build\n"
 clean
-export CC="clang"
+set_clang
 build --enable-static --disable-shared
 tests
 
 printf "\ngcc coverage build\n"
 clean
-export CC="gcc"
+set_gcc
 export CFLAGS="--coverage"
+export CXXFLAGS="--coverage"
 export LDFLAGS="--coverage"
 build --enable-static --disable-shared
 tests
@@ -217,7 +229,7 @@ if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
   PATH="$HOME/.sonar/build-wrapper-linux-x86:$PATH"
   BUILD_WRAPPER_OUT_DIR="build_wrapper_output_directory"
   clean
-  export CC="gcc"
+  set_gcc
   unset CFLAGS
   unset LDFLAGS
   ./autogen.sh
