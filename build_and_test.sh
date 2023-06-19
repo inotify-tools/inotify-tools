@@ -116,7 +116,7 @@ if command -v clang-tidy > /dev/null; then
   c_t="clang-tidy"
   q="--quiet"
   w="--warnings-as-errors"
-  $c_t $q $w=* --checks=$s_c_t $(find . -name "*.[c|h]") -- $inc
+  $c_t $q $w=* --checks=$s_c_t $(find . -name "*.cpp" -o -name "*.h") -- $inc
 fi
 
 if command -v doxygen > /dev/null; then
