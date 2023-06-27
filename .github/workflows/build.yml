@@ -3,9 +3,9 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  build-1804:
+  build-2004:
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -13,9 +13,9 @@ jobs:
     - name: build_and_test
       run: ./build_and_test_multi.sh clean
 
-  build-2004:
+  build-2204:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
