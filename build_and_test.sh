@@ -207,35 +207,14 @@ tests
 curl -s https://codecov.io/bash | /bin/bash
 
 if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
-  printf "\ncov-build build\n"
-  clean
-
-  file="/tmp/cov-analysis-${os}64.tar.gz"
-  project="inotifytools"
-  token="Dy7fkaSpHHjTg8JMFHKgOw"
-  curl -o "$file" "https://scan.coverity.com/download/${os}64" \
-    --form project="$project" --form token="$token"
-  tar xf "$file"
-  export CC="gcc"
-  ./autogen.sh
-  ./configure
-  cov-analysis-${os}64-*/bin/cov-build --dir cov-int make -j$j
-  tar cfz cov-int.tar.gz cov-int
-  version="$(git rev-parse HEAD)"
-  description="$(git show --no-patch --oneline)"
-  curl --form token="$token" \
-    --form email=ericcurtin17@gmail.com \
-    --form file=@cov-int.tar.gz \
-    --form version="$version" \
-    --form description="$description" \
-    https://scan.coverity.com/builds?project=$project
-
   id=$(grep ^ID= /etc/os-release | sed "s/^ID=//g")
 
   # Don't do sonarcloud on alpine
   if [ "$id" = "alpine" ]; then
     exit 0
   fi
+
+  printf "\nsonar build\n"
 
   # sonarcloud
   export SONAR_TOKEN="0bc5d48614caa711d6b908f80c039464aff99611"
