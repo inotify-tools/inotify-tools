@@ -289,9 +289,15 @@ watch* watch_from_fid(struct fanotify_event_fid* fid) {
  * @internal
  */
 watch *watch_from_filename( char const *filename ) {
-	watch w;
+	watch w, *ret;
 	w.filename = (char*)filename;
-	return (watch*)rbfind(&w, tree_filename);
+	ret = (watch*)rbfind(&w, tree_filename);
+	if (!ret && filename[strlen(filename)-1] != '/') {
+		nasprintf(&w.filename, "%s/", filename);
+		ret = (watch*)rbfind(&w, tree_filename);
+		free(w.filename);
+	}
+	return ret;
 }
 
 /**
