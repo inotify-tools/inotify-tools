@@ -56,8 +56,13 @@ struct fanotify_event_fid;
 #define __kernel_fsid_t fsid_t
 #endif
 
+struct fanotify_event_info_fid_wo_handle {
+	struct fanotify_event_info_header hdr;
+	__kernel_fsid_t fsid;
+};
+
 struct fanotify_event_fid {
-	struct fanotify_event_info_fid info;
+	struct fanotify_event_info_fid_wo_handle info;
 	struct file_handle handle;
 };
 
