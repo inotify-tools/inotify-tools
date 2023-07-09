@@ -40,6 +40,7 @@ build() {
   ./configure --prefix=/usr $@
   make -j$j
   unset CFLAGS
+  unset CXXFLAGS
   unset LDFLAGS
 }
 
@@ -136,6 +137,7 @@ if [ "$os" != "freebsd" ] && ldconfig -p | grep -q libasan; then
   clean
   set_gcc
   export CFLAGS="-fsanitize=address -O0 -ggdb"
+  export CXXFLAGS="-fsanitize=address -O0 -ggdb"
   export LDFLAGS="-fsanitize=address -O0 -ggdb"
   build
   tests
@@ -233,6 +235,7 @@ if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
   clean
   set_gcc
   unset CFLAGS
+  unset CXXFLAGS
   unset LDFLAGS
   ./autogen.sh
   ./configure

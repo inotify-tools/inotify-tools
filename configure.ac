@@ -103,3 +103,8 @@ AC_CONFIG_FILES([
   libinotifytools/src/inotifytools/Makefile
 ])
 AC_OUTPUT
+
+if test -z $CXXFLAGS; then
+    CXXFLAGS='-nodefaultlibs -lc -fno-exceptions'
+fi
+AC_PROG_CXX
