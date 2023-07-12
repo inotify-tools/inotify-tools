@@ -24,6 +24,7 @@ config/
 /libinotifytools/src/inotifytools/inotify.h
 /libinotifytools/src/inotifytools/fanotify.h
 /libinotifytools/src/inotifytools/stamp-h2
+/libinotifytools/src/inotifytools/stamp-h3
 
 /src/inotifywait
 /src/inotifywatch
@@ -37,6 +38,8 @@ config.status
 libtool
 man/inotifywait.1
 man/inotifywatch.1
+man/fsnotifywait.1
+man/fsnotifywatch.1
 stamp-h1
 README
 
