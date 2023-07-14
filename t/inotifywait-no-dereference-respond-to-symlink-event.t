@@ -18,7 +18,8 @@ test_expect_success 'Exit code 0 is returned' '
     run_ inotifywait
 '
 
-if fanotify_supported; then
+# FIXME: Why is the root required?
+if fanotify_supported && [ $(id -u) -eq 0 ]; then
     test_expect_success 'Exit code 0 is returned' '
         run_ fsnotifywait --fanotify
     '
