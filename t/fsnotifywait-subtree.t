@@ -42,6 +42,7 @@ if fanotify_supported; then
 fi
 
 if fanotify_supported --filesystem; then
+    echo >&2 "xxxxxxxxxxxxxxxxxxxxxxxxxx $(id)"
     test_expect_success 'event logged' '
         test_when_finished "umount -l root" &&
         mount_filesystem ext2 10M root &&
