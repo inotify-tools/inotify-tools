@@ -3,7 +3,7 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  ubuntu-20.04-multi:
+  ubuntu-2004-multi:
 
     runs-on: ubuntu-20.04
     env:
