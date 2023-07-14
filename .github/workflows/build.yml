@@ -3,6 +3,28 @@ name: build
 on: [push, pull_request]
 
 jobs:
+  # Some (fanotify) test cannot yet run containerized (*-multi):
+  # https://github.com/inotify-tools/inotify-tools/pull/183
+  ubuntu-latest:
+
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v1
+    - name: build_and_test
+      run: ./build_and_test.sh clean
+
+  fedora-latest:
+
+    runs-on: fedora-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v1
+    - name: build_and_test
+      run: ./build_and_test.sh clean
+
   ubuntu-2004-multi:
 
     runs-on: ubuntu-20.04
