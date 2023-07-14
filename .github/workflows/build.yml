@@ -3,14 +3,14 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  ubuntu-2004:
+  ubuntu-20.04-multi:
 
     runs-on: ubuntu-20.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v1
-    - name: build_and_test
+    - name: build_and_test_multi
       run: ./build_and_test_multi.sh clean
 
   ubuntu-latest-multi:
@@ -20,6 +20,6 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v1
-    - name: build_and_test
+    - name: build_and_test_multi
       run: ./build_and_test_multi.sh clean
 
