@@ -16,39 +16,25 @@
 #define MAXLEN 4096
 #define LIST_CHUNK 1024
 
-static void resize_if_necessary(const int count, int* len, const char*** ptr) {
-	if (count >= *len - 1) {
-		*len += LIST_CHUNK;
-		*ptr = (const char**)realloc(*ptr, sizeof(char*) * *len);
-	}
-}
-
 void print_event_descriptions() {
-	printf("\taccess\t\tfile or directory contents were read\n");
-	printf("\tmodify\t\tfile or directory contents were written\n");
-	printf("\tattrib\t\tfile or directory attributes changed\n");
 	printf(
+	    "\taccess\t\tfile or directory contents were read\n"
+	    "\tmodify\t\tfile or directory contents were written\n"
+	    "\tattrib\t\tfile or directory attributes changed\n"
 	    "\tclose_write\tfile or directory closed, after being opened in\n"
-	    "\t           \twritable mode\n");
-	printf(
+	    "\t           \twritable mode\n"
 	    "\tclose_nowrite\tfile or directory closed, after being opened in\n"
-	    "\t           \tread-only mode\n");
-	printf(
+	    "\t           \tread-only mode\n"
 	    "\tclose\t\tfile or directory closed, regardless of read/write "
-	    "mode\n");
-	printf("\topen\t\tfile or directory opened\n");
-	printf("\tmoved_to\tfile or directory moved to watched directory\n");
-	printf(
-	    "\tmoved_from\tfile or directory moved from watched directory\n");
-	printf(
-	    "\tmove\t\tfile or directory moved to or from watched directory\n");
-	printf("\tmove_self\t\tA watched file or directory was moved.\n");
-	printf(
-	    "\tcreate\t\tfile or directory created within watched directory\n");
-	printf(
-	    "\tdelete\t\tfile or directory deleted within watched directory\n");
-	printf("\tdelete_self\tfile or directory was deleted\n");
-	printf(
+	    "mode\n"
+	    "\topen\t\tfile or directory opened\n"
+	    "\tmoved_to\tfile or directory moved to watched directory\n"
+	    "\tmoved_from\tfile or directory moved from watched directory\n"
+	    "\tmove\t\tfile or directory moved to or from watched directory\n"
+	    "\tmove_self\t\tA watched file or directory was moved.\n"
+	    "\tcreate\t\tfile or directory created within watched directory\n"
+	    "\tdelete\t\tfile or directory deleted within watched directory\n"
+	    "\tdelete_self\tfile or directory was deleted\n"
 	    "\tunmount\t\tfile system containing file or directory "
 	    "unmounted\n");
 }
@@ -71,38 +57,40 @@ FileList::FileList(int argc, char** argv)
     : watch_files_(0), exclude_files_(0), argc_(argc), argv_(argv) {}
 
 FileList::~FileList() {
-	char* start_of_stack = argv_[0];
-	char* end_of_stack = argv_[argc_ - 1];
-	for (int i = 0; argv_[i]; ++i) {
-		if (argv_[i] < start_of_stack) {
-			start_of_stack = argv_[i];
-		} else if (argv_[i] > end_of_stack) {
-			end_of_stack = argv_[i];
-		}
-	}
-
-	while (*end_of_stack) {
-		++end_of_stack;
-	}
-
 	for (int i = 0; watch_files_[i]; ++i) {
-		if (watch_files_[i] < start_of_stack ||
-		    watch_files_[i] > end_of_stack) {
-			free((void*)watch_files_[i]);
-		}
+		free((void*)watch_files_[i]);
 	}
 
 	free(watch_files_);
 
 	for (int i = 0; exclude_files_[i]; ++i) {
-		if (exclude_files_[i] < start_of_stack ||
-		    exclude_files_[i] > end_of_stack) {
-			free((void*)exclude_files_[i]);
-		}
+		free((void*)exclude_files_[i]);
 	}
 
 	free(exclude_files_);
 }
+
+struct file {
+	FILE* file_ = nullptr;
+	bool is_stdin = false;
+
+	FILE* open(const char* filename) {
+		file_ = fopen(filename, "r");
+		return file_;
+	}
+
+	FILE* get() {
+		if (is_stdin)
+			return stdin;
+
+		return file_;
+	}
+
+	~file() {
+		if (file_)
+			fclose(file_);
+	}
+};
 
 void construct_path_list(int argc,
 			 char** argv,
@@ -110,18 +98,16 @@ void construct_path_list(int argc,
 			 FileList* list) {
 	list->watch_files_ = 0;
 	list->exclude_files_ = 0;
-	FILE* file = 0;
+	file file;
 
 	if (filename) {
-		if (!strcmp(filename, "-")) {
-			file = stdin;
-		} else {
-			file = fopen(filename, "r");
-			if (!file) {
-				fprintf(stderr, "Couldn't open %s: %s\n",
-					filename, strerror(errno));
-			}
-		}
+		if (filename[0] == '-' && !filename[1])
+			file.is_stdin = true;
+		else if (!file.open(filename)) {
+			fprintf(stderr, "Couldn't open %s: %s\n", filename,
+				strerror(errno));
+                        return;
+                }
 	}
 
 	int watch_len = LIST_CHUNK;
@@ -129,45 +115,43 @@ void construct_path_list(int argc,
 	int watch_count = 0;
 	int exclude_count = 0;
 	list->watch_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	if (!list->watch_files_)
+		return;
+
 	list->exclude_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	if (!list->exclude_files_)
+		return;
 
 	char name[MAXLEN];
-	while (file && fgets(name, MAXLEN, file)) {
-		if (name[strlen(name) - 1] == '\n')
-			name[strlen(name) - 1] = 0;
-		if (strlen(name) == 0)
+	while (file.get() && fgets(name, MAXLEN, file.get())) {
+		const size_t str_len = strlen(name);
+		if (name[str_len - 1] == '\n')
+			name[str_len - 1] = 0;
+
+		if (!str_len || ('@' == name[0] && str_len == 1))
 			continue;
-		if ('@' == name[0] && strlen(name) == 1)
-			continue;
+
 		if ('@' == name[0]) {
-			resize_if_necessary(exclude_count, &exclude_len,
-					    &list->exclude_files_);
 			list->exclude_files_[exclude_count++] =
 			    strdup(&name[1]);
-		} else {
-			resize_if_necessary(watch_count, &watch_len,
-					    &list->watch_files_);
-			list->watch_files_[watch_count++] = strdup(name);
+			continue;
 		}
+
+		list->watch_files_[watch_count++] = strdup(name);
 	}
 
-	if (file && file != stdin)
-		fclose(file);
-
 	for (int i = 0; i < argc; ++i) {
-		if (strlen(argv[i]) == 0)
+		const size_t str_len = strlen(argv[i]);
+		if (!str_len || ('@' == argv[i][0] && str_len == 1))
 			continue;
-		if ('@' == argv[i][0] && strlen(argv[i]) == 1)
-			continue;
+
 		if ('@' == argv[i][0]) {
-			resize_if_necessary(exclude_count, &exclude_len,
-					    &list->exclude_files_);
-			list->exclude_files_[exclude_count++] = &argv[i][1];
-		} else {
-			resize_if_necessary(watch_count, &watch_len,
-					    &list->watch_files_);
-			list->watch_files_[watch_count++] = argv[i];
+			list->exclude_files_[exclude_count++] =
+			    strdup(&argv[i][1]);
+			continue;
 		}
+
+		list->watch_files_[watch_count++] = strdup(argv[i]);
 	}
 
 	list->exclude_files_[exclude_count] = 0;
@@ -209,12 +193,11 @@ bool is_timeout_option_valid(long* timeout, char* o) {
 	errno = 0;
 	*timeout = strtol(o, &timeout_end, 10);
 
-	const int err = errno;
-	if (err != 0) {
+	if (errno) {
 		fprintf(stderr,
 			"Something went wrong with the timeout "
 			"value you provided.\n");
-		fprintf(stderr, "%s\n", strerror(err));
+		fprintf(stderr, "%s\n", strerror(errno));
 		return false;
 	}
 
