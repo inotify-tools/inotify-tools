@@ -30,7 +30,7 @@ extern int optind, opterr, optopt;
 static bool parse_opts(int* argc,
 		       char*** argv,
 		       int* events,
-		       unsigned int* timeout,
+		       long* timeout,
 		       int* verbose,
 		       int* zero,
 		       int* sort,
@@ -81,7 +81,7 @@ int zero;
 
 int main(int argc, char** argv) {
 	events = 0;
-	unsigned int timeout = BLOCKING_TIMEOUT;
+	long timeout = BLOCKING_TIMEOUT;
 	int verbose = 0;
 	zero = 0;
 	int recursive = 0;
@@ -214,8 +214,13 @@ int main(int argc, char** argv) {
 	fprintf(stderr,
 		"Finished establishing watches, now collecting statistics.\n");
 
+	if (timeout < 0) {
+		// Used to test filesystem support for inotify/fanotify
+		fprintf(stderr, "Negative timeout specified - abort!\n");
+		return EXIT_FAILURE;
+	}
 	if (timeout && verbose) {
-		fprintf(stderr, "Will listen for events for %u seconds.\n",
+		fprintf(stderr, "Will listen for events for %lu seconds.\n",
 			timeout);
 	}
 
@@ -427,7 +432,7 @@ int print_info() {
 static bool parse_opts(int* argc,
 		       char*** argv,
 		       int* e,
-		       unsigned int* timeout,
+		       long* timeout,
 		       int* verbose,
 		       int* z,
 		       int* s,

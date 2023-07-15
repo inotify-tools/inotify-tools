@@ -197,7 +197,7 @@ void warn_inotify_init_error(int fanotify) {
 	}
 }
 
-bool is_timeout_option_valid(unsigned int* timeout, char* o) {
+bool is_timeout_option_valid(long* timeout, char* o) {
 	if ((o == NULL) || (*o == '\0')) {
 		fprintf(stderr,
 			"The provided value is not a valid timeout value.\n"

@@ -36,7 +36,7 @@ static bool parse_opts(int* argc,
 		       int* events,
 		       bool* monitor,
 		       int* quiet,
-		       unsigned int* timeout,
+		       long* timeout,
 		       int* recursive,
 		       bool* csv,
 		       bool* daemon,
@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
 	int orig_events;
 	bool monitor = false;
 	int quiet = 0;
-	unsigned int timeout = BLOCKING_TIMEOUT;
+	long timeout = BLOCKING_TIMEOUT;
 	int recursive = 0;
 	int fanotify = DEFAULT_FANOTIFY_MODE;
 	bool filesystem = false;
@@ -372,6 +372,11 @@ int main(int argc, char** argv) {
 	if (!quiet) {
 		output_error(sysl, "Watches established.\n");
 	}
+	if (timeout < 0) {
+		// Used to test filesystem support for inotify/fanotify
+		fprintf(stderr, "Negative timeout specified - abort!\n");
+		return EXIT_FAILURE;
+	}
 
 	// Now wait till we get event
 	struct inotify_event* event;
@@ -478,7 +483,7 @@ static bool parse_opts(int* argc,
 		       int* events,
 		       bool* monitor,
 		       int* quiet,
-		       unsigned int* timeout,
+		       long* timeout,
 		       int* recursive,
 		       bool* csv,
 		       bool* daemon,
