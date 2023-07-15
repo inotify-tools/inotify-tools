@@ -3,7 +3,7 @@
 # Check for kernel support and privileges
 fanotify_supported() {
     if [ -z "$(grep 'kthreadd' /proc/2/status 2>/dev/null)" ]; then
-        # FIXME: fanotify is broken in containers
+        # FIXME: fanotify does not work on overlayfs.
         # https://stackoverflow.com/a/72136877/2995591
         # https://github.com/inotify-tools/inotify-tools/pull/183
         false
