@@ -83,6 +83,9 @@ if command -v apt; then
 elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
     clang-extra-tools lld linux-headers curl git zip gcompat
+elif command -v dnf; then
+  $pre dnf distro-sync -y
+  $pre dnf install -y gcc-c++ autoconf automake doxygen make libtool clang curl git unzip
 fi
 
 #!/bin/bash

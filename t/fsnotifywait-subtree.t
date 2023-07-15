@@ -41,7 +41,9 @@ if fanotify_supported; then
     '
 fi
 
-if fanotify_supported --filesystem; then
+# root requirement:
+# https://github.com/inotify-tools/inotify-tools/pull/183#issuecomment-1635518850
+if fanotify_supported --filesystem && [ $(id -u) -eq 0 ]; then
     test_expect_success 'event logged' '
         test_when_finished "umount -l root" &&
         mount_filesystem ext2 10M root &&

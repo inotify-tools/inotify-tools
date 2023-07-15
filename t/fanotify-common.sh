@@ -2,7 +2,14 @@
 
 # Check for kernel support and privileges
 fanotify_supported() {
-    ../../src/fsnotifywait --fanotify $* 2>&1 | grep -q 'No files specified'
+    if [ -z "$(grep 'kthreadd' /proc/2/status 2>/dev/null)" ]; then
+        # FIXME: fanotify does not work on overlayfs.
+        # https://stackoverflow.com/a/72136877/2995591
+        # https://github.com/inotify-tools/inotify-tools/pull/183
+        false
+    else
+        ../../src/fsnotifywait --fanotify $* 2>&1 | grep -q 'No files specified'
+    fi
 }
 
 # Create and mount a test filesystem

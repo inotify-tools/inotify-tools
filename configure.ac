@@ -72,9 +72,16 @@ AC_COMPILE_IFELSE(
 
 AC_ARG_ENABLE(fanotify,
     AS_HELP_STRING([--enable-fanotify],[enable fanotify support]),
-    ENABLE_FANOTIFY=$enableval, DOXYGEN_ENABLE="$DEFAULT_FANOTIFY"
+    ENABLE_FANOTIFY=$enableval, ENABLE_FANOTIFY="$DEFAULT_FANOTIFY"
 )
 AM_CONDITIONAL([ENABLE_FANOTIFY], test "$ENABLE_FANOTIFY" = "yes")
+AC_MSG_CHECKING([whether to build fanotify support])
+if test "$ENABLE_FANOTIFY" = "yes"; then
+    AC_MSG_RESULT(yes)
+    # -DENABLE_FANOTIFY is done in src/Makefile.am
+else
+    AC_MSG_RESULT(no)
+fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
