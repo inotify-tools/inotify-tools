@@ -15,15 +15,16 @@ jobs:
     - name: build_and_test
       run: ./build_and_test.sh clean
 
-  fedora-latest:
-
-    runs-on: fedora-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-    - uses: actions/checkout@v1
-    - name: build_and_test
-      run: ./build_and_test.sh clean
+  # It gets stuck forever with: Queued — Waiting to run this check...
+  #fedora-latest:
+  #
+  #  runs-on: fedora-latest
+  #  env:
+  #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #  steps:
+  #  - uses: actions/checkout@v1
+  #  - name: build_and_test
+  #    run: ./build_and_test.sh clean
 
   ubuntu-2004-multi:
 
