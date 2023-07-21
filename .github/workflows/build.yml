@@ -3,29 +3,6 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  # Some (fanotify) test cannot yet run containerized (*-multi):
-  # https://github.com/inotify-tools/inotify-tools/pull/183
-  ubuntu-latest:
-
-    runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-    - uses: actions/checkout@v1
-    - name: build_and_test
-      run: ./build_and_test.sh clean
-
-  # It gets stuck forever with: Queued — Waiting to run this check...
-  #fedora-latest:
-  #
-  #  runs-on: fedora-latest
-  #  env:
-  #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #  steps:
-  #  - uses: actions/checkout@v1
-  #  - name: build_and_test
-  #    run: ./build_and_test.sh clean
-
   ubuntu-2004-multi:
 
     runs-on: ubuntu-20.04
@@ -36,13 +13,25 @@ jobs:
     - name: build_and_test_multi
       run: ./build_and_test_multi.sh clean
 
-  ubuntu-latest-multi:
+  ubuntu-2204-multi:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - uses: actions/checkout@v1
     - name: build_and_test_multi
       run: ./build_and_test_multi.sh clean
+
+  # Some (fanotify) test cannot yet run containerized (*-multi):
+  # https://github.com/inotify-tools/inotify-tools/pull/183
+  ubuntu-22.04:
+
+    runs-on: ubuntu-22.04
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v1
+    - name: build_and_test
+      run: ./build_and_test.sh clean
 
