@@ -13,6 +13,8 @@ jobs:
     - name: build_and_test_multi
       run: ./build_and_test_multi.sh clean
 
+  # Some (fanotify) test cannot yet run containerized (*-multi):
+  # https://github.com/inotify-tools/inotify-tools/pull/183
   ubuntu-2204-multi:
 
     runs-on: ubuntu-22.04
@@ -21,17 +23,5 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: build_and_test_multi
-      run: ./build_and_test_multi.sh clean
-
-  # Some (fanotify) test cannot yet run containerized (*-multi):
-  # https://github.com/inotify-tools/inotify-tools/pull/183
-  ubuntu-22.04:
-
-    runs-on: ubuntu-22.04
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-    - uses: actions/checkout@v1
-    - name: build_and_test
-      run: ./build_and_test.sh clean
+      run: ./build_and_test.sh clean && ./build_and_test_multi.sh clean
 

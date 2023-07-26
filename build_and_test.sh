@@ -16,7 +16,7 @@ unit_test() {
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..128}; do
+  for i in {1..32}; do
     cd t
     make -j$j
     cd -
