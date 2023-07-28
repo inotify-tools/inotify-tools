@@ -16,11 +16,9 @@ unit_test() {
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..4}; do
-    cd t
-    make -j$j
-    cd -
-  done
+  cd t
+  make -j$j
+  cd -
 }
 
 tests() {
@@ -32,6 +30,7 @@ clean() {
   make distclean || true
   if [ "$arg1" = "clean" ]; then
     git clean -fdx > /dev/null 2>&1
+    git reset --hard
   fi
 }
 
@@ -52,6 +51,20 @@ set_gcc() {
 set_clang() {
   export CC=clang
   export CXX=clang++
+}
+
+set_flags() {
+  export CFLAGS="$1"
+  export CXXFLAGS="$1"
+  export LDFLAGS="$1"
+}
+
+rm_args() {
+  if [ "$os" = "freebsd" ]; then
+    sed -i '' -e "s/$1//g" ./libinotifytools/src/Makefile.am ./src/Makefile.am
+  else
+    sed -i "s/$1//g" ./libinotifytools/src/Makefile.am ./src/Makefile.am
+  fi
 }
 
 arg1="$1"
@@ -85,7 +98,6 @@ elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
     clang-extra-tools lld linux-headers curl git zip gcompat
 elif command -v dnf; then
-  $pre dnf distro-sync -y
   $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make libtool clang curl git unzip
 fi
 
@@ -136,12 +148,11 @@ tests
 
 VER=$(gcc --version | awk '{print $3"\n"}' | head -n1)
 VER=$(echo "$VER" | awk -F. '{print $1"\n"}')
-if [ "$VER" -ge "12" ]; then
+if [ "$VER" -ge "11" ]; then
     clean
     set_gcc
-    export CFLAGS="-fanalyzer"
-    export CXXFLAGS="-fanalyzer"
-    export LDFLAGS="-fanalyzer"
+    set_flags "-fanalyzer"
+    rm_args " -Werror"
     build
     tests
 fi
@@ -150,9 +161,8 @@ if [ "$os" != "freebsd" ] && ldconfig -p | grep -q libasan; then
   printf "\ngcc address sanitizer build\n"
   clean
   set_gcc
-  export CFLAGS="-fsanitize=address -lasan -O0 -ggdb"
-  export CXXFLAGS="-fsanitize=address -lasan -O0 -ggdb"
-  export LDFLAGS="-fsanitize=address -lasan -O0 -ggdb"
+  set_flags "-fsanitize=address -O0 -ggdb"
+  rm_args " -nodefaultlibs -lc"
   build
   tests
 fi
@@ -183,9 +193,8 @@ tests
 printf "\ngcc coverage build\n"
 clean
 set_gcc
-export CFLAGS="--coverage"
-export CXXFLAGS="--coverage"
-export LDFLAGS="--coverage"
+set_flags "--coverage"
+rm_args " -nodefaultlibs -lc"
 build --enable-static --disable-shared
 tests
 

@@ -11,8 +11,14 @@ fsnotifywatch_SOURCES = inotifywatch.cpp common.cpp common.h
 fsnotifywatch_CPPFLAGS = $(AM_CPPFLAGS) -DENABLE_FANOTIFY
 endif
 
-AM_CFLAGS = -Wall -Wextra -Wshadow -Werror -std=c99 -I../libinotifytools/src
-AM_CPPFLAGS = -I$(top_srcdir)/libinotifytools/src
+if IS_CLANG
+AM_CFLAGS = -std=c99 -fno-exceptions -Wall -Wextra -Wshadow -Werror -Wno-unused-command-line-argument -I../libinotifytools/src
+AM_CPPFLAGS = -std=c++17 -fno-exceptions -Wall -Wextra -Wshadow -Werror -Wno-unused-command-line-argument -I../libinotifytools/src
+else
+AM_CFLAGS = -std=c99 -fno-exceptions -Wall -Wextra -Wshadow -Werror -I../libinotifytools/src
+AM_CPPFLAGS = -std=c++17 -fno-exceptions -Wall -Wextra -Wshadow -Werror -I../libinotifytools/src
+endif
+
 LDADD = ../libinotifytools/src/libinotifytools.la
 
 if STATIC_BINARY_ENABLE

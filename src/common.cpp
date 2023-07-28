@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,8 +72,8 @@ FileList::~FileList() {
 }
 
 struct file {
-	FILE* file_ = nullptr;
-	bool is_stdin = false;
+	FILE* file_;
+	bool is_stdin;
 
 	FILE* open(const char* filename) {
 		file_ = fopen(filename, "r");
@@ -85,6 +86,8 @@ struct file {
 
 		return file_;
 	}
+
+	file() : file_(nullptr), is_stdin(false) {}
 
 	~file() {
 		if (file_)
@@ -110,8 +113,6 @@ void construct_path_list(int argc,
                 }
 	}
 
-	int watch_len = LIST_CHUNK;
-	int exclude_len = LIST_CHUNK;
 	int watch_count = 0;
 	int exclude_count = 0;
 	list->watch_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
