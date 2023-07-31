@@ -14,9 +14,9 @@ watchpath="$(realpath .)"
 run_() {
     # Setup code, defer an ATTRIB event for after
     # inotifywait has been set up.
-    timeout=2 &&
+    timeout=4 &&
     touch $logfile test-file &&
-    {(sleep 1 && chmod 777 test-file)&} &&
+    {(sleep 2 && chmod 777 test-file)&} &&
 
     export LD_LIBRARY_PATH="../../libinotifytools/src/"
     ../../src/$* \

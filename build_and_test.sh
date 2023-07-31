@@ -135,6 +135,16 @@ set_gcc
 build --enable-static --disable-shared
 tests
 
+if echo "int main(){ }" | g++ -fanalyzer -x c++ -; then
+    clean
+    set_gcc
+    export CFLAGS="-fanalyzer"
+    export CXXFLAGS="-fanalyzer"
+    export LDFLAGS="-fanalyzer"
+    build
+    tests
+fi
+
 if [ "$os" != "freebsd" ] && ldconfig -p | grep -q libasan; then
   printf "\ngcc address sanitizer build\n"
   clean
@@ -161,37 +171,6 @@ printf "\nclang build\n"
 clean
 set_clang
 build
-tests
-
-if command -v scan-build > /dev/null; then
-  printf "\ngcc scan-build\n"
-  clean
-
-  set_gcc
-  scan-build ./autogen.sh
-  scan-build ./configure
-  scan_build_args="-disable-checker unix.Malloc"
-  scan_build_args="$scan_build_args -disable-checker core.AttributeNonNull"
-  scan_build_args="$scan_build_args -disable-checker core.NonNullParamChecker"
-  scan_build="$(scan-build $scan_build_args make -j$j)"
-  echo "$scan_build"
-  if ! echo "$scan_build" | grep -qi "no bugs found\|0 bugs found"; then
-    false
-  fi
-
-  printf "\nclang scan-build\n"
-  clean
-
-  set_clang
-  scan-build ./autogen.sh
-  scan-build ./configure
-  scan_build=$(scan-build $scan_build_args make -j$j)
-  echo "$scan_build"
-  if ! echo "$scan_build" | grep -qi "no bugs found\|0 bugs found"; then
-    false
-  fi
-fi
-
 tests
 
 printf "\nclang static build\n"

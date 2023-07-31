@@ -54,8 +54,9 @@ void handle_impatient_user(int signal __attribute__((unused))) {
 		fprintf(stderr,
 			"No statistics collected, asked to abort before all "
 			"watches could be established.\n");
-		exit(1);
+		_exit(1);
 	}
+
 	fprintf(stderr,
 		"No statistics have been collected because I haven't "
 		"finished establishing\n"

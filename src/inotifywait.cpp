@@ -223,18 +223,18 @@ int main(int argc, char** argv) {
 
 	// Attempt to watch file
 	// If events is still 0, make it all events.
-	if (events == 0)
+	if (!events)
 		events = IN_ALL_EVENTS;
+
 	orig_events = events;
-	if (monitor && recursive) {
+	if (monitor && recursive)
 		events = events | IN_CREATE | IN_MOVED_TO | IN_MOVED_FROM;
-	}
-	if (no_dereference) {
+
+	if (no_dereference)
 		events = events | IN_DONT_FOLLOW;
-	}
-	if (fanotify) {
+
+	if (fanotify)
 		events |= IN_ISDIR;
-	}
 
 	FileList list(argc, argv);
 	construct_path_list(argc, argv, fromfile, &list);
@@ -651,7 +651,9 @@ static bool parse_opts(int* argc,
 					    (char*)malloc(strlen(optarg) + 2);
 				}
 
-				strcpy(*format, optarg);
+				if (*format)
+					strcpy(*format, optarg);
+
 				break;
 
 			// --no-newline
