@@ -24,13 +24,13 @@ run_() {
     $(realpath ./) &
 
   PID="$!"
-  sleep 1
+  sleep 2
 
   touch test-file-src
 
   mv test-file-src test-file-dst
 
-  sleep 1
+  sleep 2
 
   kill ${PID}
 }

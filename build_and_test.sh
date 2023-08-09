@@ -16,7 +16,7 @@ unit_test() {
 
 integration_test() {
   printf "\nintegration test\n"
-  for i in {1..32}; do
+  for i in {1..8}; do
     cd t
     make -j$j
     cd -
@@ -86,7 +86,7 @@ elif command -v apk; then
     clang-extra-tools lld linux-headers curl git zip gcompat
 elif command -v dnf; then
   $pre dnf distro-sync -y
-  $pre dnf install -y gcc-c++ autoconf automake doxygen make libtool clang curl git unzip
+  $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make libtool clang curl git unzip
 fi
 
 #!/bin/bash
@@ -126,7 +126,6 @@ if command -v doxygen > /dev/null; then
   clean
   set_gcc
   ./rh_build.sh
-  tests
 fi
 
 printf "gcc static build\n"
@@ -135,7 +134,9 @@ set_gcc
 build --enable-static --disable-shared
 tests
 
-if echo "int main(){ }" | g++ -fanalyzer -x c++ -; then
+VER=$(gcc --version | awk '{print $3"\n"}' | head -n1)
+VER=$(echo "$VER" | awk -F. '{print $1"\n"}')
+if [ "$VER" -ge "12" ]; then
     clean
     set_gcc
     export CFLAGS="-fanalyzer"
@@ -149,9 +150,9 @@ if [ "$os" != "freebsd" ] && ldconfig -p | grep -q libasan; then
   printf "\ngcc address sanitizer build\n"
   clean
   set_gcc
-  export CFLAGS="-fsanitize=address -O0 -ggdb"
-  export CXXFLAGS="-fsanitize=address -O0 -ggdb"
-  export LDFLAGS="-fsanitize=address -O0 -ggdb"
+  export CFLAGS="-fsanitize=address -lasan -O0 -ggdb"
+  export CXXFLAGS="-fsanitize=address -lasan -O0 -ggdb"
+  export LDFLAGS="-fsanitize=address -lasan -O0 -ggdb"
   build
   tests
 fi

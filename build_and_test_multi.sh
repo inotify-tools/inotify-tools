@@ -19,13 +19,14 @@ container_run() {
 }
 
 if [ -n "$container" ]; then
-#  container_run "centos:stream9"
+  container_run "centos:stream9"
   container_run "fedora:38"
   container_run "ubuntu:22.04"
   container_run "ubuntu:20.04"
   container_run "ubuntu:18.04"
   container_run "alpine:3.18"
   container_run "alpine:3.17"
+
   exit 0
 fi
 
