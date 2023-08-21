@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([inotify-tools], [3.22.6.0])
+AC_INIT([inotify-tools], [4.23.8.0])
 AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_SRCDIR([src/inotifywait.cpp])
 AC_CONFIG_HEADERS([config.h])
