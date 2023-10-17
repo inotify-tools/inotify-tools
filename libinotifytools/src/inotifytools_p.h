@@ -52,7 +52,7 @@ extern int initialized;
 
 struct fanotify_event_fid;
 
-#define MAX_FID_LEN 20
+#define MAX_FID_LEN 64
 
 typedef struct watch {
 	struct fanotify_event_fid* fid;

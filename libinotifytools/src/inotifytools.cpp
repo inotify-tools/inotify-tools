@@ -66,6 +66,9 @@ struct fanotify_event_fid {
 	struct file_handle handle;
 };
 
+#ifndef AT_HANDLE_FID
+#define AT_HANDLE_FID	AT_REMOVEDIR
+#endif
 #endif
 
 /**
@@ -173,6 +176,7 @@ int initialized = 0;
 int verbosity = 0;
 int fanotify_mode = 0;
 int fanotify_mark_type = 0;
+int at_handle_fid = 0;
 static pid_t self_pid = 0;
 
 struct str {
@@ -355,6 +359,8 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 		fanotify_mode = 1;
 		fanotify_mark_type =
 		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
+		at_handle_fid =
+		    watch_filesystem ? 0 : AT_HANDLE_FID;
 		inotify_fd =
 		    fanotify_init(FAN_REPORT_FID | FAN_REPORT_DFID_NAME, 0);
 #endif
@@ -1378,8 +1384,21 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 			}
 
 			fid->handle.handle_bytes = MAX_FID_LEN;
+name_to_handle:
 			ret = name_to_handle_at(AT_FDCWD, filenames[i],
-						&fid->handle, &mntid, 0);
+						&fid->handle, &mntid,
+						at_handle_fid);
+			/*
+			 * Since kernel v6.6, overlayfs supports encoding file
+			 * handles if using the AT_HANDLE_FID flag, so for non
+			 * --filesystem watch we first try with AT_HANDLE_FID.
+			 * Kernel < v6.5 does not support AT_HANDLE_FID, so fall
+			 * back to encoding regular file handles in that case.
+			*/
+			if (ret && at_handle_fid && errno == EINVAL) {
+				at_handle_fid = 0;
+				goto name_to_handle;
+			}
 			if (ret || fid->handle.handle_bytes > MAX_FID_LEN) {
 				free(fid);
 				fprintf(stderr, "Encode fid failed on %s: %s\n",
