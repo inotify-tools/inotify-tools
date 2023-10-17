@@ -34,8 +34,12 @@ pub const FAN_EVENT_INFO_TYPE_DFID: u8 = 3;
 pub const FID_HDR: usize = 20;
 /// Offset of the `struct file_handle` inside a fid.
 pub const HANDLE_OFF: usize = 12;
-/// Maximum file handle size we encode ourselves.
-pub const MAX_FID_LEN: usize = 20;
+/// Maximum file handle size (`MAX_HANDLE_SZ` in libc).
+pub const MAX_FID_LEN: usize = 128;
+/// `AT_HANDLE_FID` (same value as `AT_REMOVEDIR`). Glibc headers on older
+/// systems do not define it. Overlayfs can encode a file handle with this
+/// flag since Linux 6.6, which is enough for an inode watch.
+pub const AT_HANDLE_FID: i32 = 0x200;
 /// `sizeof(struct fanotify_event_metadata)`
 pub const META_LEN: usize = 24;
 

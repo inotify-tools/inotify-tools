@@ -63,9 +63,27 @@ mount_tmpfs_for_fanotify() {
     return 1
 }
 
+# Create an overlayfs mount
+mount_overlayfs() {
+    base_dir=$1
+    work_dir=${base_dir}_work
+    upper_dir=${base_dir}_upper
+    overlay_dir=${base_dir}_overlay
+
+    mkdir -p $base_dir $work_dir $upper_dir $overlay_dir && \
+        mount -t overlay overlay \
+        -o lowerdir=$base_dir,upperdir=$upper_dir,workdir=$work_dir \
+        $overlay_dir
+}
+
 # Test if we're running as root
 is_root() {
     [ $(id -u) -eq 0 ]
+}
+
+# Test if overlayfs is supported
+overlayfs_supported() {
+    grep -q overlay /proc/filesystems 2>/dev/null
 }
 
 # Clean up filesystem mounts

@@ -215,6 +215,9 @@ pub struct Inotifytools {
     verbosity: c_int,
     fanotify_mode: bool,
     fanotify_mark_type: u32,
+    /// `AT_HANDLE_FID` for an inode watch when the kernel supports it, otherwise 0.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    at_handle_fid: c_int,
     self_pid: pid_t,
 
     watches: HashMap<u64, Box<Watch>>,
@@ -269,6 +272,7 @@ impl Inotifytools {
             verbosity: 0,
             fanotify_mode: false,
             fanotify_mark_type: 0,
+            at_handle_fid: 0,
             self_pid: 0,
             watches: HashMap::new(),
             next_id: 1,
@@ -312,6 +316,13 @@ impl Inotifytools {
                 self.fanotify_mode = true;
                 self.fanotify_mark_type =
                     if watch_filesystem { fid::FAN_MARK_FILESYSTEM } else { fid::FAN_MARK_INODE };
+                // Inode watches only need identity, which overlayfs can encode
+                // with AT_HANDLE_FID. Assume the flag works until a call rejects it.
+                self.at_handle_fid = if self.fanotify_mark_type == fid::FAN_MARK_INODE {
+                    fid::AT_HANDLE_FID
+                } else {
+                    0
+                };
                 self.fd = libc::fanotify_init(fid::FAN_REPORT_FID | fid::FAN_REPORT_DFID_NAME, 0);
             }
             #[cfg(not(target_os = "linux"))]
@@ -767,6 +778,37 @@ impl Inotifytools {
         true
     }
 
+    /// Encode `path` with `name_to_handle_at`, setting `self.error` on
+    /// failure. On return `handle[0]` is the handle length, or the required
+    /// size when the buffer was too small.
+    #[cfg(target_os = "linux")]
+    fn name_to_handle(&mut self, path: &CStr, handle: &mut [u32], mount_id: &mut c_int) -> c_int {
+        let flags = self.at_handle_fid;
+        let mut encode_fid = |flags| {
+            handle[0] = fid::MAX_FID_LEN as u32;
+            unsafe {
+                sys::name_to_handle_at(
+                    libc::AT_FDCWD,
+                    path.as_ptr(),
+                    handle.as_mut_ptr().cast(),
+                    mount_id,
+                    flags,
+                )
+            }
+        };
+        let mut ret = encode_fid(flags);
+        // Kernels before v6.6 reject AT_HANDLE_FID with EINVAL. Drop the
+        // flag for the rest of this session and encode a regular handle.
+        if ret != 0 && flags != 0 && errno() == EINVAL {
+            self.at_handle_fid = 0;
+            ret = encode_fid(0);
+        }
+        if ret != 0 {
+            self.error = errno();
+        }
+        ret
+    }
+
     /// Build the fid identifying a newly marked file (and register the
     /// filesystem's mount fd).  Returns (fid, directory O_PATH fd).
     #[cfg(target_os = "linux")]
@@ -776,7 +818,7 @@ impl Inotifytools {
         dirname: Option<&[u8]>,
     ) -> Option<(Vec<u8>, c_int)> {
         let fname = cpath.to_bytes();
-        let mut f = vec![0u8; fid::FID_HDR + fid::MAX_FID_LEN];
+        let mut f = vec![0u8; fid::FID_HDR];
 
         let mut buf: libc::statfs = unsafe { mem::zeroed() };
         if unsafe { libc::statfs(cpath.as_ptr(), &mut buf) } != 0 {
@@ -803,22 +845,14 @@ impl Inotifytools {
         }
 
         let mut handle = [0u32; (8 + fid::MAX_FID_LEN) / 4];
-        handle[0] = fid::MAX_FID_LEN as u32;
         let mut mount_id: c_int = 0;
-        let ret = unsafe {
-            sys::name_to_handle_at(
-                libc::AT_FDCWD,
-                cpath.as_ptr(),
-                handle.as_mut_ptr().cast(),
-                &mut mount_id,
-                0,
-            )
-        };
+        let ret = self.name_to_handle(cpath, &mut handle, &mut mount_id);
         let hb = handle[0] as usize;
         if ret != 0 || hb > fid::MAX_FID_LEN {
             ceprint!("Encode fid failed on ", fname, ": ", strerror(errno()), "\n");
             return None;
         }
+        f.resize(fid::FID_HDR + hb, 0);
         let hbytes: &[u8] =
             unsafe { std::slice::from_raw_parts(handle.as_ptr().cast::<u8>(), 8 + hb) };
         f[fid::HANDLE_OFF..fid::HANDLE_OFF + 8 + hb].copy_from_slice(hbytes);
