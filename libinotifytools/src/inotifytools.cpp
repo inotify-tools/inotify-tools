@@ -69,6 +69,14 @@ struct fanotify_event_fid {
 #ifndef AT_HANDLE_FID
 #define AT_HANDLE_FID	AT_REMOVEDIR
 #endif
+
+// from include/uapi/linux/magic.h
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
+
+// from include/linux/exportfs.h
+#define FILEID_BTRFS_WITHOUT_PARENT 0x4d
 #endif
 
 /**
@@ -1347,6 +1355,11 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 			memcpy(&fid->info.fsid, &buf.f_fsid,
 			       sizeof(__kernel_fsid_t));
 
+			// For btrfs sb watch, hash only by fsid.val[0],
+			// because fsid.val[1] is different per sub-volume
+			if (buf.f_type == BTRFS_SUPER_MAGIC)
+				fid->info.fsid.val[1] = 0;
+
 			// Hash mount_fd with fid->fsid (and null fhandle)
 			int ret, mntid;
 			watch* mnt = dirname ? watch_from_fid(fid) : NULL;
@@ -1673,6 +1686,11 @@ more_events:
 			    bytes, first_byte, this_bytes, meta->event_len,
 			    fid_len, name_len, name);
 		}
+
+		// For btrfs sb watch, hash only by fsid.val[0],
+		// because fsid.val[1] is different on sub-volumes
+		if (fid->handle.handle_type == FILEID_BTRFS_WITHOUT_PARENT)
+			fid->info.fsid.val[1] = 0;
 
 		ret = &event[MAX_EVENTS];
 		watch* w = watch_from_fid(fid);
