@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include <inotifytools/inotify.h>
 #include <inotifytools/inotifytools.h>
@@ -44,7 +45,7 @@ static bool parse_opts(int* argc,
 		       int* fanotify,
 		       bool* filesystem);
 
-void print_help();
+void print_help(const char *tool_name);
 
 static bool done;
 
@@ -86,7 +87,7 @@ int main(int argc, char** argv) {
 	int verbose = 0;
 	zero = 0;
 	int recursive = 0;
-	int fanotify = DEFAULT_FANOTIFY_MODE;
+	int fanotify = 0;
 	bool filesystem = false;
 	int no_dereference = 0;
 	char* fromfile = 0;
@@ -97,6 +98,11 @@ int main(int argc, char** argv) {
 	char* inc_regex = NULL;
 	char* inc_iregex = NULL;
 	int rc;
+
+	if ((argc > 0) && (strncmp(basename(argv[0]), "fsnotify", 8) == 0)) {
+		// Default to fanotify for the fsnotify* tools.
+		fanotify = 1;
+	}
 
 	signal(SIGINT, handle_impatient_user);
 
@@ -500,7 +506,9 @@ static bool parse_opts(int* argc,
 		switch (curr_opt) {
 			// --help or -h
 			case 'h':
-				print_help();
+				print_help(((*argc) > 0)
+					   ? basename((*argv)[0])
+					   : "<executable>");
 				// Shouldn't process any further...
 				return false;
 
@@ -514,7 +522,6 @@ static bool parse_opts(int* argc,
 				++(*recursive);
 				break;
 
-#ifdef ENABLE_FANOTIFY
 			// --inotify or -I
 			case 'I':
 				(*fanotify) = 0;
@@ -530,7 +537,6 @@ static bool parse_opts(int* argc,
 				(*filesystem) = true;
 				(*fanotify) = 1;
 				break;
-#endif
 
 			case 'P':
 				++(*no_dereference);
@@ -714,12 +720,10 @@ static bool parse_opts(int* argc,
 	return (curr_opt != '?');
 }
 
-#define TOOL_NAME TOOLS_PREFIX "watch"
-
-void print_help() {
-	printf("%s %s\n", TOOL_NAME, PACKAGE_VERSION);
-	printf("Gather filesystem usage statistics using %s.\n", TOOL_NAME);
-	printf("Usage: %s [ options ] file1 [ file2 ] [ ... ]\n", TOOL_NAME);
+void print_help(const char *tool_name) {
+	printf("%s %s\n", tool_name, PACKAGE_VERSION);
+	printf("Gather filesystem usage statistics using %s.\n", tool_name);
+	printf("Usage: %s [ options ] file1 [ file2 ] [ ... ]\n", tool_name);
 	printf("Options:\n");
 	printf("\t-h|--help    \tShow this help text.\n");
 	printf("\t-v|--verbose \tBe verbose.\n");
@@ -750,11 +754,9 @@ void print_help() {
 	    "\t\tif they consist only of zeros (the default is to not output\n"
 	    "\t\tthese rows and columns).\n");
 	printf("\t-r|--recursive\tWatch directories recursively.\n");
-#ifdef ENABLE_FANOTIFY
 	printf("\t-I|--inotify\tWatch with inotify.\n");
 	printf("\t-F|--fanotify\tWatch with fanotify.\n");
 	printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
-#endif
 	printf(
 	    "\t-P|--no-dereference\n"
 	    "\t\tDo not follow symlinks.\n");
@@ -763,7 +765,7 @@ void print_help() {
 	    "\t\tListen only for specified amount of time in seconds; if\n"
 	    "\t\tomitted or zero, %s will execute until receiving an\n"
 	    "\t\tinterrupt signal.\n",
-	    TOOL_NAME);
+	    tool_name);
 	printf(
 	    "\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
 	    "\t\tListen for specific event(s).  If omitted, all events are \n"
