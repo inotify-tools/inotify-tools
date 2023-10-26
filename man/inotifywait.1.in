@@ -5,7 +5,7 @@ inotifywait, fsnotifywait \- wait for changes to files using inotify or fanotify
 
 .SH SYNOPSIS
 .B inotifywait
-.RB [ \-hcmrPq ]
+.RB [ \-hcmrPqIFS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -33,9 +33,9 @@ inotifywait, fsnotifywait \- wait for changes to files using inotify or fanotify
 .B inotifywait
 efficiently waits for changes to files using Linux's
 .BR inotify(7)
-interface.  It is suitable for waiting for changes to files from shell scripts.
-It can either exit once an event occurs, or continually execute and output events
-as they occur.
+interface by default.  It is suitable for waiting for changes to files
+from shell scripts.  It can either exit once an event occurs, or
+continually execute and output events as they occur.
 
 .B fsnotifywait
 is similar to
@@ -227,18 +227,13 @@ Replaced with NUL.
 %n
 Replaced with Line Feed.
 
-.\"
-.SS fsnotifywait
-
-.PP
-The following additional options are available:
 .TP
 .B \-I, \-\-inotify
-Watch using inotify.
+Watch using inotify (default for \fBinotifywait\fP).
 
 .TP
 .B \-F, \-\-fanotify
-Watch using fanotify (default).
+Watch using fanotify (default for \fBfsnotifywait\fP).
 fanotify support for reporting events with inotify compatible information
 was added in kernel v5.9.  With older kernels the command will fail.
 As of kernel v5.12, fanotify requires admin privileges.

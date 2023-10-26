@@ -21,6 +21,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include <inotifytools/inotify.h>
 #include <inotifytools/inotifytools.h>
@@ -54,7 +55,7 @@ static bool parse_opts(int* argc,
 		       int* fanotify,
 		       bool* filesystem);
 
-void print_help();
+void print_help(const char *tool_name);
 
 static const char* csv_escape_len(const char* string, size_t len) {
 	static char csv[MAX_STRLEN + 1];
@@ -169,7 +170,7 @@ int main(int argc, char** argv) {
 	int quiet = 0;
 	long timeout = BLOCKING_TIMEOUT;
 	int recursive = 0;
-	int fanotify = DEFAULT_FANOTIFY_MODE;
+	int fanotify = 0;
 	bool filesystem = false;
 	bool csv = false;
 	bool dodaemon = false;
@@ -185,6 +186,11 @@ int main(int argc, char** argv) {
 	char* inc_iregex = NULL;
 	bool no_newline = false;
 	int fd, rc;
+
+	if ((argc > 0) && (strncmp(basename(argv[0]), "fsnotify", 8) == 0)) {
+		// Default to fanotify for the fsnotify* tools.
+		fanotify = 1;
+	}
 
 	// Parse commandline options, aborting if something goes wrong
 	if (!parse_opts(&argc, &argv, &events, &monitor, &quiet, &timeout,
@@ -573,7 +579,9 @@ static bool parse_opts(int* argc,
 		switch (curr_opt) {
 			// --help or -h
 			case 'h':
-				print_help();
+				print_help(((*argc) > 0)
+					   ? basename((*argv)[0])
+					   : "<executable>");
 				// Shouldn't process any further...
 				return false;
 
@@ -592,7 +600,6 @@ static bool parse_opts(int* argc,
 				(*recursive)++;
 				break;
 
-#ifdef ENABLE_FANOTIFY
 			// --inotify or -I
 			case 'I':
 				(*fanotify) = 0;
@@ -608,7 +615,6 @@ static bool parse_opts(int* argc,
 				(*filesystem) = true;
 				(*fanotify) = 1;
 				break;
-#endif
 
 			// --csv or -c
 			case 'c':
@@ -815,13 +821,11 @@ static bool parse_opts(int* argc,
 	return (curr_opt != '?');
 }
 
-#define TOOL_NAME TOOLS_PREFIX "wait"
-
-void print_help() {
-	printf("%s %s\n", TOOL_NAME, PACKAGE_VERSION);
+void print_help(const char *tool_name) {
+	printf("%s %s\n", tool_name, PACKAGE_VERSION);
 	printf("Wait for a particular event on a file or set of files.\n");
 	printf("Usage: %s [ options ] file1 [ file2 ] [ file3 ] [ ... ]\n",
-	       TOOL_NAME);
+	       tool_name);
 	printf("Options:\n");
 	printf("\t-h|--help     \tShow this help text.\n");
 	printf(
@@ -849,7 +853,7 @@ void print_help() {
 	    "--timeout expires.\n"
 	    "\t              \tWithout this option, %s will exit after "
 	    "one event is received.\n",
-	    TOOL_NAME);
+	    tool_name);
 	printf(
 	    "\t-d|--daemon   \tSame as --monitor, except run in the "
 	    "background\n"
@@ -860,11 +864,9 @@ void print_help() {
 	    "\t-P|--no-dereference\n"
 	    "\t              \tDo not follow symlinks.\n");
 	printf("\t-r|--recursive\tWatch directories recursively.\n");
-#ifdef ENABLE_FANOTIFY
 	printf("\t-I|--inotify\tWatch with inotify.\n");
 	printf("\t-F|--fanotify\tWatch with fanotify.\n");
 	printf("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
-#endif
 	printf(
 	    "\t--fromfile <file>\n"
 	    "\t              \tRead files to watch from <file> or `-' for "
@@ -893,7 +895,7 @@ void print_help() {
 	    "\t              \twaiting for an event for <seconds> seconds.\n"
 	    "\t              \tIf <seconds> is zero, %s will never time "
 	    "out.\n",
-	    TOOL_NAME);
+	    tool_name);
 	printf(
 	    "\t-e|--event <event1> [ -e|--event <event2> ... ]\n"
 	    "\t\tListen for specific event(s).  If omitted, all events are \n"

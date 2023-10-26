@@ -6,7 +6,7 @@ or fanotify
 
 .SH SYNOPSIS
 .B inotifywatch
-.RB [ \-hvzrPqf ]
+.RB [ \-hvzrPqfIFS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -33,8 +33,8 @@ or fanotify
 .B inotifywatch
 listens for filesystem events using Linux's
 .BR inotify(7)
-interface, then outputs a summary count of the events received on each file or
-directory.
+interface by default, then outputs a summary count of the events
+received on each file or directory.
 
 .B fsnotifywatch
 is similar to
@@ -166,6 +166,21 @@ section except `move' and `close' (you must use `moved_to', `moved_from',
 `close_write' or `close_nowrite' instead).  The default is to sort descending by
 `total'.
 
+.TP
+.B \-I, \-\-inotify
+Watch using inotify (default for \fBinotifywatch\fP).
+
+.TP
+.B \-F, \-\-fanotify
+Watch using fanotify (default for \fBfsnotifywatch\fP).
+fanotify support for reporting events with inotify compatible information
+was added in kernel v5.9.  With older kernels the command will fail.
+As of kernel v5.12, fanotify requires admin privileges.
+
+.TP
+.B \-S, \-\-filesystem
+Watch entire filesystem of any directories passed as arguments using fanotify.
+
 .SH "EXIT STATUS"
 .TP
 .B 0
@@ -262,27 +277,6 @@ explicitly being listened for.
 The filesystem on which a watched file or directory resides was unmounted.
 After this event the file or directory is no longer being watched.  Note that
 this event can occur even if it is not explicitly being listened to.
-
-.\"
-.SS fsnotifywatch
-
-.PP
-The following additional options are available:
-.TP
-.TP
-.B \-I, \-\-inotify
-Watch using inotify.
-
-.TP
-.B \-F, \-\-fanotify
-Watch using fanotify (default).
-fanotify support for reporting events with inotify compatible information
-was added in kernel v5.9.  With older kernels the command will fail.
-As of kernel v5.12, fanotify requires admin privileges.
-
-.TP
-.B \-S, \-\-filesystem
-Watch entire filesystem of any directories passed as arguments using fanotify.
 
 
 .SH EXAMPLE

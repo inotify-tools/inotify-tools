@@ -13,6 +13,7 @@ AC_PROG_MAKE_SET
 
 # Checks for programs.
 AC_PROG_CXX
+AC_PROG_LN_S
 AM_INIT_AUTOMAKE
 LT_INIT
 
@@ -77,19 +78,6 @@ AC_COMPILE_IFELSE(
   [AC_MSG_RESULT([yup]); DEFAULT_FANOTIFY=yes; AC_DEFINE([SYS_FANOTIFY_H_EXISTS_AND_WORKS],[1],[sys/fanotify.h exists and works correctly])],
   [AC_MSG_RESULT([nope, using own fanotify headers]); DEFAULT_FANOTIFY=no]
 )
-
-AC_ARG_ENABLE(fanotify,
-    AS_HELP_STRING([--enable-fanotify],[enable fanotify support]),
-    ENABLE_FANOTIFY=$enableval, ENABLE_FANOTIFY="$DEFAULT_FANOTIFY"
-)
-AM_CONDITIONAL([ENABLE_FANOTIFY], test "$ENABLE_FANOTIFY" = "yes")
-AC_MSG_CHECKING([whether to build fanotify support])
-if test "$ENABLE_FANOTIFY" = "yes"; then
-    AC_MSG_RESULT(yes)
-    # -DENABLE_FANOTIFY is done in src/Makefile.am
-else
-    AC_MSG_RESULT(no)
-fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
