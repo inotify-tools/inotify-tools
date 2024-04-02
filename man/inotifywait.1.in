@@ -32,7 +32,7 @@ inotifywait, fsnotifywait \- wait for changes to files using inotify or fanotify
 .SH DESCRIPTION
 .B inotifywait
 efficiently waits for changes to files using Linux's
-.BR inotify(7)
+.BR inotify (7)
 interface by default.  It is suitable for waiting for changes to files
 from shell scripts.  It can either exit once an event occurs, or
 continually execute and output events as they occur.
@@ -41,9 +41,9 @@ continually execute and output events as they occur.
 is similar to
 .B inotifywait
 but it is using Linux's
-.BR fanotify(7)
+.BR fanotify (7)
 interface by default. If explicitly specified, it uses the
-.BR inotify(7)
+.BR inotify (7)
 interface.
 
 .SH OUTPUT
@@ -111,7 +111,7 @@ Output events to <file> rather than stdout.
 .TP
 .B \-s, \-\-syslog
 Output errors to
-.BR syslog(3)
+.BR syslog (3)
 system log module rather than stderr.
 .TP
 .B \-P, \-\-no\-dereference
@@ -180,7 +180,9 @@ at each space character.
 
 .TP
 .B \-\-timefmt <fmt>
-Set a time format string as accepted by strftime(3) for use with the `%T' conversion
+Set a time format string as accepted by
+.BR strftime (3)
+for use with the `%T' conversion
 in the \-\-format option.
 
 .TP
@@ -217,7 +219,8 @@ in the place of `X'.
 .TP
 %T
 Replaced with the current Time in the format specified by the \-\-timefmt option,
-which should be a format string suitable for passing to strftime(3).
+which should be a format string suitable for passing to
+.BR strftime (3).
 
 .TP
 %0
@@ -433,4 +436,6 @@ inotifywait is part of inotify-tools.  The inotify-tools website is located at:
 .I https://github.com/inotify-tools/inotify-tools/wiki
 
 .SH "SEE ALSO"
-inotifywatch(1), strftime(3), inotify(7)
+.BR inotifywatch (1),
+.BR strftime (3),
+.BR inotify (7)
