@@ -98,7 +98,8 @@ elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
     clang-extra-tools lld linux-headers curl git zip gcompat
 elif command -v dnf; then
-  $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make libtool clang curl git unzip
+  $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make \
+    libtool clang curl git unzip diffutils
 fi
 
 #!/bin/bash
@@ -201,12 +202,10 @@ tests
 curl -s https://codecov.io/bash | /bin/bash
 
 if [ "$os" != "freebsd" ] && [ "$(uname -m)" = "x86_64" ]; then
-  id=$(grep ^ID= /etc/os-release | sed "s/^ID=//g")
+  . /etc/os-release
 
-  # Don't do sonarcloud on alpine
-  if [ "$id" = "alpine" ]; then
-    exit 0
-  fi
+  # Don't do sonarcloud, pain around java versioning
+  exit 0
 
   printf "\nsonar build\n"
 

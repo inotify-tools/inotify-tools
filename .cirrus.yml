@@ -3,7 +3,6 @@ task:
   freebsd_instance:
     matrix:
       image_family: freebsd-13-2
-      image_family: freebsd-12-4
 
   pkginstall_script:
     - pkg install -y autoconf automake libtool bash git gcc
