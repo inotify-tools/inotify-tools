@@ -32,7 +32,7 @@ or fanotify
 .SH DESCRIPTION
 .B inotifywatch
 listens for filesystem events using Linux's
-.BR inotify(7)
+.BR inotify (7)
 interface by default, then outputs a summary count of the events
 received on each file or directory.
 
@@ -40,9 +40,9 @@ received on each file or directory.
 is similar to
 .B inotifywatch
 but it is using Linux's
-.BR fanotify(7)
+.BR fanotify (7)
 interface by default. If explicitly specified, it uses the
-.BR inotify(7)
+.BR inotify (7)
 interface.
 
 .SH OUTPUT
@@ -330,4 +330,5 @@ inotifywatch is part of inotify-tools.  The inotify-tools website is located at:
 .I https://github.com/inotify-tools/inotify-tools/wiki
 
 .SH "SEE ALSO"
-inotifywait(1), inotify(7)
+.BR inotifywait (1),
+.BR inotify (7)
