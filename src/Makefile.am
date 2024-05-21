@@ -16,6 +16,10 @@ if STATIC_BINARY_ENABLE
 AM_LDFLAGS = -static-libtool-libs
 endif
 
+if STATIC_BINARY_FORCE
+AM_LDFLAGS = -all-static
+endif
+
 install-exec-hook:
 	cd $(DESTDIR)$(bindir) && \
 	$(LN_S) inotifywait fsnotifywait && \

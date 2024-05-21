@@ -46,6 +46,11 @@ AC_ARG_ENABLE(static-binary,
     STATIC_BINARY_ENABLE=$enableval, STATIC_BINARY_ENABLE=no)
 AM_CONDITIONAL([STATIC_BINARY_ENABLE], test "$STATIC_BINARY_ENABLE" = "yes")
 
+AC_ARG_ENABLE(all-static,
+    AS_HELP_STRING([--enable-all-static],[force static linking of binaries]),
+    STATIC_BINARY_FORCE=$enableval, STATIC_BINARY_FORCE=no)
+AM_CONDITIONAL([STATIC_BINARY_FORCE], test "$STATIC_BINARY_FORCE" = "yes")
+
 [
 if [ "$CC" = "clang" ] || [ "$CXX" = "clang++" ]; then
   IS_CLANG="yes"
