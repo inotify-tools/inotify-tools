@@ -523,8 +523,24 @@ impl Inotifytools {
         #[cfg(target_os = "linux")]
         {
             let f = w.fid.clone().unwrap();
-            if let Some(p) = self.filename_from_fid(&f) {
-                return p;
+            // The filename of a directory watch always ends with '/'. Do not
+            // use the last event, it may describe another watch.
+            let is_dir = w.filename.as_bytes().ends_with(b"/");
+            if let Some(p) = self.filename_from_fid(&f, is_dir) {
+                if unsafe { *p } != 0 {
+                    return p;
+                }
+                // An empty path in the event means ESTALE - directory already gone.
+                // Use the cached path but append the kernel's "(deleted)" suffix.
+                // No space before the suffix after a directory's trailing '/'
+                let cached = self.watch(id).filename.to_bytes().to_vec();
+                let skip = (cached.last() == Some(&b'/')) as usize;
+                let suffix = &b" (deleted)\0"[skip..];
+                let buf = &mut self.fidname;
+                let n = cached.len().min(buf.len().saturating_sub(suffix.len()));
+                buf[..n].copy_from_slice(&cached[..n]);
+                buf[n..n + suffix.len()].copy_from_slice(suffix);
+                return buf.as_ptr().cast();
             }
         }
         self.watch(id).filename.as_ptr()
@@ -886,7 +902,7 @@ impl Inotifytools {
     /// buffer.  Returns a pointer to it, or `None` to fall back to the
     /// stored filename.
     #[cfg(target_os = "linux")]
-    fn filename_from_fid(&mut self, f: &[u8]) -> Option<*const c_char> {
+    fn filename_from_fid(&mut self, f: &[u8], is_dir: bool) -> Option<*const c_char> {
         let mut mount_fd = libc::AT_FDCWD;
 
         // Match mount_fd from fid->fsid (and null fhandle)
@@ -905,13 +921,21 @@ impl Inotifytools {
             }
         }
 
-        // Try to get path from file handle
+        // Try to get path from file handle. fid is expected to be a directory
+        // except for *_SELF events of non-directories.
+        let self_nondir_fid = fid::info_type(f) == fid::FAN_EVENT_INFO_TYPE_FID && !is_dir;
+        let flags = if self_nondir_fid { libc::O_PATH } else { libc::O_DIRECTORY };
         let mut h = fid::aligned_handle(f);
-        let mut dirf = unsafe { sys::open_by_handle_at(mount_fd, h.as_mut_ptr().cast(), 0) };
+        let mut dirf = unsafe { sys::open_by_handle_at(mount_fd, h.as_mut_ptr().cast(), flags) };
         if dirf > 0 {
             // Got path by handle
         } else if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM {
-            ceprint!("Failed to decode directory fid.\n");
+            // rm -rf delivers events for directories that are already gone.
+            let e = errno();
+            if e == libc::ESTALE {
+                return Some(EMPTY);
+            }
+            ceprint!("Failed to decode directory fid (", strerror(e), ").\n");
             return None;
         } else if name_len != 0 {
             // For recursive watch look for watch by fid without the name
@@ -945,13 +969,16 @@ impl Inotifytools {
         // '/' and 0
         let len = unsafe { libc::readlink(sym.as_ptr(), buf.as_mut_ptr().cast(), PATH_MAX - 2) };
         if len < 0 {
+            ceprint!("Failed to resolve path from directory fd (", strerror(errno()), ").\n");
             unsafe { libc::close(dirf) };
-            ceprint!("Failed to resolve path from directory fd.\n");
             return None;
         }
         let mut len = len as usize;
-        buf[len] = b'/';
-        len += 1;
+        // Do not append '/' to a non-directory *_SELF path
+        if !self_nondir_fid {
+            buf[len] = b'/';
+            len += 1;
+        }
         buf[len] = 0;
 
         if name_len > 0 {
@@ -1247,6 +1274,13 @@ impl Inotifytools {
                 continue;
             }
 
+            // Skip a filesystem event whose path could not be resolved.
+            #[cfg(target_os = "linux")]
+            if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM && self.rd_u32(self.ret_off) == 0
+            {
+                continue;
+            }
+
             if self.regex.is_some() {
                 let mask = self.rd_u32(self.ret_off + 4) as i32;
                 // Skip regex filtering for directories in recursive mode
@@ -1372,18 +1406,26 @@ impl Inotifytools {
             b[fid_off..(fid_off + hl).min(MAX_EVENTS * EVENT_SIZE)].to_vec()
         };
         let mut wd = self.watch_from_fid(&fid_bytes).map(|id| self.watch(id).wd);
+        let mask = u64::from_ne_bytes(self.buf()[meta + 8..meta + 16].try_into().unwrap());
         if wd.is_none() {
+            let is_dir = mask as u32 & IN_ISDIR as u32 != 0;
             let filename = self
-                .filename_from_fid(&fid_bytes)
+                .filename_from_fid(&fid_bytes, is_dir)
                 .map(|p| unsafe { CStr::from_ptr(p) }.to_bytes().to_vec());
-            if let Some(f) = &filename {
-                match self.create_watch(0, Some(fid_bytes.clone()), f, 0) {
-                    Some(w) => wd = Some(w),
-                    None => return false,
+            let mut empty_path = false;
+            if let Some(f) = filename.as_ref() {
+                if !f.is_empty() {
+                    match self.create_watch(0, Some(fid_bytes.clone()), f, 0) {
+                        Some(w) => wd = Some(w),
+                        None => return false,
+                    }
+                } else {
+                    empty_path = true;
                 }
             }
 
-            if self.verbosity != 0 {
+            // An empty path is a skipped event, so it stays quiet.
+            if self.verbosity != 0 && !empty_path {
                 let b = self.buf();
                 let mut idb = [0u8; mem::size_of::<libc::c_ulong>()];
                 for (i, x) in idb.iter_mut().enumerate() {
@@ -1407,7 +1449,6 @@ impl Inotifytools {
         }
 
         let ret = self.ret_off;
-        let mask = u64::from_ne_bytes(self.buf()[meta + 8..meta + 16].try_into().unwrap());
         self.wr_u32(ret, wd.unwrap_or(0) as u32);
         self.wr_u32(ret + 4, mask as u32);
         self.wr_u32(ret + 12, name_len as u32);

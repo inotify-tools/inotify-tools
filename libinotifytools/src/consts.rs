@@ -24,6 +24,9 @@ pub const IN_EXCL_UNLINK: i32 = 0x0400_0000;
 pub const IN_MASK_ADD: i32 = 0x2000_0000;
 pub const IN_ISDIR: i32 = 0x4000_0000;
 pub const IN_ONESHOT: i32 = 0x8000_0000_u32 as i32;
+/// `IN_ALL_EVENTS` without the self events. A filesystem watch already
+/// reports delete and move on the parent directory.
+pub const FS_ALL_EVENTS: i32 = IN_ALL_EVENTS & !(IN_DELETE_SELF | IN_MOVE_SELF);
 pub const IN_ALL_EVENTS: i32 = IN_ACCESS
     | IN_MODIFY
     | IN_ATTRIB
