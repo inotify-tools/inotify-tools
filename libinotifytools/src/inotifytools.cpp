@@ -846,11 +846,16 @@ static const char* inotifytools_filename_from_fid(
 	}
 
 	// Try to get path from file handle
-	dirf = open_by_handle_at(mount_fd, &fid->handle, 0);
+	dirf = open_by_handle_at(mount_fd, &fid->handle, O_DIRECTORY);
 	if (dirf > 0) {
 		// Got path by handle
 	} else if (fanotify_mark_type == FAN_MARK_FILESYSTEM) {
-		fprintf(stderr, "Failed to decode directory fid.\n");
+		// Suppress warnings for failure to decode fid for events
+		// inside deleted directories
+		if (errno == ESTALE)
+			return "";
+		fprintf(stderr, "Failed to decode directory fid (%s).\n",
+			strerror(errno));
 		return NULL;
 	} else if (name_len) {
 		// For recursive watch look for watch by fid without the name
@@ -884,8 +889,9 @@ static const char* inotifytools_filename_from_fid(
 	// '/' and 0
 	len = readlink(sym, filename, PATH_MAX - 2);
 	if (len < 0) {
+		fprintf(stderr, "Failed to resolve path from directory fd (%s).\n",
+			strerror(errno));
 		close(dirf);
-		fprintf(stderr, "Failed to resolve path from directory fd.\n");
 		return NULL;
 	}
 
