@@ -210,16 +210,16 @@ int main(int argc, char** argv) {
 	if (timefmt)
 		inotifytools_set_printf_timefmt(timefmt);
 	if ((exc_regex &&
-	     !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED)) ||
+	     !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED, recursive)) ||
 	    (exc_iregex && !inotifytools_ignore_events_by_regex(
-			       exc_iregex, REG_EXTENDED | REG_ICASE))) {
+			       exc_iregex, REG_EXTENDED | REG_ICASE, recursive))) {
 		fprintf(stderr, "Error in `exclude' regular expression.\n");
 		return EXIT_FAILURE;
 	}
 	if ((inc_regex && !inotifytools_ignore_events_by_inverted_regex(
-			      inc_regex, REG_EXTENDED)) ||
+			      inc_regex, REG_EXTENDED, recursive)) ||
 	    (inc_iregex && !inotifytools_ignore_events_by_inverted_regex(
-			       inc_iregex, REG_EXTENDED | REG_ICASE))) {
+			       inc_iregex, REG_EXTENDED | REG_ICASE, recursive))) {
 		fprintf(stderr, "Error in `include' regular expression.\n");
 		return EXIT_FAILURE;
 	}
@@ -402,12 +402,32 @@ int main(int argc, char** argv) {
 		}
 
 		if (quiet < 2 && (event->mask & orig_events)) {
-			if (csv) {
-				output_event_csv(event);
-			} else if (format) {
-				inotifytools_printf(event, format);
+			// Only output to stdout if the event is for a file matching our filters
+			// or if we don't have any include filters
+			if (!inc_regex && !inc_iregex) {
+				// No include filter - output everything
+				if (csv) {
+					output_event_csv(event);
+				} else if (format) {
+					inotifytools_printf(event, format);
+				} else {
+					inotifytools_printf(event, "%w %,e %f\n");
+				}
 			} else {
-				inotifytools_printf(event, "%w %,e %f\n");
+				// We have an include filter
+				bool is_dir_event = (event->mask & IN_ISDIR);
+
+				// For non-directory events, only show if they match the filter
+				// The filter is already applied by inotifytools internally
+				if (!is_dir_event) {
+					if (csv) {
+						output_event_csv(event);
+					} else if (format) {
+						inotifytools_printf(event, format);
+					} else {
+						inotifytools_printf(event, "%w %,e %f\n");
+					}
+				}
 			}
 		}
 
@@ -433,17 +453,17 @@ int main(int argc, char** argv) {
 			if ((event->mask & IN_CREATE) ||
 			    (!moved_from && (event->mask & IN_MOVED_TO))) {
 				// New file - if it is a directory, watch it
-				char* new_file =
-				    inotifytools_dirpath_from_event(event);
-				if (new_file && *new_file && isdir(new_file) &&
-				    !inotifytools_watch_recursively(new_file,
-								    events)) {
-					output_error(
-					    sysl,
-					    "Couldn't watch new directory %s: "
-					    "%s\n",
-					    new_file,
-					    strerror(inotifytools_error()));
+				char* new_file = inotifytools_dirpath_from_event(event);
+				if (new_file && *new_file && isdir(new_file)) {
+					if (!quiet) {
+						output_error(sysl, "Watching new directory %s\n", new_file);
+					}
+					if (!inotifytools_watch_recursively(new_file, events)) {
+						output_error(sysl,
+							"Couldn't watch new directory %s: %s\n",
+							new_file,
+							strerror(inotifytools_error()));
+					}
 				}
 				free(new_file);
 			}  // IN_CREATE

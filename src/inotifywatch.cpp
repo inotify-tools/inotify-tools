@@ -115,17 +115,17 @@ int main(int argc, char** argv) {
 	}
 
 	if ((exc_regex &&
-	     !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED)) ||
+	     !inotifytools_ignore_events_by_regex(exc_regex, REG_EXTENDED, recursive)) ||
 	    (exc_iregex && !inotifytools_ignore_events_by_regex(
-			       exc_iregex, REG_EXTENDED | REG_ICASE))) {
+			       exc_iregex, REG_EXTENDED | REG_ICASE, recursive))) {
 		fprintf(stderr, "Error in `exclude' regular expression.\n");
 		return EXIT_FAILURE;
 	}
 
 	if ((inc_regex && !inotifytools_ignore_events_by_inverted_regex(
-			      inc_regex, REG_EXTENDED)) ||
+			      inc_regex, REG_EXTENDED, recursive)) ||
 	    (inc_iregex && !inotifytools_ignore_events_by_inverted_regex(
-			       inc_iregex, REG_EXTENDED | REG_ICASE))) {
+			       inc_iregex, REG_EXTENDED | REG_ICASE, recursive))) {
 		fprintf(stderr, "Error in `include' regular expression.\n");
 		return EXIT_FAILURE;
 	}
