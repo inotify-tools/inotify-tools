@@ -153,6 +153,9 @@ specified POSIX regular expression, case insensitive.
 .B \-\-include <pattern>
 Process events only for the subset of files whose filenames match the specified
 POSIX regular expression, case sensitive.
+When used with \-\-recursive, events will still be generated for matching files
+inside newly created directories, even if the directory names themselves do not
+match the pattern.
 
 .TP
 .B \-\-includei <pattern>

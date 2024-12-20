@@ -162,6 +162,7 @@ struct fanotify_event_fid {
 
 static int inotify_fd = -1;
 
+static int recursive_watch = 0;
 int collect_stats = 0;
 
 struct rbtree* tree_wd = 0;
@@ -1709,15 +1710,21 @@ more_events:
 	}
 
 	if (regex) {
-		inotifytools_snprintf(&match_name, MAX_STRLEN, ret, "%w%f");
-		memcpy(&match_name_string, &match_name.buf, match_name.len);
-		match_name_string[match_name.len] = '\0';
-		if (0 == regexec(regex, match_name_string, 0, 0, 0)) {
-			if (!invert_regexp)
-				longjmp(jmp, 0);
+		// Skip regex filtering for directories in recursive mode
+		if (recursive_watch && (ret->mask & IN_ISDIR) &&
+		    (ret->mask & (IN_CREATE | IN_MOVED_TO))) {
+			// Allow directory events through when watching recursively
 		} else {
-			if (invert_regexp)
-				longjmp(jmp, 0);
+			inotifytools_snprintf(&match_name, MAX_STRLEN, ret, "%w%f");
+			memcpy(&match_name_string, &match_name.buf, match_name.len);
+			match_name_string[match_name.len] = '\0';
+			if (0 == regexec(regex, match_name_string, 0, 0, 0)) {
+				if (!invert_regexp)
+					longjmp(jmp, 0);
+			} else {
+				if (invert_regexp)
+					longjmp(jmp, 0);
+			}
 		}
 	}
 
@@ -2366,7 +2373,8 @@ int inotifytools_get_max_user_watches() {
  */
 static int do_ignore_events_by_regex(char const* pattern,
 				     int flags,
-				     int invert) {
+				     int invert,
+				     int recursive) {
 	if (!pattern) {
 		if (regex) {
 			regfree(regex);
@@ -2383,6 +2391,8 @@ static int do_ignore_events_by_regex(char const* pattern,
 	}
 
 	invert_regexp = invert;
+	recursive_watch = recursive;
+
 	int ret = regcomp(regex, pattern, flags | REG_NOSUB);
 	if (0 == ret)
 		return 1;
@@ -2405,8 +2415,8 @@ static int do_ignore_events_by_regex(char const* pattern,
  * events occur.  If the regular expression matches, the matched event will be
  * ignored.
  */
-int inotifytools_ignore_events_by_regex(char const* pattern, int flags) {
-	return do_ignore_events_by_regex(pattern, flags, 0);
+int inotifytools_ignore_events_by_regex(char const* pattern, int flags, int recursive) {
+	return do_ignore_events_by_regex(pattern, flags, 0, recursive);
 }
 
 /**
@@ -2420,9 +2430,8 @@ int inotifytools_ignore_events_by_regex(char const* pattern, int flags) {
  * events occur.  If the regular expression matches, the matched event will be
  * ignored.
  */
-int inotifytools_ignore_events_by_inverted_regex(char const* pattern,
-						 int flags) {
-	return do_ignore_events_by_regex(pattern, flags, 1);
+int inotifytools_ignore_events_by_inverted_regex(char const* pattern, int flags, int recursive) {
+	return do_ignore_events_by_regex(pattern, flags, 1, recursive);
 }
 
 int event_compare(const char* p1, const char* p2, const void* config) {
