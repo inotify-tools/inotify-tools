@@ -113,13 +113,15 @@ void construct_path_list(int argc,
                 }
 	}
 
-	int watch_count = 0;
-	int exclude_count = 0;
-	list->watch_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	size_t watch_count = 0;
+	size_t watch_allocated = LIST_CHUNK;
+	size_t exclude_count = 0;
+	size_t exclude_allocated = LIST_CHUNK;
+	list->watch_files_ = (char const**)malloc(sizeof(char*) * watch_allocated);
 	if (!list->watch_files_)
 		return;
 
-	list->exclude_files_ = (char const**)malloc(sizeof(char*) * LIST_CHUNK);
+	list->exclude_files_ = (char const**)malloc(sizeof(char*) * exclude_allocated);
 	if (!list->exclude_files_)
 		return;
 
@@ -133,11 +135,31 @@ void construct_path_list(int argc,
 			continue;
 
 		if ('@' == name[0]) {
+			if (exclude_count == exclude_allocated - 1) {
+				exclude_allocated *= 2;
+				auto mem = (char const**) realloc (list->exclude_files_, sizeof(char*) * exclude_allocated);
+				if (!mem) {
+					list->watch_files_[watch_count] = NULL;
+					list->exclude_files_[exclude_count] = NULL;
+					return;
+				}
+				list->exclude_files_ = mem;
+			}
 			list->exclude_files_[exclude_count++] =
 			    strdup(&name[1]);
 			continue;
 		}
 
+		if (watch_count == watch_allocated - 1) {
+			watch_allocated *= 2;
+			auto mem = (char const**) realloc (list->watch_files_, sizeof(char*) * watch_allocated);
+			if (!mem) {
+				list->watch_files_[watch_count] = NULL;
+				list->exclude_files_[exclude_count] = NULL;
+				return;
+			}
+			list->watch_files_ = mem;
+		}
 		list->watch_files_[watch_count++] = strdup(name);
 	}
 
@@ -147,11 +169,31 @@ void construct_path_list(int argc,
 			continue;
 
 		if ('@' == argv[i][0]) {
+			if (exclude_count == exclude_allocated - 1) {
+				exclude_allocated *= 2;
+				auto mem = (char const**) realloc (list->exclude_files_, sizeof(char*) * exclude_allocated);
+				if (!mem) {
+					list->watch_files_[watch_count] = NULL;
+					list->exclude_files_[exclude_count] = NULL;
+					return;
+				}
+				list->exclude_files_ = mem;
+			}
 			list->exclude_files_[exclude_count++] =
 			    strdup(&argv[i][1]);
 			continue;
 		}
 
+		if (watch_count == watch_allocated - 1) {
+			watch_allocated *= 2;
+			auto mem = (char const**) realloc (list->watch_files_, sizeof(char*) * watch_allocated);
+			if (!mem) {
+				list->watch_files_[watch_count] = NULL;
+				list->exclude_files_[exclude_count] = NULL;
+				return;
+			}
+			list->watch_files_ = mem;
+		}
 		list->watch_files_[watch_count++] = strdup(argv[i]);
 	}
 
