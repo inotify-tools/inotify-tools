@@ -59,7 +59,7 @@ test_expect_success 'event logged' '
 
 if fanotify_supported; then
     test_expect_success 'event logged' '
-	run_and_check_log fsnotifywait --fanotify
+	run_and_check_log inotifywait --fanotify
     '
 fi
 

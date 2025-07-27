@@ -2,7 +2,7 @@
 
 # Check for kernel support and privileges
 fanotify_supported() {
-    ../../src/fsnotifywait --fanotify -t -1 $* "." 2>&1 | grep -q 'Negative timeout'
+    ../../src/inotifywait --fanotify -t -1 $* "." 2>&1 | grep -q 'Negative timeout'
 }
 
 # Create and mount a test filesystem
