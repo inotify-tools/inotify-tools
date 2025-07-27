@@ -856,6 +856,8 @@ export SHARNESS_TRASH_DIRECTORY
 HOME="$SHARNESS_TRASH_DIRECTORY"
 export HOME
 
+# Set umask to ensure all directories are created with full permissions
+umask 000
 mkdir -p "$SHARNESS_TRASH_DIRECTORY" || exit 1
 # Use -P to resolve symlinks in our working directory so that the cwd
 # in subprocesses like git equals our $PWD (for pathname comparisons).
