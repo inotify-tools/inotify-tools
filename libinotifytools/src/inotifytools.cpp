@@ -354,7 +354,7 @@ watch* watch_from_filename(char const* filename) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
+int inotifytools_init(int fanotify, char watch_scope, int verbose) {
 	if (initialized)
 		return 1;
 
@@ -366,9 +366,10 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 		self_pid = getpid();
 		fanotify_mode = 1;
 		fanotify_mark_type =
-		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
+		    watch_scope == 'M' ? FAN_MARK_MOUNT :
+		    watch_scope ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
 		at_handle_fid =
-		    watch_filesystem ? 0 : AT_HANDLE_FID;
+		    watch_scope ? 0 : AT_HANDLE_FID;
 		inotify_fd =
 		    fanotify_init(FAN_REPORT_FID | FAN_REPORT_DFID_NAME, 0);
 #endif

@@ -2,7 +2,10 @@
 
 # Check for kernel support and privileges
 fanotify_supported() {
-    ../../src/inotifywait --fanotify -t -1 $* "." 2>&1 | grep -q 'Negative timeout'
+    output=$(../../src/inotifywait --fanotify -t -1 $* "." 2>&1)
+    # Success cases: "Negative timeout" (fanotify watch works)
+    #                "Operation not permitted" (fanotify supported but no perms)
+    echo "$output" | grep -q -E 'Negative timeout|Operation not permitted'
 }
 
 # Create and mount a test filesystem
