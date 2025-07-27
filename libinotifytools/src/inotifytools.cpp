@@ -895,6 +895,14 @@ static const char* inotifytools_filename_from_fid(
 		return NULL;
 	}
 
+	// Skip events whose path cannot be resolved via /proc/self/fd symlink,
+	// such as events in paths not accessible from a bind mount which the
+	// filesystem watch was set.
+	if (len == 1 && filename[0] == '/') {
+		filename[0] = 0;
+		goto out;
+	}
+
 	filename[len++] = '/';
 	filename[len] = 0;
 
@@ -912,6 +920,7 @@ static const char* inotifytools_filename_from_fid(
 		if (deleted)
 			strncat(filename, " (deleted)", 11);
 	}
+out:
 	close(dirf);
 	return filename;
 #else
@@ -1176,8 +1185,8 @@ watch* create_watch(int wd,
 		    struct fanotify_event_fid* fid,
 		    const char* filename,
 		    int dirf) {
-	if (wd < 0 || !filename)
-		return 0;
+	if (wd < 0 || !filename || !filename[0])
+		return NULL;
 
 	watch* w = (watch*)calloc(1, sizeof(watch));
 	if (!w) {
@@ -1710,15 +1719,16 @@ more_events:
 			memcpy(newfid, fid, info->hdr.len);
 			const char* filename =
 			    inotifytools_filename_from_fid(fid);
-			if (filename) {
+			if (filename && filename[0]) {
 				w = create_watch(0, newfid, filename, 0);
 				if (!w) {
 					free(newfid);
 					return NULL;
 				}
 			}
-
-			if (verbosity) {
+			// Verbose print for valid filenames and errors,
+			// but not for skipped paths (empty filename).
+			if ((!filename || filename[0]) && verbosity) {
 				unsigned long id;
 				memcpy((void*)&id, fid->handle.f_handle,
 				       sizeof(id));
@@ -1747,8 +1757,13 @@ more_events:
 		first_byte = 0;
 	}
 
-	/* Skip events from self due to open_by_handle_at() */
+	// Skip events from self due to open_by_handle_at()
 	if (self_pid && self_pid == event_pid) {
+		longjmp(jmp, 0);
+	}
+
+	// Skip events on unknown paths (e.g. when watching a bind mount)
+	if (event_pid && ret->wd == 0) {
 		longjmp(jmp, 0);
 	}
 
