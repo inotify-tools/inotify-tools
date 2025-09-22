@@ -87,7 +87,6 @@ if command -v apt; then
   $pre apt install -y clang-format || true
   $pre apt install -y clang-tools || true
   $pre apt install -y clang-format-11 || true
-  $pre apt install -y doxygen || true
   $pre apt install -y make || true
   $pre apt install -y autoconf || true
   $pre apt install -y libtool || true
