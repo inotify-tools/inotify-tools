@@ -3,9 +3,9 @@ name: build
 on: [push, pull_request]
 
 jobs:
-  ubuntu-2004-multi:
+  ubuntu-2204-multi:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -15,9 +15,9 @@ jobs:
 
   # Some (fanotify) test cannot yet run containerized (*-multi):
   # https://github.com/inotify-tools/inotify-tools/pull/183
-  ubuntu-2204-multi:
+  ubuntu-2404-multi:
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
