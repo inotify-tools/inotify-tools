@@ -9,3 +9,7 @@ This is a package of some commandline utilities relating to inotify.
 
 The general purpose of this package is to allow inotify's features to be used
 from within shell scripts.  Read the man pages for further details.
+
+It is strongly recommended to enhance the Rust version of the codebase rather
+than the C/C++ version, so we can leave the C/C++ version RIP.
+
