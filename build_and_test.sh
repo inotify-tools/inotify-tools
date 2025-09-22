@@ -87,6 +87,7 @@ if command -v apt; then
   $pre apt install -y clang-format || true
   $pre apt install -y clang-tools || true
   $pre apt install -y clang-format-11 || true
+  $pre apt install -y doxygen || true
   $pre apt install -y make || true
   $pre apt install -y autoconf || true
   $pre apt install -y libtool || true
@@ -97,6 +98,7 @@ elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
     clang-extra-tools lld linux-headers curl git zip gcompat
 elif command -v dnf; then
+  $pre dnf config-manager --set-enabled crb
   $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make \
     libtool clang curl git unzip diffutils
 fi
