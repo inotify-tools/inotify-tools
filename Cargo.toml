@@ -1,0 +1,27 @@
+[workspace]
+members = ["inotifytools", "inotifywait", "inotifywatch"]
+resolver = "2"
+
+[workspace.dependencies]
+inotify = "0.10"
+clap = { version = "4.4", features = ["derive"] }
+regex = "1.0"
+nix = "0.27"
+libc = "0.2"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+csv = "1.3"
+signal-hook = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+
+[workspace.package]
+version = "4.23.9"
+authors = ["Eric Curtin <ecurtin@redhat.com>"]
+edition = "2021"
+license = "GPL-2.0"
+repository = "https://github.com/ericcurtin/inotify-tools"
+description = "Command line utilities for inotify"
+
+[profile.release]
+opt-level = 3
+lto = true

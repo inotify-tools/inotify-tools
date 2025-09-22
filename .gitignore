@@ -45,3 +45,7 @@ README
 
 libinotifytools/src/test
 
+
+# Rust build artifacts
+/target/
+**/*.rs.bk

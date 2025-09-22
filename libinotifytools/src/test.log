@@ -1,0 +1,18 @@
+If you want to do a malloc trace, set MALLOC_TRACE to a path for logging.
+void event_to_str(): test begin
+void event_to_str(): test end
+void event_to_str_sep(): test begin
+void event_to_str_sep(): test end
+void str_to_event(): test begin
+void str_to_event(): test end
+void str_to_event_sep(): test begin
+void str_to_event_sep(): test end
+void basic_watch_info(): test begin
+void basic_watch_info(): test end
+void watch_limit(): test begin
+void watch_limit(): Warning, this test may take a while
+void watch_limit(): test end
+void tst_inotifytools_snprintf(): test begin
+void tst_inotifytools_snprintf(): test end
+Out of 480076 tests, 480076 succeeded and 0 failed.
+PASS test (exit status: 0)

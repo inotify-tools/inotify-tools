@@ -1,0 +1,20 @@
+[package]
+name = "inotifytools"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Rust library for inotify filesystem monitoring"
+
+[dependencies]
+inotify.workspace = true
+regex.workspace = true
+nix.workspace = true
+libc.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+
+[lib]
+name = "inotifytools"
+crate-type = ["lib", "cdylib"]
