@@ -98,6 +98,7 @@ elif command -v apk; then
   apk add build-base alpine-sdk autoconf automake libtool bash coreutils clang \
     clang-extra-tools lld linux-headers curl git zip gcompat
 elif command -v dnf; then
+  $pre dnf install 'dnf-command(config-manager)'
   $pre dnf config-manager --set-enabled crb
   $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make \
     libtool clang curl git unzip diffutils
