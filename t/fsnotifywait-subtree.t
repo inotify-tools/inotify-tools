@@ -2,7 +2,7 @@
 
 test_description='Subtree watch
 
-Verify that fsnotifywait --recursive/--filesystem gets events on
+Verify that inotifywait --recursive/--filesystem gets events on
 files created inside the watched subtree
 '
 
@@ -10,19 +10,20 @@ files created inside the watched subtree
 . ./sharness.sh
 
 logfile="log"
+subdir="root/A"
+extdir="root/X"
 
 run_() {
     export LD_LIBRARY_PATH="../../libinotifytools/src/"
     testdir=root/A/B/C/D
-    rm -rf root/A &&
         mkdir -p $testdir &&
-	{(sleep 1 && touch $testdir/test)&} &&
+	{(sleep 1 && touch $extdir/ignore $testdir/test 2>/dev/null)&} &&
     ../../src/$* \
         --quiet \
         --outfile $logfile \
         --event CREATE \
         --timeout 2 \
-        root
+        $subdir
 }
 
 run_and_check_log()
@@ -32,22 +33,36 @@ run_and_check_log()
 }
 
 test_expect_success 'event logged' '
+    rm -rf root &&
     run_and_check_log inotifywait --recursive
 '
 
 if fanotify_supported; then
     test_expect_success 'event logged' '
-        run_and_check_log fsnotifywait --fanotify --recursive
+        rm -rf root &&
+        run_and_check_log inotifywait --fanotify --recursive
     '
 fi
 
 # root requirement:
 # https://github.com/inotify-tools/inotify-tools/pull/183#issuecomment-1635518850
-if fanotify_supported --filesystem && [ $(id -u) -eq 0 ]; then
+if fanotify_supported --filesystem && is_root; then
     test_expect_success 'event logged' '
         test_when_finished "umount -l root" &&
         mount_filesystem ext2 10M root &&
-        run_and_check_log fsnotifywait --filesystem
+        run_and_check_log inotifywait --filesystem
+    '
+fi
+
+# Create files outside bind mount ($extdir) and inside bind mount ($subdir)
+# Expect to see only the log about the file created inside bind mount
+if fanotify_supported --filesystem && is_root; then
+    test_expect_success 'event logged' '
+        test_when_finished "umount -l $subdir root" &&
+        mount_filesystem ext2 10M root &&
+        mkdir -p $subdir $extdir &&
+        mount --bind $subdir $subdir &&
+        run_and_check_log inotifywait --filesystem
     '
 fi
 

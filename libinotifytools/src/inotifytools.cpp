@@ -66,6 +66,17 @@ struct fanotify_event_fid {
 	struct file_handle handle;
 };
 
+#ifndef AT_HANDLE_FID
+#define AT_HANDLE_FID	AT_REMOVEDIR
+#endif
+
+// from include/uapi/linux/magic.h
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
+
+// from include/linux/exportfs.h
+#define FILEID_BTRFS_WITHOUT_PARENT 0x4d
 #endif
 
 /**
@@ -173,6 +184,7 @@ int initialized = 0;
 int verbosity = 0;
 int fanotify_mode = 0;
 int fanotify_mark_type = 0;
+int at_handle_fid = 0;
 static pid_t self_pid = 0;
 
 struct str {
@@ -342,7 +354,7 @@ watch* watch_from_filename(char const* filename) {
  * @return 1 on success, 0 on failure.  On failure, the error can be
  *         obtained from inotifytools_error().
  */
-int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
+int inotifytools_init(int fanotify, char watch_scope, int verbose) {
 	if (initialized)
 		return 1;
 
@@ -354,7 +366,10 @@ int inotifytools_init(int fanotify, int watch_filesystem, int verbose) {
 		self_pid = getpid();
 		fanotify_mode = 1;
 		fanotify_mark_type =
-		    watch_filesystem ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
+		    watch_scope == 'M' ? FAN_MARK_MOUNT :
+		    watch_scope ? FAN_MARK_FILESYSTEM : FAN_MARK_INODE;
+		at_handle_fid =
+		    watch_scope ? 0 : AT_HANDLE_FID;
 		inotify_fd =
 		    fanotify_init(FAN_REPORT_FID | FAN_REPORT_DFID_NAME, 0);
 #endif
@@ -832,11 +847,16 @@ static const char* inotifytools_filename_from_fid(
 	}
 
 	// Try to get path from file handle
-	dirf = open_by_handle_at(mount_fd, &fid->handle, 0);
+	dirf = open_by_handle_at(mount_fd, &fid->handle, O_DIRECTORY);
 	if (dirf > 0) {
 		// Got path by handle
 	} else if (fanotify_mark_type == FAN_MARK_FILESYSTEM) {
-		fprintf(stderr, "Failed to decode directory fid.\n");
+		// Suppress warnings for failure to decode fid for events
+		// inside deleted directories
+		if (errno == ESTALE)
+			return "";
+		fprintf(stderr, "Failed to decode directory fid (%s).\n",
+			strerror(errno));
 		return NULL;
 	} else if (name_len) {
 		// For recursive watch look for watch by fid without the name
@@ -870,9 +890,18 @@ static const char* inotifytools_filename_from_fid(
 	// '/' and 0
 	len = readlink(sym, filename, PATH_MAX - 2);
 	if (len < 0) {
+		fprintf(stderr, "Failed to resolve path from directory fd (%s).\n",
+			strerror(errno));
 		close(dirf);
-		fprintf(stderr, "Failed to resolve path from directory fd.\n");
 		return NULL;
+	}
+
+	// Skip events whose path cannot be resolved via /proc/self/fd symlink,
+	// such as events in paths not accessible from a bind mount which the
+	// filesystem watch was set.
+	if (len == 1 && filename[0] == '/') {
+		filename[0] = 0;
+		goto out;
 	}
 
 	filename[len++] = '/';
@@ -892,6 +921,7 @@ static const char* inotifytools_filename_from_fid(
 		if (deleted)
 			strncat(filename, " (deleted)", 11);
 	}
+out:
 	close(dirf);
 	return filename;
 #else
@@ -1156,8 +1186,8 @@ watch* create_watch(int wd,
 		    struct fanotify_event_fid* fid,
 		    const char* filename,
 		    int dirf) {
-	if (wd < 0 || !filename)
-		return 0;
+	if (wd < 0 || !filename || !filename[0])
+		return NULL;
 
 	watch* w = (watch*)calloc(1, sizeof(watch));
 	if (!w) {
@@ -1341,6 +1371,11 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 			memcpy(&fid->info.fsid, &buf.f_fsid,
 			       sizeof(__kernel_fsid_t));
 
+			// For btrfs sb watch, hash only by fsid.val[0],
+			// because fsid.val[1] is different per sub-volume
+			if (buf.f_type == BTRFS_SUPER_MAGIC)
+				fid->info.fsid.val[1] = 0;
+
 			// Hash mount_fd with fid->fsid (and null fhandle)
 			int ret, mntid;
 			watch* mnt = dirname ? watch_from_fid(fid) : NULL;
@@ -1378,8 +1413,21 @@ int inotifytools_watch_files(char const* filenames[], int events) {
 			}
 
 			fid->handle.handle_bytes = MAX_FID_LEN;
+name_to_handle:
 			ret = name_to_handle_at(AT_FDCWD, filenames[i],
-						&fid->handle, &mntid, 0);
+						&fid->handle, &mntid,
+						at_handle_fid);
+			/*
+			 * Since kernel v6.6, overlayfs supports encoding file
+			 * handles if using the AT_HANDLE_FID flag, so for non
+			 * --filesystem watch we first try with AT_HANDLE_FID.
+			 * Kernel < v6.5 does not support AT_HANDLE_FID, so fall
+			 * back to encoding regular file handles in that case.
+			*/
+			if (ret && at_handle_fid && errno == EINVAL) {
+				at_handle_fid = 0;
+				goto name_to_handle;
+			}
 			if (ret || fid->handle.handle_bytes > MAX_FID_LEN) {
 				free(fid);
 				fprintf(stderr, "Encode fid failed on %s: %s\n",
@@ -1655,6 +1703,11 @@ more_events:
 			    fid_len, name_len, name);
 		}
 
+		// For btrfs sb watch, hash only by fsid.val[0],
+		// because fsid.val[1] is different on sub-volumes
+		if (fid->handle.handle_type == FILEID_BTRFS_WITHOUT_PARENT)
+			fid->info.fsid.val[1] = 0;
+
 		ret = &event[MAX_EVENTS];
 		watch* w = watch_from_fid(fid);
 		if (!w) {
@@ -1667,15 +1720,16 @@ more_events:
 			memcpy(newfid, fid, info->hdr.len);
 			const char* filename =
 			    inotifytools_filename_from_fid(fid);
-			if (filename) {
+			if (filename && filename[0]) {
 				w = create_watch(0, newfid, filename, 0);
 				if (!w) {
 					free(newfid);
 					return NULL;
 				}
 			}
-
-			if (verbosity) {
+			// Verbose print for valid filenames and errors,
+			// but not for skipped paths (empty filename).
+			if ((!filename || filename[0]) && verbosity) {
 				unsigned long id;
 				memcpy((void*)&id, fid->handle.f_handle,
 				       sizeof(id));
@@ -1704,8 +1758,13 @@ more_events:
 		first_byte = 0;
 	}
 
-	/* Skip events from self due to open_by_handle_at() */
+	// Skip events from self due to open_by_handle_at()
 	if (self_pid && self_pid == event_pid) {
+		longjmp(jmp, 0);
+	}
+
+	// Skip events on unknown paths (e.g. when watching a bind mount)
+	if (event_pid && ret->wd == 0) {
 		longjmp(jmp, 0);
 	}
 

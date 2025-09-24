@@ -52,7 +52,7 @@ test_expect_success 'the output is delimited by NUL' '
 
 if fanotify_supported; then
     test_expect_success 'the output is delimited by NUL' '
-	run_and_check_log fsnotifywait --fanotify
+	run_and_check_log inotifywait --fanotify
     '
 fi
 

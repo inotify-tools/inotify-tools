@@ -17,7 +17,7 @@ test_expect_success 'Exit code 2 is returned' '
 
 if fanotify_supported; then
     test_expect_success 'Exit code 2 is returned' '
-        test_expect_code 2 run_ fsnotifywait --fanotify
+        test_expect_code 2 run_ inotifywait --fanotify
     '
 fi
 
