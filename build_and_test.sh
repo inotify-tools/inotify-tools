@@ -99,7 +99,7 @@ elif command -v apk; then
     clang-extra-tools lld linux-headers curl git zip gcompat
 elif command -v dnf; then
   $pre dnf install -y 'dnf-command(config-manager)'
-  $pre dnf config-manager --add-repo "https://mirror.stream.centos.org/9-stream/CRB/aarch64/os/"
+  $pre dnf config-manager --add-repo "https://mirror.stream.centos.org/9-stream/CRB/$uname_m/os/"
   $pre curl --retry 8 --retry-all-errors -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official http://mirror.centos.org/centos/RPM-GPG-KEY-CentOS-Official
   $pre rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official
   $pre dnf install -y --allowerasing gcc-c++ autoconf automake doxygen make \
