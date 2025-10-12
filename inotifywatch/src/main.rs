@@ -2,7 +2,6 @@
 //!
 //! This is a Rust port of the original inotifywatch C++ tool.
 
-use std::io::Write;
 use std::path::PathBuf;
 use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -10,8 +9,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::{Arg, ArgAction, Command};
-use inotifytools::{Config, EventMask, InotifyTools, str_to_events};
-use signal_hook::{consts::{SIGINT, SIGHUP, SIGTERM, SIGUSR1}, iterator::Signals};
+use inotifytools::{str_to_events, Config, EventMask, InotifyTools};
+use signal_hook::{
+    consts::{SIGHUP, SIGINT, SIGTERM, SIGUSR1},
+    iterator::Signals,
+};
 
 const EXIT_SUCCESS: i32 = 0;
 const EXIT_FAILURE: i32 = 1;
@@ -103,7 +105,7 @@ fn run() -> i32 {
             return EXIT_FAILURE;
         }
     } else {
-        config.paths.clone()  // Clone to avoid partial move
+        config.paths.clone() // Clone to avoid partial move
     };
 
     if watch_paths.is_empty() {
@@ -120,7 +122,8 @@ fn run() -> i32 {
 
     let mut watch_events = events;
     if config.recursive {
-        watch_events = watch_events | EventMask::CREATE | EventMask::MOVED_TO | EventMask::MOVED_FROM;
+        watch_events =
+            watch_events | EventMask::CREATE | EventMask::MOVED_TO | EventMask::MOVED_FROM;
     }
 
     if config.fanotify {
@@ -167,11 +170,11 @@ fn run() -> i32 {
             if config.verbose {
                 eprintln!("Will listen for events for {} seconds.", timeout_secs);
             }
-            
+
             // Set up timeout handling
             let done_clone = Arc::new(AtomicBool::new(false));
             let done_ref = done_clone.clone();
-            
+
             std::thread::spawn(move || {
                 std::thread::sleep(timeout);
                 done_ref.store(true, Ordering::SeqCst);
@@ -181,7 +184,7 @@ fn run() -> i32 {
 
     // Main event loop
     let mut moved_from: Option<PathBuf> = None;
-    
+
     loop {
         if DONE.load(Ordering::SeqCst) {
             break;
@@ -208,9 +211,10 @@ fn run() -> i32 {
                     }
 
                     // Add watches for newly created directories
-                    if (event.mask.contains(EventMask::CREATE) || 
-                        (moved_from.is_none() && event.mask.contains(EventMask::MOVED_TO))) 
-                        && event.is_dir() {
+                    if (event.mask.contains(EventMask::CREATE)
+                        || (moved_from.is_none() && event.mask.contains(EventMask::MOVED_TO)))
+                        && event.is_dir()
+                    {
                         let _ = tools.watch_recursively(&event.path, watch_events);
                     }
                 }
@@ -235,7 +239,7 @@ fn setup_signal_handlers() {
     std::thread::spawn(|| {
         let mut signals = Signals::new(&[SIGINT, SIGHUP, SIGTERM, SIGUSR1])
             .expect("Failed to register signal handlers");
-        
+
         for sig in signals.forever() {
             match sig {
                 SIGINT | SIGHUP | SIGTERM => {
@@ -255,9 +259,9 @@ fn print_stats(tools: &InotifyTools, config: &AppConfig) {
     if let Ok(stats) = tools.get_statistics() {
         let table = inotifytools::format::TableFormatter::format_stats_table(
             &stats,
-            None, // No specific sort by event type for intermediate stats
+            None,  // No specific sort by event type for intermediate stats
             false, // Descending order
-            config.zero
+            config.zero,
         );
         println!("{}", table);
         println!(); // Add extra newline
@@ -291,7 +295,7 @@ fn print_final_stats(tools: &InotifyTools, config: &AppConfig) -> i32 {
         &stats,
         sort_event,
         ascending,
-        config.zero
+        config.zero,
     );
 
     print!("{}", table);
