@@ -28,9 +28,9 @@ struct AppConfig {
     recursive: bool,
     no_dereference: bool,
     fromfile: Option<String>,
-    exclude_regex: Option<String>,
+    exclude_regexes: Vec<String>,
     exclude_iregex: Option<String>,
-    include_regex: Option<String>,
+    include_regexes: Vec<String>,
     include_iregex: Option<String>,
     zero: bool,
     fanotify: bool,
@@ -76,15 +76,15 @@ fn run() -> i32 {
     };
 
     // Set up regex filters
-    if let Some(ref pattern) = config.exclude_regex {
-        if let Err(e) = tools.set_exclude_regex(pattern) {
+    for pattern in &config.exclude_regexes {
+        if let Err(e) = tools.add_exclude_regex(&pattern) {
             eprintln!("Error in exclude regular expression: {}", e);
             return EXIT_FAILURE;
         }
     }
 
-    if let Some(ref pattern) = config.include_regex {
-        if let Err(e) = tools.set_include_regex(pattern) {
+    for pattern in &config.include_regexes {
+        if let Err(e) = tools.add_include_regex(pattern) {
             eprintln!("Error in include regular expression: {}", e);
             return EXIT_FAILURE;
         }
@@ -345,6 +345,7 @@ fn parse_args() -> Result<AppConfig, Box<dyn std::error::Error>> {
         .arg(
             Arg::new("exclude")
                 .long("exclude")
+                .action(ArgAction::Append)
                 .value_name("PATTERN")
                 .help("Exclude all events on files matching the extended regular expression PATTERN"),
         )
@@ -357,6 +358,7 @@ fn parse_args() -> Result<AppConfig, Box<dyn std::error::Error>> {
         .arg(
             Arg::new("include")
                 .long("include")
+                .action(ArgAction::Append)
                 .value_name("PATTERN")
                 .help("Exclude all events on files except the ones matching the extended regular expression PATTERN"),
         )
@@ -480,9 +482,17 @@ fn parse_args() -> Result<AppConfig, Box<dyn std::error::Error>> {
         recursive: matches.get_flag("recursive"),
         no_dereference: matches.get_flag("no-dereference"),
         fromfile: matches.get_one::<String>("fromfile").cloned(),
-        exclude_regex: matches.get_one::<String>("exclude").cloned(),
+        exclude_regexes: matches
+            .get_many::<String>("exclude")
+            .unwrap_or_default()
+            .cloned()
+            .collect(),
         exclude_iregex: matches.get_one::<String>("excludei").cloned(),
-        include_regex: matches.get_one::<String>("include").cloned(),
+        include_regexes: matches
+            .get_many::<String>("include")
+            .unwrap_or_default()
+            .cloned()
+            .collect(),
         include_iregex: matches.get_one::<String>("includei").cloned(),
         zero: matches.get_flag("zero"),
         fanotify: matches.get_flag("fanotify"),

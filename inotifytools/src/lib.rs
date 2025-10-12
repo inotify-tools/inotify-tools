@@ -35,8 +35,8 @@ pub use watch::Watch;
 pub struct InotifyTools {
     inotify: Inotify,
     watches: HashMap<i32, Watch>,
-    include_regex: Option<Regex>,
-    exclude_regex: Option<Regex>,
+    include_regexes: Vec<Regex>,
+    exclude_regexes: Vec<Regex>,
     recursive: bool,
     stats: Arc<Mutex<Statistics>>,
     initialized: bool,
@@ -69,8 +69,8 @@ impl InotifyTools {
         Ok(Self {
             inotify,
             watches: HashMap::new(),
-            include_regex: None,
-            exclude_regex: None,
+            include_regexes: Vec::new(),
+            exclude_regexes: Vec::new(),
             recursive: false,
             stats: Arc::new(Mutex::new(Statistics::new())),
             initialized: true,
@@ -197,15 +197,15 @@ impl InotifyTools {
         Ok(())
     }
 
-    /// Set include regex pattern
-    pub fn set_include_regex(&mut self, pattern: &str) -> Result<(), InotifyToolsError> {
-        self.include_regex = Self::new_regex(pattern)?.into();
+    /// Add include regex pattern
+    pub fn add_include_regex(&mut self, pattern: &str) -> Result<(), InotifyToolsError> {
+        self.include_regexes.push(Self::new_regex(pattern)?);
         Ok(())
     }
 
-    /// Set exclude regex pattern
-    pub fn set_exclude_regex(&mut self, pattern: &str) -> Result<(), InotifyToolsError> {
-        self.exclude_regex = Self::new_regex(pattern)?.into();
+    /// Add exclude regex pattern
+    pub fn add_exclude_regex(&mut self, pattern: &str) -> Result<(), InotifyToolsError> {
+        self.exclude_regexes.push(Self::new_regex(pattern)?);
         Ok(())
     }
 
@@ -269,21 +269,8 @@ impl InotifyTools {
     fn should_filter_event(&self, event: &Event) -> bool {
         let path_str = event.path.to_string_lossy();
 
-        // Check exclude regex
-        if let Some(ref exclude_regex) = self.exclude_regex {
-            if exclude_regex.is_match(&path_str) {
-                return true;
-            }
-        }
-
-        // Check include regex
-        if let Some(ref include_regex) = self.include_regex {
-            if !include_regex.is_match(&path_str) {
-                return true;
-            }
-        }
-
-        false
+        self.exclude_regexes.iter().any(|r| r.is_match(&path_str))
+            || self.include_regexes.iter().any(|r| !r.is_match(&path_str))
     }
 
     /// Remove a watch by watch descriptor
