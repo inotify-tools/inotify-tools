@@ -14,9 +14,9 @@
 
 pub mod error;
 pub mod event;
-pub mod watch;
-pub mod stats;
 pub mod format;
+pub mod stats;
+pub mod watch;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -28,8 +28,8 @@ use regex::Regex;
 
 pub use error::InotifyToolsError;
 pub use event::{Event, EventMask};
-pub use watch::Watch;
 pub use stats::Statistics;
+pub use watch::Watch;
 
 /// The main inotify tools instance
 pub struct InotifyTools {
@@ -65,7 +65,7 @@ impl InotifyTools {
     /// Initialize a new InotifyTools instance
     pub fn new(config: Config) -> Result<Self, InotifyToolsError> {
         let inotify = Inotify::init().map_err(InotifyToolsError::InotifyInit)?;
-        
+
         Ok(Self {
             inotify,
             watches: HashMap::new(),
@@ -79,30 +79,39 @@ impl InotifyTools {
     }
 
     /// Watch a single file or directory
-    pub fn watch_file<P: AsRef<Path>>(&mut self, path: P, events: EventMask) -> Result<i32, InotifyToolsError> {
+    pub fn watch_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        events: EventMask,
+    ) -> Result<i32, InotifyToolsError> {
         let path = path.as_ref();
         let watch_mask = events.to_watch_mask();
-        
-        let watch_descriptor = self.inotify
+
+        let watch_descriptor = self
+            .inotify
             .watches()
             .add(path, watch_mask)
             .map_err(|e| InotifyToolsError::WatchAdd(path.to_path_buf(), e))?;
-        
+
         let wd_id = watch_descriptor.get_watch_descriptor_id() as i32;
         let watch = Watch::new(wd_id, path.to_path_buf());
         self.watches.insert(wd_id, watch);
-        
+
         if self.verbose {
             eprintln!("Watching {}", path.display());
         }
-        
+
         Ok(wd_id)
     }
 
     /// Watch multiple files or directories
-    pub fn watch_files<P: AsRef<Path>>(&mut self, paths: &[P], events: EventMask) -> Result<Vec<i32>, InotifyToolsError> {
+    pub fn watch_files<P: AsRef<Path>>(
+        &mut self,
+        paths: &[P],
+        events: EventMask,
+    ) -> Result<Vec<i32>, InotifyToolsError> {
         let mut watch_descriptors = Vec::new();
-        
+
         for path in paths {
             match self.watch_file(path, events) {
                 Ok(wd) => watch_descriptors.push(wd),
@@ -114,34 +123,38 @@ impl InotifyTools {
                 }
             }
         }
-        
+
         Ok(watch_descriptors)
     }
 
     /// Watch a directory recursively
-    pub fn watch_recursively<P: AsRef<Path>>(&mut self, path: P, events: EventMask) -> Result<Vec<i32>, InotifyToolsError> {
+    pub fn watch_recursively<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        events: EventMask,
+    ) -> Result<Vec<i32>, InotifyToolsError> {
         self.watch_recursively_with_exclude(path, events, &[] as &[&str])
     }
 
     /// Watch a directory recursively with exclusion patterns
     pub fn watch_recursively_with_exclude<P: AsRef<Path>, S: AsRef<str>>(
-        &mut self, 
-        path: P, 
+        &mut self,
+        path: P,
         events: EventMask,
-        exclude_patterns: &[S]
+        exclude_patterns: &[S],
     ) -> Result<Vec<i32>, InotifyToolsError> {
         let path = path.as_ref();
         let mut watch_descriptors = Vec::new();
-        
+
         // Add main directory watch
         let wd = self.watch_file(path, events)?;
         watch_descriptors.push(wd);
-        
+
         // Recursively add subdirectories
         if path.is_dir() {
             self.add_recursive_watches(path, events, exclude_patterns, &mut watch_descriptors)?;
         }
-        
+
         Ok(watch_descriptors)
     }
 
@@ -151,15 +164,16 @@ impl InotifyTools {
         dir: P,
         events: EventMask,
         exclude_patterns: &[S],
-        watch_descriptors: &mut Vec<i32>
+        watch_descriptors: &mut Vec<i32>,
     ) -> Result<(), InotifyToolsError> {
         let entries = std::fs::read_dir(dir.as_ref())
             .map_err(|e| InotifyToolsError::ReadDir(dir.as_ref().to_path_buf(), e))?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| InotifyToolsError::ReadDir(dir.as_ref().to_path_buf(), e))?;
+            let entry =
+                entry.map_err(|e| InotifyToolsError::ReadDir(dir.as_ref().to_path_buf(), e))?;
             let path = entry.path();
-            
+
             if path.is_dir() {
                 // Check if this directory should be excluded
                 let should_exclude = exclude_patterns.iter().any(|pattern| {
@@ -169,17 +183,17 @@ impl InotifyTools {
                         false
                     }
                 });
-                
+
                 if !should_exclude {
                     let wd = self.watch_file(&path, events)?;
                     watch_descriptors.push(wd);
-                    
+
                     // Recurse into subdirectory
                     self.add_recursive_watches(&path, events, exclude_patterns, watch_descriptors)?;
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -196,9 +210,12 @@ impl InotifyTools {
     }
 
     /// Get the next event with timeout
-    pub fn next_event(&mut self, timeout: Option<Duration>) -> Result<Option<Event>, InotifyToolsError> {
+    pub fn next_event(
+        &mut self,
+        timeout: Option<Duration>,
+    ) -> Result<Option<Event>, InotifyToolsError> {
         let mut buffer = [0u8; 4096];
-        
+
         let events = if timeout.is_some() {
             // For blocking with timeout, we'd need to use select or similar
             // For now, use non-blocking and implement timeout manually
@@ -216,51 +233,52 @@ impl InotifyTools {
                 Err(e) => return Err(InotifyToolsError::ReadEvents(e)),
             }
         } else {
-            self.inotify.read_events(&mut buffer)
+            self.inotify
+                .read_events(&mut buffer)
                 .map_err(InotifyToolsError::ReadEvents)?
         };
 
         for event in events {
             let wd = event.wd.get_watch_descriptor_id() as i32;
-            
+
             if let Some(watch) = self.watches.get(&wd) {
                 let rust_event = Event::from_inotify_event(event, watch.path.clone())?;
-                
+
                 // Apply regex filters
                 if self.should_filter_event(&rust_event) {
                     continue;
                 }
-                
+
                 // Update statistics
                 if let Ok(mut stats) = self.stats.lock() {
                     stats.record_event(&rust_event);
                 }
-                
+
                 return Ok(Some(rust_event));
             }
         }
-        
+
         Ok(None)
     }
 
     /// Check if an event should be filtered out
     fn should_filter_event(&self, event: &Event) -> bool {
         let path_str = event.path.to_string_lossy();
-        
+
         // Check exclude regex
         if let Some(ref exclude_regex) = self.exclude_regex {
             if exclude_regex.is_match(&path_str) {
                 return true;
             }
         }
-        
+
         // Check include regex
         if let Some(ref include_regex) = self.include_regex {
             if !include_regex.is_match(&path_str) {
                 return true;
             }
         }
-        
+
         false
     }
 
@@ -278,27 +296,31 @@ impl InotifyTools {
     }
 
     /// Remove a watch by filename
-    pub fn remove_watch_by_filename<P: AsRef<Path>>(&mut self, path: P) -> Result<(), InotifyToolsError> {
+    pub fn remove_watch_by_filename<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), InotifyToolsError> {
         let path = path.as_ref();
         let mut wd_to_remove = None;
-        
+
         for (wd, watch) in &self.watches {
             if watch.path == path {
                 wd_to_remove = Some(*wd);
                 break;
             }
         }
-        
+
         if let Some(wd) = wd_to_remove {
             self.remove_watch(wd)?;
         }
-        
+
         Ok(())
     }
 
     /// Get statistics
     pub fn get_statistics(&self) -> Result<Statistics, InotifyToolsError> {
-        self.stats.lock()
+        self.stats
+            .lock()
             .map(|stats| stats.clone())
             .map_err(|_| InotifyToolsError::LockError)
     }
@@ -336,23 +358,23 @@ pub fn events_to_str(events: EventMask) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_inotifytools_creation() {
         let config = Config::default();
         let result = InotifyTools::new(config);
         assert!(result.is_ok());
-        
+
         let tools = result.unwrap();
         assert!(tools.is_initialized());
         assert_eq!(tools.get_num_watches(), 0);
     }
-    
+
     #[test]
     fn test_str_to_events() {
         let result = str_to_events("modify,create,delete");
         assert!(result.is_ok());
-        
+
         let events = result.unwrap();
         assert!(events.contains(EventMask::MODIFY));
         assert!(events.contains(EventMask::CREATE));
