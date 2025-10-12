@@ -199,14 +199,18 @@ impl InotifyTools {
 
     /// Set include regex pattern
     pub fn set_include_regex(&mut self, pattern: &str) -> Result<(), InotifyToolsError> {
-        self.include_regex = Some(Regex::new(pattern).map_err(InotifyToolsError::Regex)?);
+        self.include_regex = Self::new_regex(pattern)?.into();
         Ok(())
     }
 
     /// Set exclude regex pattern
     pub fn set_exclude_regex(&mut self, pattern: &str) -> Result<(), InotifyToolsError> {
-        self.exclude_regex = Some(Regex::new(pattern).map_err(InotifyToolsError::Regex)?);
+        self.exclude_regex = Self::new_regex(pattern)?.into();
         Ok(())
+    }
+
+    fn new_regex(pattern: &str) -> Result<Regex, InotifyToolsError> {
+        Regex::new(pattern).map_err(InotifyToolsError::Regex)
     }
 
     /// Get the next event with timeout
