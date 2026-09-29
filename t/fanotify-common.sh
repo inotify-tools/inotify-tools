@@ -1,8 +1,15 @@
 #!/bin/sh
 
-# Check for kernel support and privileges
+# Check for kernel support and privileges on a path.
+# Extra arguments are fsnotifywait options, such as --filesystem.
+fanotify_supported_on() {
+    path=$1
+    shift
+    ../../src/fsnotifywait --fanotify -t -1 "$@" "$path" 2>&1 | grep -q 'Negative timeout'
+}
+
 fanotify_supported() {
-    ../../src/fsnotifywait --fanotify -t -1 $* "." 2>&1 | grep -q 'Negative timeout'
+    fanotify_supported_on "." "$@"
 }
 
 # Create and mount a test filesystem
@@ -14,4 +21,59 @@ mount_filesystem() {
     truncate -s $size img && mkfs.$fstype img && \
         mkdir -p $mnt && mount -o loop img $mnt && \
         df -t $fstype $mnt
+}
+
+# Mount `fstype` of `size` at `mnt` when a filesystem watch can run there.
+# Returns 0 with `mnt` still mounted. Otherwise prints a SKIP line and
+# returns 1.
+mount_filesystem_for_fanotify() {
+    fstype=$1
+    size=$2
+    mnt=$3
+    if mount_filesystem $fstype $size $mnt &&
+        fanotify_supported_on $mnt --filesystem
+    then
+        return 0
+    fi
+    cleanup_mounts $mnt
+    echo "# SKIP: filesystem watch not supported on $fstype"
+    return 1
+}
+
+# Create tmpfs mount
+mount_tmpfs() {
+    mnt=$1
+    size=${2:-10M}
+    mkdir -p $mnt && mount -t tmpfs -o size=$size tmpfs $mnt
+}
+
+# Mount tmpfs of `size` at `mnt` when a filesystem watch can run there.
+# Returns 0 with `mnt` still mounted. Otherwise prints a SKIP line and
+# returns 1.
+mount_tmpfs_for_fanotify() {
+    mnt=$1
+    size=${2:-10M}
+    if mount_tmpfs $mnt $size &&
+        fanotify_supported_on $mnt --filesystem
+    then
+        return 0
+    fi
+    cleanup_mounts $mnt
+    echo "# SKIP: filesystem watch not supported on tmpfs"
+    return 1
+}
+
+# Test if we're running as root
+is_root() {
+    [ $(id -u) -eq 0 ]
+}
+
+# Clean up filesystem mounts
+cleanup_mounts() {
+    for mnt in "$@"; do
+        if mountpoint -q "$mnt" 2>/dev/null; then
+            umount -l "$mnt" 2>/dev/null || true
+        fi
+        rm -rf "$mnt" 2>/dev/null || true
+    done
 }
