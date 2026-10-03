@@ -825,6 +825,107 @@ impl Inotifytools {
         ret
     }
 
+    /// Mount id of `path` relative to `dirfd`. `flags` are `statx` flags,
+    /// such as `AT_EMPTY_PATH`. `None` if it cannot be read; `self.error`
+    /// is set.
+    #[cfg(target_os = "linux")]
+    fn mount_id_at(&mut self, dirfd: c_int, path: &CStr, flags: c_int) -> Option<c_int> {
+        // `STATX_MNT_ID` and the `stx_mnt_id` offset in `struct statx`.
+        // The libc wrapper is absent on musl unless its 1.2.3 cfg is enabled.
+        const STATX_MNT_ID: u32 = 0x1000;
+        const STX_MNT_ID_OFF: usize = 144;
+        let mut buf = [0u8; 256];
+        let ret = unsafe {
+            libc::syscall(
+                libc::SYS_statx as c_long,
+                dirfd,
+                path.as_ptr(),
+                flags,
+                STATX_MNT_ID,
+                buf.as_mut_ptr(),
+            )
+        };
+        if ret != 0 {
+            self.error = errno();
+            return None;
+        }
+        // Kernels before v5.8 do not fill the mount id.
+        let mask = u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]);
+        if mask & STATX_MNT_ID == 0 {
+            self.error = libc::EOPNOTSUPP;
+            return None;
+        }
+        let id = u64::from_ne_bytes(buf[STX_MNT_ID_OFF..STX_MNT_ID_OFF + 8].try_into().unwrap());
+        Some(id as c_int)
+    }
+
+    /// Mount id of an open fd. `None` if it cannot be read; `self.error` is set.
+    #[cfg(target_os = "linux")]
+    fn mount_id_from_fd(&mut self, fd: c_int) -> Option<c_int> {
+        self.mount_id_at(fd, &cstring(b""), libc::AT_EMPTY_PATH)
+    }
+
+    /// Mount id of `path`. `None` if it cannot be read; `self.error` is set.
+    #[cfg(target_os = "linux")]
+    fn mount_id_of(&mut self, path: &CStr) -> Option<c_int> {
+        self.mount_id_at(libc::AT_FDCWD, path, 0)
+    }
+
+    /// Warn for a filesystem watch whose mount id could not be read.
+    /// `self.error` is `EOPNOTSUPP` afterwards.
+    #[cfg(target_os = "linux")]
+    fn warn_mount_id(&mut self, what: &[u8]) {
+        if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM {
+            let err = if self.error != 0 { self.error } else { libc::EOPNOTSUPP };
+            ceprint!("Failed to read mount id of ", what, ": ", strerror(err), "\n");
+        }
+        self.error = libc::EOPNOTSUPP;
+    }
+
+    /// Mount id of `path` when it is on the same mount as filesystem watch
+    /// `fswatchid`. `None` if the ids differ (`self.error` cleared) or could
+    /// not be read (`self.error` is `EOPNOTSUPP`). A mount id of 0 does not
+    /// match.
+    #[cfg(target_os = "linux")]
+    fn is_same_mount(&mut self, path: &CStr, fswatchid: u64) -> Option<c_int> {
+        let new_mntid = match self.mount_id_of(path) {
+            Some(id) if id != 0 => id,
+            _ => {
+                self.warn_mount_id(path.to_bytes());
+                return None;
+            }
+        };
+        let dirf = self.watch(fswatchid).dirf;
+        let old_name = self.watch(fswatchid).filename.to_bytes().to_vec();
+        match self.mount_id_from_fd(dirf) {
+            Some(id) if id != 0 && id == new_mntid => {
+                self.error = 0;
+                Some(id)
+            }
+            Some(id) if id != 0 => {
+                self.error = 0;
+                None
+            }
+            _ => {
+                self.warn_mount_id(&old_name);
+                None
+            }
+        }
+    }
+
+    /// Whether `mntid` is the mount id of `/`. A mount id of 0 is not.
+    #[cfg(target_os = "linux")]
+    fn is_root_mount(&mut self, mntid: c_int) -> Option<bool> {
+        if mntid == 0 {
+            return Some(false);
+        }
+        let root = self.mount_id_of(&cstring(b"/"))?;
+        if root == 0 {
+            return Some(false);
+        }
+        Some(root == mntid)
+    }
+
     /// Build the fid identifying a newly marked file (and register the
     /// filesystem's mount fd).  Returns (fid, directory O_PATH fd).
     #[cfg(target_os = "linux")]
@@ -848,20 +949,90 @@ impl Inotifytools {
             fid::clear_fsid_val1(&mut f);
         }
 
-        // Hash mount_fd with fid->fsid (and null fhandle).  Note: the lookup
-        // key still has hdr.len == 0 at this point, so (as in the original)
-        // it never matches and every directory registers a mount fd.
-        let mnt = if dirname.is_some() { self.watch_from_fid(&f) } else { None };
-        if let (Some(d), None) = (dirname, mnt) {
-            let fsidk = fid::fsid_key(&f);
-            let cd = cstring(d);
-            let mntid = unsafe { libc::open(cd.as_ptr(), libc::O_RDONLY) };
-            if mntid < 0 {
-                ceprint!("Failed to open ", d, ": ", strerror(errno()), "\n");
-                return None;
+        // Lookup the filesystem watch by fsid (and null fhandle).
+        // It will be used to resolve all events via one mount fd, so reject a watch on
+        // another mount of the same filesystem.
+        let fswatchid = if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM {
+            match self.watch_from_fid(&fid::fsid_key(&f)) {
+                Some(fswatchid) => match self.is_same_mount(cpath, fswatchid) {
+                    Some(_) => Some(fswatchid),
+                    // Mount id could not be read. The warning was already
+                    // printed. Keep going without treating id 0 as a match.
+                    None if self.error == libc::EOPNOTSUPP => {
+                        self.error = 0;
+                        None
+                    }
+                    None if self.error != 0 => {
+                        ceprint!(
+                            "Failed to compare mounts of ",
+                            fname,
+                            ": ",
+                            strerror(self.error),
+                            "\n"
+                        );
+                        return None;
+                    }
+                    None => {
+                        let other = self.watch(fswatchid).filename.to_bytes().to_vec();
+                        let other: &[u8] = if other.is_empty() { b"/" } else { &other };
+                        ceprint!(
+                            "Failed to watch ",
+                            fname,
+                            ": ",
+                            other,
+                            " is another mount of the same filesystem.\n"
+                        );
+                        self.error = EINVAL;
+                        return None;
+                    }
+                },
+                None => None,
             }
-            // Hash mount_fd without terminating /
-            self.create_watch(0, Some(fsidk), &d[..d.len() - 1], mntid);
+        } else if dirname.is_some() {
+            // Directory watches record a separate dirfd for every directory.
+            self.watch_from_fid(&f)
+        } else {
+            None
+        };
+        // Hash filesystem watch by fsid (and null fhandle)
+        // with mount_fd as dirfd and a directory path without terminating '/'.
+        if let (Some(d), None) = (dirname, fswatchid) {
+            let fsidk = fid::fsid_key(&f);
+            // A failed mount-id read on a second filesystem watch leaves the
+            // existing fsid entry in place.
+            if self.watch_from_fid(&fsidk).is_none() {
+                let cd = cstring(d);
+                let mount_fd = unsafe { libc::open(cd.as_ptr(), libc::O_RDONLY) };
+                if mount_fd < 0 {
+                    ceprint!("Failed to open ", d, ": ", strerror(errno()), "\n");
+                    return None;
+                }
+                let mntid = match self.mount_id_from_fd(mount_fd) {
+                    Some(id) if id != 0 => id,
+                    _ => {
+                        self.warn_mount_id(d);
+                        self.error = 0;
+                        0
+                    }
+                };
+                // A subdirectory of the root mount (for example /home) is still
+                // the root mount. Store an empty path so a resolved "/" stays in scope.
+                // Mount id 0 is not the root mount.
+                let on_root = if mntid == 0 {
+                    false
+                } else {
+                    match self.is_root_mount(mntid) {
+                        Some(v) => v,
+                        None => {
+                            self.warn_mount_id(b"/");
+                            self.error = 0;
+                            false
+                        }
+                    }
+                };
+                let stored: &[u8] = if on_root { b"" } else { &d[..d.len() - 1] };
+                self.create_watch(0, Some(fsidk), stored, mount_fd);
+            }
         }
 
         let mut handle = [0u32; (8 + fid::MAX_FID_LEN) / 4];
@@ -904,10 +1075,13 @@ impl Inotifytools {
     #[cfg(target_os = "linux")]
     fn filename_from_fid(&mut self, f: &[u8], is_dir: bool) -> Option<*const c_char> {
         let mut mount_fd = libc::AT_FDCWD;
+        let mut mounted_at_root = false;
 
         // Match mount_fd from fid->fsid (and null fhandle)
         if let Some(id) = self.watch_from_fid(&fid::fsid_key(f)) {
             mount_fd = self.watch(id).dirf;
+            // Empty means the watch is on the root mount
+            mounted_at_root = self.watch(id).filename.as_bytes().is_empty();
         }
 
         let hb = fid::handle_bytes(f) as usize;
@@ -974,6 +1148,13 @@ impl Inotifytools {
             return None;
         }
         let mut len = len as usize;
+        // if watching a filesystem not mounted on "/" and getting an event in path "/"
+        // then the event is from outside the bind mount the filesystem watch was set on.
+        if len == 1 && buf[0] == b'/' && !mounted_at_root {
+            buf[0] = 0;
+            unsafe { libc::close(dirf) };
+            return Some(buf.as_ptr().cast());
+        }
         // Do not append '/' to a non-directory *_SELF path
         if !self_nondir_fid {
             buf[len] = b'/';

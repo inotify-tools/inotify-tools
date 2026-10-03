@@ -110,6 +110,29 @@ overlayfs_supported() {
     grep -q overlay /proc/filesystems 2>/dev/null
 }
 
+# Run a binary chrooted to $1 in a private mount namespace
+run_in_chroot() {
+    root=$1
+    shift
+    unshare -m sh -c '
+        root=$1
+        bind_file() {
+            mkdir -p "$root$(dirname "$1")" &&
+                touch "$root$1" &&
+                mount --bind "$1" "$root$1"
+        }
+        mount --make-rprivate / &&
+            mkdir -p "$root/proc" &&
+            mount -t proc proc "$root/proc" &&
+            bind_file "$2" &&
+            for lib in $(ldd "$2" | grep -o "/[^ ]*"); do
+                bind_file "$lib" || exit 1
+            done &&
+            shift &&
+            exec chroot "$root" "$@"
+    ' sh "$root" "$@"
+}
+
 # Clean up filesystem mounts
 cleanup_mounts() {
     for mnt in "$@"; do
