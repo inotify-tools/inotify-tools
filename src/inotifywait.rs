@@ -7,7 +7,7 @@ use std::ffi::CString;
 use common::*;
 use inotifytools::cio::{self, cstring, errno, strerror};
 use inotifytools::consts::*;
-use inotifytools::{cat, ceprint, cprint, Event, Inotifytools, MAX_STRLEN};
+use inotifytools::{cat, ceprint, cprint, Event, Inotifytools, WatchScope, MAX_STRLEN};
 use libc::{c_int, c_long};
 
 #[derive(Default)]
@@ -28,7 +28,7 @@ struct Opts {
     filters: Filters,
     no_newline: bool,
     fanotify: bool,
-    filesystem: bool,
+    scope: Option<WatchScope>,
 }
 
 /// CSV-escape the first `len` bytes of `string`.  (Whether escaping is
@@ -148,9 +148,10 @@ fn real_main() -> i32 {
             return EXIT_FAILURE;
         }
     };
+    let scope = o.scope.unwrap_or_default();
 
     let mut lib = Inotifytools::new();
-    if !lib.init(o.fanotify, o.filesystem, (o.quiet == 0) as c_int) {
+    if !lib.init(o.fanotify, scope, (o.quiet == 0) as c_int) {
         warn_inotify_init_error(&lib, o.fanotify);
         return EXIT_FAILURE;
     }
@@ -170,7 +171,7 @@ fn real_main() -> i32 {
     // If events is still 0, make it all events.
     let mut events = o.events;
     if events == 0 {
-        events = if o.filesystem { FS_ALL_EVENTS } else { IN_ALL_EVENTS };
+        events = scope.default_events();
     }
 
     let orig_events = events;
@@ -258,8 +259,8 @@ fn real_main() -> i32 {
     }
 
     if o.quiet == 0 {
-        if o.filesystem {
-            output_error(sysl, cat!("Setting up filesystem watches.\n"));
+        if scope != WatchScope::Inode {
+            output_error(sysl, cat!("Setting up ", scope.name(), " watches.\n"));
         } else if o.recursive != 0 {
             output_error(
                 sysl,
@@ -270,14 +271,14 @@ fn real_main() -> i32 {
         }
     }
 
-    let (recursive, fs) = (o.recursive != 0, o.filesystem);
+    let recursive = o.recursive != 0;
     let mut out = |m| output_error(sysl, m);
     if !watch_list(
         &mut lib,
         &list,
         events,
         recursive,
-        fs,
+        scope,
         o.fanotify,
         "Couldn't watch ",
         &mut out,
@@ -320,7 +321,7 @@ fn real_main() -> i32 {
         }
 
         // TODO: replace filename of renamed filesystem watch entries
-        if o.filesystem {
+        if scope != WatchScope::Inode {
             if !o.monitor {
                 break event;
             }
@@ -346,7 +347,7 @@ fn real_main() -> i32 {
     EXIT_SUCCESS
 }
 
-const OPT_STRING: &str = "mrhcdsPqt:fo:e:IFS";
+const OPT_STRING: &str = "mrhcdsPqt:fo:e:IFMS";
 
 const LONG_OPTS: &[LongOpt] = &[
     ("help", false, b'h'),
@@ -359,6 +360,7 @@ const LONG_OPTS: &[LongOpt] = &[
     ("inotify", false, b'I'),
     ("fanotify", false, b'F'),
     ("filesystem", false, b'S'),
+    ("mount", false, b'M'),
     ("csv", false, b'c'),
     ("daemon", false, b'd'),
     ("syslog", false, b's'),
@@ -395,12 +397,12 @@ fn parse_opts(g: &mut GetOpt, o: &mut Opts) -> Option<Vec<Vec<u8>>> {
             b'm' => o.monitor = true,
             b'q' => o.quiet += 1,
             b'r' => o.recursive += 1,
-            b'I' => o.fanotify = false,
-            b'F' => o.fanotify = true,
-            b'S' => {
-                o.filesystem = true;
-                o.fanotify = true;
+            b'I' | b'S' | b'M' => {
+                if !set_watch_scope(&mut o.scope, &mut o.fanotify, curr_opt as u8) {
+                    return None;
+                }
             }
+            b'F' => o.fanotify = true,
             b'c' => o.csv = true,
             b'd' => {
                 o.daemon = true;
@@ -548,6 +550,7 @@ fn print_help(tool_name: &[u8]) {
     cprint!("\t-I|--inotify\tWatch with inotify.\n");
     cprint!("\t-F|--fanotify\tWatch with fanotify.\n");
     cprint!("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
+    cprint!("\t-M|--mount\tWatch entire mount with fanotify.\n");
     cprint!(
         "\t--fromfile <file>\n",
         "\t              \tRead files to watch from <file> or `-' for stdin.\n"

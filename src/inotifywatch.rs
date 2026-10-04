@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use common::*;
 use inotifytools::cio::{self, strerror};
 use inotifytools::consts::*;
-use inotifytools::{ceprint, cprint, Inotifytools, WatchStats};
+use inotifytools::{ceprint, cprint, Inotifytools, WatchScope, WatchStats};
 use libc::{c_int, c_long};
 
 static DONE: AtomicBool = AtomicBool::new(false);
@@ -62,7 +62,7 @@ struct Opts {
     fromfile: Option<Vec<u8>>,
     filters: Filters,
     fanotify: bool,
-    filesystem: bool,
+    scope: Option<WatchScope>,
 }
 
 fn main() {
@@ -87,13 +87,14 @@ fn real_main() -> i32 {
             return EXIT_FAILURE;
         }
     };
+    let scope = o.scope.unwrap_or_default();
 
     let mut lib = Inotifytools::new();
     if !o.filters.install(&mut lib, o.recursive) {
         return EXIT_FAILURE;
     }
 
-    if !lib.init(o.fanotify, o.filesystem, o.verbose) {
+    if !lib.init(o.fanotify, scope, o.verbose) {
         warn_inotify_init_error(&lib, o.fanotify);
         return EXIT_FAILURE;
     }
@@ -101,7 +102,7 @@ fn real_main() -> i32 {
     // Attempt to watch file
     // If events is still 0, make it all events.
     if o.events == 0 {
-        o.events = if o.filesystem { FS_ALL_EVENTS } else { IN_ALL_EVENTS };
+        o.events = scope.default_events();
     }
     let mut events = o.events;
     if o.no_dereference != 0 {
@@ -126,10 +127,10 @@ fn real_main() -> i32 {
     }
 
     ceprint!("Establishing watches...\n");
-    let (recursive, verbose, fs) = (o.recursive != 0, o.verbose != 0, o.filesystem);
+    let (recursive, verbose) = (o.recursive != 0, o.verbose != 0);
     let mut before = |f: &[u8]| {
-        if fs {
-            ceprint!("Setting up filesystem watch on ", f, "\n");
+        if scope != WatchScope::Inode {
+            ceprint!("Setting up ", scope.name(), " watch on ", f, "\n");
         } else if recursive && verbose {
             ceprint!("Setting up watch(es) on ", f, "\n");
         }
@@ -145,7 +146,7 @@ fn real_main() -> i32 {
         &list,
         events,
         recursive,
-        fs,
+        scope,
         o.fanotify,
         "Failed to watch ",
         &mut out,
@@ -201,7 +202,7 @@ fn real_main() -> i32 {
                 }
             }
             // TODO: replace filename of renamed filesystem watch entries
-            Some(_) if o.filesystem => {}
+            Some(_) if scope != WatchScope::Inode => {}
             Some(event) => moves.handle(&mut lib, &event, recursive, events, false, &mut out),
         }
 
@@ -276,7 +277,7 @@ fn stat(s: &WatchStats, ev: i32) -> u32 {
     s.get(ev).unwrap_or(0)
 }
 
-const OPT_STRING: &str = "hrPa:d:zve:t:IFS";
+const OPT_STRING: &str = "hrPa:d:zve:t:IFMS";
 
 const LONG_OPTS: &[LongOpt] = &[
     ("help", false, b'h'),
@@ -290,6 +291,7 @@ const LONG_OPTS: &[LongOpt] = &[
     ("inotify", false, b'I'),
     ("fanotify", false, b'F'),
     ("filesystem", false, b'S'),
+    ("mount", false, b'M'),
     ("no-dereference", false, b'P'),
     ("fromfile", true, b'o'),
     ("exclude", true, b'c'),
@@ -322,12 +324,12 @@ fn parse_opts(g: &mut GetOpt, o: &mut Opts) -> Option<Vec<Vec<u8>>> {
             }
             b'v' => o.verbose += 1,
             b'r' => o.recursive += 1,
-            b'I' => o.fanotify = false,
-            b'F' => o.fanotify = true,
-            b'S' => {
-                o.filesystem = true;
-                o.fanotify = true;
+            b'I' | b'S' | b'M' => {
+                if !set_watch_scope(&mut o.scope, &mut o.fanotify, curr_opt as u8) {
+                    return None;
+                }
             }
+            b'F' => o.fanotify = true,
             b'P' => o.no_dereference += 1,
             b'z' => o.zero += 1,
             b'c' => o.filters.exc = arg(g),
@@ -394,13 +396,8 @@ fn parse_opts(g: &mut GetOpt, o: &mut Opts) -> Option<Vec<Vec<u8>>> {
 
     let rest = g.remaining();
 
-    let watched = if o.events != 0 {
-        o.events
-    } else if o.filesystem {
-        FS_ALL_EVENTS
-    } else {
-        IN_ALL_EVENTS
-    };
+    let watched =
+        if o.events != 0 { o.events } else { o.scope.unwrap_or_default().default_events() };
     if o.sort != 0 && o.sort != -1 && (o.sort.wrapping_abs() & watched) == 0 {
         ceprint!("Can't sort by an event which isn't being watched for!\n");
         return None;
@@ -450,6 +447,7 @@ fn print_help(tool_name: &[u8]) {
     cprint!("\t-I|--inotify\tWatch with inotify.\n");
     cprint!("\t-F|--fanotify\tWatch with fanotify.\n");
     cprint!("\t-S|--filesystem\tWatch entire filesystem with fanotify.\n");
+    cprint!("\t-M|--mount\tWatch entire mount with fanotify.\n");
     cprint!("\t-P|--no-dereference\n", "\t\tDo not follow symlinks.\n");
     cprint!(
         "\t-t|--timeout <seconds>\n",

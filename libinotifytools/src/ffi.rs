@@ -9,7 +9,7 @@ use libc::{c_char, c_int, c_long, c_void, size_t, FILE};
 
 use crate::sys::inotify_event;
 
-use crate::inotify::{self, Event, Inotifytools, NString, EMPTY, MAX_STRLEN};
+use crate::inotify::{self, Event, Inotifytools, NString, WatchScope, EMPTY, MAX_STRLEN};
 
 struct Global(UnsafeCell<Option<Inotifytools>>);
 // SAFETY: not thread-safe, exactly like the original library's globals.
@@ -305,7 +305,8 @@ pub extern "C" fn inotifytools_init(
     watch_filesystem: c_int,
     verbose: c_int,
 ) -> c_int {
-    lib().init(fanotify != 0, watch_filesystem != 0, verbose) as c_int
+    let scope = if watch_filesystem != 0 { WatchScope::Filesystem } else { WatchScope::Inode };
+    lib().init(fanotify != 0, scope, verbose) as c_int
 }
 
 #[no_mangle]
