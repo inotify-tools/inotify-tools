@@ -34,8 +34,16 @@ pub const FAN_EVENT_INFO_TYPE_DFID: u8 = 3;
 pub const FID_HDR: usize = 20;
 /// Offset of the `struct file_handle` inside a fid.
 pub const HANDLE_OFF: usize = 12;
-/// Maximum file handle size we encode ourselves.
-pub const MAX_FID_LEN: usize = 20;
+/// Maximum file handle size (`MAX_HANDLE_SZ` in libc).
+pub const MAX_FID_LEN: usize = 128;
+/// `AT_HANDLE_FID` (same value as `AT_REMOVEDIR`). Glibc headers on older
+/// systems do not define it. Overlayfs can encode a file handle with this
+/// flag since Linux 6.6, which is enough for an inode watch.
+pub const AT_HANDLE_FID: i32 = 0x200;
+/// `BTRFS_SUPER_MAGIC` from `linux/magic.h`.
+pub const BTRFS_SUPER_MAGIC: i64 = 0x9123_683E;
+/// `FILEID_BTRFS_WITHOUT_PARENT` from `linux/exportfs.h`.
+pub const FILEID_BTRFS_WITHOUT_PARENT: u32 = 0x4d;
 /// `sizeof(struct fanotify_event_metadata)`
 pub const META_LEN: usize = 24;
 
@@ -62,6 +70,17 @@ pub fn set_hdr_len(f: &mut [u8], len: u16) {
 pub fn fsid_val(f: &[u8], i: usize) -> u32 {
     let o = 4 + 4 * i;
     u32::from_ne_bytes([get(f, o), get(f, o + 1), get(f, o + 2), get(f, o + 3)])
+}
+
+pub fn handle_type(f: &[u8]) -> u32 {
+    u32::from_ne_bytes([get(f, 16), get(f, 17), get(f, 18), get(f, 19)])
+}
+
+/// btrfs `fsid.val[1]` differs per subvolume, so hash by `val[0]` only.
+pub fn clear_fsid_val1(f: &mut [u8]) {
+    if f.len() >= 12 {
+        f[8..12].fill(0);
+    }
 }
 
 pub fn handle_bytes(f: &[u8]) -> u32 {

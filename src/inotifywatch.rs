@@ -101,7 +101,7 @@ fn real_main() -> i32 {
     // Attempt to watch file
     // If events is still 0, make it all events.
     if o.events == 0 {
-        o.events = IN_ALL_EVENTS;
+        o.events = if o.filesystem { FS_ALL_EVENTS } else { IN_ALL_EVENTS };
     }
     let mut events = o.events;
     if o.no_dereference != 0 {
@@ -394,7 +394,13 @@ fn parse_opts(g: &mut GetOpt, o: &mut Opts) -> Option<Vec<Vec<u8>>> {
 
     let rest = g.remaining();
 
-    let watched = if o.events != 0 { o.events } else { IN_ALL_EVENTS };
+    let watched = if o.events != 0 {
+        o.events
+    } else if o.filesystem {
+        FS_ALL_EVENTS
+    } else {
+        IN_ALL_EVENTS
+    };
     if o.sort != 0 && o.sort != -1 && (o.sort.wrapping_abs() & watched) == 0 {
         ceprint!("Can't sort by an event which isn't being watched for!\n");
         return None;

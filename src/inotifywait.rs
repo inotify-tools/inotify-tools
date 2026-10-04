@@ -170,7 +170,7 @@ fn real_main() -> i32 {
     // If events is still 0, make it all events.
     let mut events = o.events;
     if events == 0 {
-        events = IN_ALL_EVENTS;
+        events = if o.filesystem { FS_ALL_EVENTS } else { IN_ALL_EVENTS };
     }
 
     let orig_events = events;
