@@ -63,6 +63,16 @@ mount_tmpfs_for_fanotify() {
     return 1
 }
 
+# Create and mount a btrfs filesystem with subvolumes
+mount_btrfs_with_subvolumes() {
+    size=$1
+    mnt=$2
+    subvol_name=${3:-subvol1}
+
+    mount_filesystem btrfs $size $mnt && \
+        btrfs subvolume create $mnt/$subvol_name
+}
+
 # Create an overlayfs mount
 mount_overlayfs() {
     base_dir=$1
@@ -79,6 +89,20 @@ mount_overlayfs() {
 # Test if we're running as root
 is_root() {
     [ $(id -u) -eq 0 ]
+}
+
+# Test if we can create and mount a btrfs filesystem
+btrfs_supported() {
+    which mkfs.btrfs >/dev/null 2>&1 && which btrfs >/dev/null 2>&1 || return 1
+    img=$(mktemp) || return 1
+    mnt=$(mktemp -d) || { rm -f "$img"; return 1; }
+    truncate -s 120M "$img" && \
+        mkfs.btrfs "$img" >/dev/null 2>&1 && \
+        mount -o loop "$img" "$mnt" >/dev/null 2>&1
+    rc=$?
+    umount "$mnt" >/dev/null 2>&1
+    rm -rf "$mnt" "$img"
+    return $rc
 }
 
 # Test if overlayfs is supported

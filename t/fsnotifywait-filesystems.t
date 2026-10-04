@@ -46,6 +46,54 @@ run_and_check_log()
     run_ $1 && grep 'CREATE.*test$' $logfile
 }
 
+# Test btrfs filesystem support
+if is_root && btrfs_supported; then
+if mount_filesystem_for_fanotify btrfs 120M btrfs_root; then
+    test_expect_success 'filesystem watch works with btrfs' '
+        test_when_finished "cleanup_mounts btrfs_root" &&
+        run_and_check_log btrfs_root
+    '
+
+    test_expect_success 'filesystem watch detects changes in btrfs subvolumes' '
+        test_when_finished "cleanup_mounts btrfs_root" &&
+        mount_btrfs_with_subvolumes 120M btrfs_root subvol1 &&
+        watch_create btrfs_root/subvol1/testdir subvol_file btrfs_root --filesystem &&
+        grep -q "CREATE.*subvol_file" $logfile
+    '
+
+    # Check if btrfs subvolumes support fanotify directory watches (since v6.8)
+    mount_btrfs_with_subvolumes 120M btrfs_check subvol1 >/dev/null || {
+        cleanup_mounts btrfs_check
+        test_skip_btrfs_fanotify="Btrfs subvolume mount failed"
+    }
+
+    if test -z "$test_skip_btrfs_fanotify"; then
+        mkdir -p btrfs_check/subvol1/testdir &&
+        ../../src/inotifywait --fanotify --timeout -1 btrfs_check/subvol1/testdir 2>error.log || {
+            if grep -q "Invalid cross-device link" error.log; then
+                test_skip_btrfs_fanotify="Btrfs subvolume fanotify watches not supported"
+            fi
+        }
+        cleanup_mounts btrfs_check
+    fi
+
+    if test -z "$test_skip_btrfs_fanotify"; then
+        test_expect_success 'fanotify directory watch works inside btrfs subvolumes' '
+            test_when_finished "cleanup_mounts btrfs_root" &&
+            mount_btrfs_with_subvolumes 120M btrfs_root subvol1 &&
+            rm -f $logfile &&
+            watch_create btrfs_root/subvol1/testdir subvol_file \
+                btrfs_root/subvol1/testdir --fanotify &&
+            grep -q "CREATE.*subvol_file" $logfile
+        '
+    else
+        echo "# SKIP: $test_skip_btrfs_fanotify"
+    fi
+fi
+else
+    echo "# SKIP: btrfs not supported"
+fi
+
 # Test overlayfs
 if fanotify_supported && overlayfs_supported; then
     # Check if overlayfs supports fanotify directory watches (since v6.6)

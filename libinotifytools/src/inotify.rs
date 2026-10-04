@@ -827,6 +827,10 @@ impl Inotifytools {
         }
         let fsid: [u8; 8] = unsafe { mem::transmute_copy(&buf.f_fsid) };
         f[4..12].copy_from_slice(&fsid);
+        // btrfs fsid.val[1] differs per subvolume. Hash the mount fd by val[0].
+        if buf.f_type as u32 as i64 == fid::BTRFS_SUPER_MAGIC {
+            fid::clear_fsid_val1(&mut f);
+        }
 
         // Hash mount_fd with fid->fsid (and null fhandle).  Note: the lookup
         // key still has hdr.len == 0 at this point, so (as in the original)
@@ -1354,6 +1358,14 @@ impl Inotifytools {
         }
 
         self.ret_off = MAX_EVENTS * EVENT_SIZE;
+        // btrfs fsid.val[1] differs per subvolume. Hash the event by val[0].
+        {
+            let b = self.buf_mut();
+            let rec = &mut b[fid_off..];
+            if fid::handle_type(rec) == fid::FILEID_BTRFS_WITHOUT_PARENT {
+                fid::clear_fsid_val1(rec);
+            }
+        }
         let fid_bytes: Vec<u8> = {
             let b = self.buf();
             let hl = fid::hdr_len(&b[fid_off..]) as usize;
