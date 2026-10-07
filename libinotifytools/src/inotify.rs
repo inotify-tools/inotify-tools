@@ -205,6 +205,47 @@ impl Drop for Regex {
     }
 }
 
+/// How widely a fanotify watch applies.
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub enum WatchScope {
+    /// Mark the file or directory itself.
+    #[default]
+    Inode,
+    /// Mark the whole filesystem.
+    Filesystem,
+    /// Mark the mount that contains the path.
+    Mount,
+}
+
+impl WatchScope {
+    #[cfg(target_os = "linux")]
+    fn mark_type(self) -> u32 {
+        match self {
+            WatchScope::Inode => fid::FAN_MARK_INODE,
+            WatchScope::Filesystem => fid::FAN_MARK_FILESYSTEM,
+            WatchScope::Mount => fid::FAN_MARK_MOUNT,
+        }
+    }
+
+    /// Name used in error messages. Inode watches use a different message.
+    pub fn name(self) -> &'static str {
+        match self {
+            WatchScope::Mount => "mount",
+            WatchScope::Filesystem => "filesystem",
+            WatchScope::Inode => "inode",
+        }
+    }
+
+    /// Events selected when `--event` is omitted.
+    pub fn default_events(self) -> i32 {
+        match self {
+            WatchScope::Mount => FAN_ALL_EVENTS,
+            WatchScope::Filesystem => FS_ALL_EVENTS,
+            WatchScope::Inode => IN_ALL_EVENTS,
+        }
+    }
+}
+
 /// Handle holding all libinotifytools state.
 pub struct Inotifytools {
     fd: c_int,
@@ -214,7 +255,7 @@ pub struct Inotifytools {
     initialized: bool,
     verbosity: c_int,
     fanotify_mode: bool,
-    fanotify_mark_type: u32,
+    scope: WatchScope,
     /// `AT_HANDLE_FID` for an inode watch when the kernel supports it, otherwise 0.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     at_handle_fid: c_int,
@@ -271,7 +312,7 @@ impl Inotifytools {
             initialized: false,
             verbosity: 0,
             fanotify_mode: false,
-            fanotify_mark_type: 0,
+            scope: WatchScope::Inode,
             at_handle_fid: 0,
             self_pid: 0,
             watches: HashMap::new(),
@@ -299,35 +340,30 @@ impl Inotifytools {
     // Initialisation
     // ----------------------------------------------------------------
 
-    /// Initialise inotify, or with `fanotify`, a fanotify group (watching
-    /// whole filesystems with `watch_filesystem`).  Returns false on
-    /// failure; see [`Inotifytools::error`].
-    pub fn init(&mut self, fanotify: bool, watch_filesystem: bool, verbose: c_int) -> bool {
+    /// Initialise inotify, or with `fanotify`, a fanotify group covering
+    /// `watch_scope`.  Returns false on failure; see [`Inotifytools::error`].
+    pub fn init(&mut self, fanotify: bool, watch_scope: WatchScope, verbose: c_int) -> bool {
         if self.initialized {
             return true;
         }
 
         self.error = 0;
         self.verbosity = verbose;
+        self.scope = watch_scope;
         if fanotify {
             #[cfg(target_os = "linux")]
             unsafe {
                 self.self_pid = libc::getpid();
                 self.fanotify_mode = true;
-                self.fanotify_mark_type =
-                    if watch_filesystem { fid::FAN_MARK_FILESYSTEM } else { fid::FAN_MARK_INODE };
                 // Inode watches only need identity, which overlayfs can encode
                 // with AT_HANDLE_FID. Assume the flag works until a call rejects it.
-                self.at_handle_fid = if self.fanotify_mark_type == fid::FAN_MARK_INODE {
-                    fid::AT_HANDLE_FID
-                } else {
-                    0
-                };
+                self.at_handle_fid =
+                    if watch_scope == WatchScope::Inode { fid::AT_HANDLE_FID } else { 0 };
                 self.fd = libc::fanotify_init(fid::FAN_REPORT_FID | fid::FAN_REPORT_DFID_NAME, 0);
             }
             #[cfg(not(target_os = "linux"))]
             {
-                let _ = watch_filesystem;
+                let _ = watch_scope;
                 self.fd = -1;
                 crate::cio::set_errno(EINVAL);
             }
@@ -349,9 +385,9 @@ impl Inotifytools {
         true
     }
 
-    /// Same as `init(false, false, 0)`.
+    /// Same as `init(false, WatchScope::Inode, 0)`.
     pub fn initialize(&mut self) -> bool {
-        self.init(false, false, 0)
+        self.init(false, WatchScope::Inode, 0)
     }
 
     /// Close inotify and free all watches.  [`Inotifytools::init`] must be
@@ -517,7 +553,7 @@ impl Inotifytools {
     /// or, for resolved fids, until the next resolution.
     fn filename_from_watch_id(&mut self, id: u64) -> *const c_char {
         let w = self.watch(id);
-        if w.fid.is_none() || self.fanotify_mark_type == 0 {
+        if w.fid.is_none() || self.scope == WatchScope::Inode {
             return w.filename.as_ptr();
         }
         #[cfg(target_os = "linux")]
@@ -729,7 +765,7 @@ impl Inotifytools {
             if self.fanotify_mode {
                 #[cfg(target_os = "linux")]
                 {
-                    let mut flags = fid::FAN_MARK_ADD | self.fanotify_mark_type;
+                    let mut flags = fid::FAN_MARK_ADD | self.scope.mark_type();
                     // Note: like the original, IN_DONT_FOLLOW is only honoured
                     // for the first file of the list.
                     if events & IN_DONT_FOLLOW != 0 {
@@ -871,11 +907,11 @@ impl Inotifytools {
         self.mount_id_at(libc::AT_FDCWD, path, 0)
     }
 
-    /// Warn for a filesystem watch whose mount id could not be read.
+    /// Warn for a filesystem or mount watch whose mount id could not be read.
     /// `self.error` is `EOPNOTSUPP` afterwards.
     #[cfg(target_os = "linux")]
     fn warn_mount_id(&mut self, what: &[u8]) {
-        if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM {
+        if self.scope != WatchScope::Inode {
             let err = if self.error != 0 { self.error } else { libc::EOPNOTSUPP };
             ceprint!("Failed to read mount id of ", what, ": ", strerror(err), "\n");
         }
@@ -949,10 +985,10 @@ impl Inotifytools {
             fid::clear_fsid_val1(&mut f);
         }
 
-        // Lookup the filesystem watch by fsid (and null fhandle).
+        // Lookup the filesystem or mount watch by fsid (and null fhandle).
         // It will be used to resolve all events via one mount fd, so reject a watch on
         // another mount of the same filesystem.
-        let fswatchid = if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM {
+        let fswatchid = if self.scope != WatchScope::Inode {
             match self.watch_from_fid(&fid::fsid_key(&f)) {
                 Some(fswatchid) => match self.is_same_mount(cpath, fswatchid) {
                     Some(_) => Some(fswatchid),
@@ -994,7 +1030,7 @@ impl Inotifytools {
         } else {
             None
         };
-        // Hash filesystem watch by fsid (and null fhandle)
+        // Hash filesystem or mount watch by fsid (and null fhandle)
         // with mount_fd as dirfd and a directory path without terminating '/'.
         if let (Some(d), None) = (dirname, fswatchid) {
             let fsidk = fid::fsid_key(&f);
@@ -1103,7 +1139,7 @@ impl Inotifytools {
         let mut dirf = unsafe { sys::open_by_handle_at(mount_fd, h.as_mut_ptr().cast(), flags) };
         if dirf > 0 {
             // Got path by handle
-        } else if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM {
+        } else if self.scope != WatchScope::Inode {
             // rm -rf delivers events for directories that are already gone.
             let e = errno();
             if e == libc::ESTALE {
@@ -1455,10 +1491,8 @@ impl Inotifytools {
                 continue;
             }
 
-            // Skip a filesystem event whose path could not be resolved.
-            #[cfg(target_os = "linux")]
-            if self.fanotify_mark_type == fid::FAN_MARK_FILESYSTEM && self.rd_u32(self.ret_off) == 0
-            {
+            // Skip a mount or filesystem event whose path could not be resolved.
+            if self.scope != WatchScope::Inode && self.rd_u32(self.ret_off) == 0 {
                 continue;
             }
 

@@ -27,6 +27,8 @@ pub const IN_ONESHOT: i32 = 0x8000_0000_u32 as i32;
 /// `IN_ALL_EVENTS` without the self events. A filesystem watch already
 /// reports delete and move on the parent directory.
 pub const FS_ALL_EVENTS: i32 = IN_ALL_EVENTS & !(IN_DELETE_SELF | IN_MOVE_SELF);
+/// Legacy fanotify events. A mount mark does not report create, delete, or move.
+pub const FAN_ALL_EVENTS: i32 = IN_ACCESS | IN_MODIFY | IN_CLOSE | IN_OPEN;
 pub const IN_ALL_EVENTS: i32 = IN_ACCESS
     | IN_MODIFY
     | IN_ATTRIB

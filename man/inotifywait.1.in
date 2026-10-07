@@ -5,7 +5,7 @@ inotifywait, fsnotifywait \- wait for changes to files using inotify or fanotify
 
 .SH SYNOPSIS
 .B inotifywait
-.RB [ \-hcmrPqIFS ]
+.RB [ \-hcmrPqIFMS ]
 .RB [ \-e
 <event> ]
 .RB [ \-t
@@ -247,6 +247,10 @@ As of kernel v5.12, fanotify requires admin privileges.
 .TP
 .B \-S, \-\-filesystem
 Watch entire filesystem of any directories passed as arguments using fanotify.
+
+.TP
+.B \-M, \-\-mount
+Watch entire mount of any directories passed as arguments using fanotify.
 
 
 

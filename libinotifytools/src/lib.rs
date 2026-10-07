@@ -20,5 +20,5 @@ pub mod sys;
 
 pub use inotify::{
     isdir, str_to_event, str_to_event_sep, Event, EventPath, Inotifytools, NString, WatchRef,
-    WatchStats, MAX_STRLEN,
+    WatchScope, WatchStats, MAX_STRLEN,
 };

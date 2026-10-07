@@ -8,7 +8,7 @@ use std::os::unix::ffi::OsStrExt;
 use inotifytools::cio::{errno, set_errno, strerror};
 use inotifytools::consts::*;
 use inotifytools::sys;
-use inotifytools::{cat, ceprint, cprint, Event, Inotifytools};
+use inotifytools::{cat, ceprint, cprint, Event, Inotifytools, WatchScope};
 use libc::{c_char, c_int, c_long};
 
 pub const BLOCKING_TIMEOUT: c_long = 0;
@@ -366,6 +366,29 @@ impl Filters {
     }
 }
 
+/// Record `-I`, `-S`, or `-M` in `scope`. Returns false when one was already given.
+pub fn set_watch_scope(scope: &mut Option<WatchScope>, fanotify: &mut bool, opt: u8) -> bool {
+    if scope.is_some() {
+        ceprint!("Please specify -I -S or -M once only!\n");
+        return false;
+    }
+    match opt {
+        b'I' => {
+            *scope = Some(WatchScope::Inode);
+            *fanotify = false;
+        }
+        b'M' => {
+            *scope = Some(WatchScope::Mount);
+            *fanotify = true;
+        }
+        _ => {
+            *scope = Some(WatchScope::Filesystem);
+            *fanotify = true;
+        }
+    }
+    true
+}
+
 /// Parse an `--event` argument (printing an error if invalid).
 pub fn parse_event(optarg: Option<&CStr>) -> Option<i32> {
     let optarg = optarg.map(|a| a.to_bytes()).unwrap_or_default();
@@ -390,14 +413,14 @@ pub fn help_name(g: &GetOpt) -> Vec<u8> {
 }
 
 /// Set up the watches for `list`.  `out` receives error messages, `before`
-/// and `after` are called around each (non-filesystem) watch.
+/// and `after` are called around each inode watch.
 #[allow(clippy::too_many_arguments)]
 pub fn watch_list(
     lib: &mut Inotifytools,
     list: &FileList,
     events: i32,
     recursive: bool,
-    filesystem: bool,
+    scope: WatchScope,
     fanotify: bool,
     fail_verb: &str,
     out: &mut dyn FnMut(Vec<u8>),
@@ -408,11 +431,11 @@ pub fn watch_list(
     let resource = if fanotify { "marks" } else { "watches" };
     for this_file in &list.watch_files {
         before(this_file);
-        if filesystem {
+        if scope != WatchScope::Inode {
             let all: Vec<&[u8]> = list.watch_files.iter().map(|v| v.as_slice()).collect();
             if !lib.watch_files(&all, events) {
                 let e = strerror(lib.error());
-                out(cat!("Couldn't add filesystem watch ", this_file, ": ", e, "\n"));
+                out(cat!("Couldn't add ", scope.name(), " watch ", this_file, ": ", e, "\n"));
                 return false;
             }
             return true;
