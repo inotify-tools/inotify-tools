@@ -103,8 +103,8 @@ if is_root && mount_tmpfs_for_fanotify root; then
         { wait $pid || test $? -eq 2; } &&
         grep "root/e/ MOVE_SELF,ISDIR $" $logfile &&
         grep "e/x/ MOVE_SELF z$" $logfile &&
-        grep "root/./ DELETE,ISDIR x (deleted)$" $logfile &&
-        grep "root/e/ DELETE_SELF,ISDIR (deleted)$" $logfile &&
+        grep "root/./ DELETE,ISDIR x$" $logfile &&
+        grep "root/e/ DELETE_SELF,ISDIR $" $logfile &&
         ! grep "^ " $logfile &&
         test_must_be_empty error.log
     '
