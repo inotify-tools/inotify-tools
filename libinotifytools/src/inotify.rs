@@ -566,17 +566,8 @@ impl Inotifytools {
                 if unsafe { *p } != 0 {
                     return p;
                 }
-                // An empty path in the event means ESTALE - directory already gone.
-                // Use the cached path but append the kernel's "(deleted)" suffix.
-                // No space before the suffix after a directory's trailing '/'
-                let cached = self.watch(id).filename.to_bytes().to_vec();
-                let skip = (cached.last() == Some(&b'/')) as usize;
-                let suffix = &b" (deleted)\0"[skip..];
-                let buf = &mut self.fidname;
-                let n = cached.len().min(buf.len().saturating_sub(suffix.len()));
-                buf[..n].copy_from_slice(&cached[..n]);
-                buf[n..n + suffix.len()].copy_from_slice(suffix);
-                return buf.as_ptr().cast();
+                // ESTALE: the directory is already gone. Keep the cached
+                // pathname unchanged; deletion belongs in the event mask.
             }
         }
         self.watch(id).filename.as_ptr()
@@ -1199,30 +1190,13 @@ impl Inotifytools {
         buf[len] = 0;
 
         if name_len > 0 {
-            let name: Vec<u8> =
-                f.get(name_off..).unwrap_or(&[]).iter().take_while(|&&c| c != 0).copied().collect();
-            let cname = cstring(&name);
-            let deleted = unsafe {
-                libc::faccessat(dirf, cname.as_ptr(), libc::F_OK, libc::AT_SYMLINK_NOFOLLOW)
-            };
-            let e = errno();
-            if deleted != 0 && e != ENOENT {
-                ceprint!("Failed to access file ", name, " (", strerror(e), ").\n");
-                unsafe { libc::close(dirf) };
-                return None;
-            }
-            let room = FIDNAME_SIZE - 16 - len;
-            for i in 0..(name_len as usize).min(room) {
+            // DFID_NAME records already contain the name at the time of the
+            // event. The file may have been deleted or moved before we read it.
+            let n = (name_len as usize).min(FIDNAME_SIZE - 1 - len);
+            for i in 0..n {
                 buf[len + i] = f.get(name_off + i).copied().unwrap_or(0);
             }
-            buf[(len + (name_len as usize).min(room)).min(FIDNAME_SIZE - 12)] = 0;
-            if deleted != 0 {
-                let end = buf.iter().position(|&c| c == 0).unwrap_or(0);
-                let suffix = b" (deleted)\0";
-                if end + suffix.len() <= FIDNAME_SIZE {
-                    buf[end..end + suffix.len()].copy_from_slice(suffix);
-                }
-            }
+            buf[len + n] = 0;
         }
         unsafe { libc::close(dirf) };
         Some(buf.as_ptr().cast())
