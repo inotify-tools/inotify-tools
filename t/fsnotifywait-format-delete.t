@@ -7,58 +7,20 @@ test_description='Issue #227: preserve file names in delete and move events'
 
 fanotify_supported && test_set_prereq FANOTIFY
 
-# Queue the event while the watcher is stopped, so path resolution happens
-# after the file has disappeared. This also covers a CREATE read after DELETE.
-run_event() {
-    mode=$1
-    name=$2
-    kind=$3
-    event=$4
-    action=$5
-    shift 5
+# Filesystem and mount marks cover the whole filesystem/mount, so isolate them
+# on tmpfs rather than watching the host filesystem containing the test tree.
+if is_root && mount_tmpfs_for_fanotify event-root; then
+    test_set_prereq FILESYSTEM
+    fanotify_supported_on event-root --mount && test_set_prereq MOUNT
+    cleanup_mounts event-root
+fi
 
-    rm -rf watched && mkdir watched &&
-    watchpath="$(realpath watched)" &&
-    path="$watchpath/$name" || return 1
-    case "$kind" in
-        file) touch "$path" ;;
-        directory) mkdir "$path" ;;
-        symlink) ln -s missing-target "$path" ;;
-        new) : ;;
-    esac || return 1
-
-    ../../src/fsnotifywait "$mode" \
-        --quiet --timeout 3 --event "$event" "$@" "$watchpath" \
-        >actual 2>error &
-    pid=$!
-    test_when_finished '
-        if test -n "$pid"; then
-            kill -CONT "$pid" 2>/dev/null
-            kill "$pid" 2>/dev/null
-            wait "$pid" 2>/dev/null
-        fi
-        :
-    ' &&
-    sleep 1 &&
-    kill -STOP "$pid" || return 1
-
-    case "$action" in
-        delete) rm -rf "$path" ;;
-        move) mv "$path" "$watchpath/renamed" ;;
-        create) touch "$path" ;;
-        create-delete) touch "$path" && rm "$path" ;;
-    esac &&
-    kill -CONT "$pid" || return 1
-    wait "$pid"
-    status=$?
-    pid=
-    test "$status" -eq 0 &&
-    test_must_be_empty error
-}
-
-for mode in -I -F; do
-    prereq=
-    test "$mode" != -F || prereq=FANOTIFY
+for mode in -I -F --filesystem; do
+    case "$mode" in
+        -I) prereq= ;;
+        -F) prereq=FANOTIFY ;;
+        --filesystem) prereq=FILESYSTEM ;;
+    esac
 
     test_expect_success "$prereq" "$mode: deleted file keeps its name" '
         run_event "$mode" test file delete delete --format "%f" &&
@@ -120,5 +82,33 @@ for mode in -I -F; do
         test_cmp expect actual
     '
 done
+
+# Mount marks cannot report DELETE or MOVED_FROM. Queue CLOSE_WRITE followed by
+# unlink instead, so the same resolver sees a name whose file is already gone.
+for name in test "test (deleted)"; do
+    test_expect_success MOUNT "--mount: close before deletion preserves $name" '
+        run_event --mount "$name" file close_write close-delete --format "%f|%e" &&
+        printf "%s|CLOSE_WRITE,CLOSE\n" "$name" >expect &&
+        test_cmp expect actual
+    '
+done
+
+test_expect_success MOUNT "--mount: full path preserves a deleted name" '
+    run_event --mount test file close_write close-delete --format "%w%f|%e" &&
+    printf "%s/test|CLOSE_WRITE,CLOSE\n" "$watchpath" >expect &&
+    test_cmp expect actual
+'
+
+test_expect_success MOUNT "--mount: CSV preserves a deleted name" '
+    run_event --mount test file close_write close-delete --csv &&
+    printf "%s/,\"CLOSE_WRITE,CLOSE\",test\n" "$watchpath" >expect &&
+    test_cmp expect actual
+'
+
+test_expect_success MOUNT "--mount: include filter matches the original name" '
+    run_event --mount test file close_write close-delete --format "%f" --include "/test$" &&
+    printf "test\n" >expect &&
+    test_cmp expect actual
+'
 
 test_done

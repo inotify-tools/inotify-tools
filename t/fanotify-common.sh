@@ -142,3 +142,75 @@ cleanup_mounts() {
         rm -rf "$mnt" 2>/dev/null || true
     done
 }
+
+# Single-event runner for deletion-regression tests.
+#
+# run_event MODE NAME KIND EVENT ACTION [fsnotifywait options...]
+# KIND: file, directory, symlink (dangling), or new (not created yet).
+# ACTION: delete, move, create, create-delete, or close-delete.
+# Writes stdout/stderr to actual/error and requires a successful exit and empty
+# stderr. Sets watchpath to the absolute parent directory and path to the child.
+# Filesystem and mount modes use a private tmpfs mount, cleaned up after each
+# test even if the action or an assertion fails. Other modes use watched/.
+#
+# Pause the watcher before the action so queued events are processed after the
+# action finishes. In particular, close-delete closes the file before unlinking
+# it, letting mount watches exercise missing names with a supported event.
+run_event() {
+    event_mode=$1
+    event_name=$2
+    event_kind=$3
+    event_mask=$4
+    event_action=$5
+    shift 5
+
+    event_dir=watched
+    case "$event_mode" in
+        --filesystem|--mount)
+            test_when_finished 'cleanup_mounts event-root' &&
+            mount_tmpfs event-root || return 1
+            event_dir=event-root/watched
+            ;;
+    esac
+
+    rm -rf "$event_dir" && mkdir "$event_dir" &&
+    watchpath="$(realpath "$event_dir")" &&
+    path="$watchpath/$event_name" || return 1
+    case "$event_kind" in
+        file) touch "$path" ;;
+        directory) mkdir "$path" ;;
+        symlink) ln -s missing-target "$path" ;;
+        new) : ;;
+        *) return 1 ;;
+    esac || return 1
+
+    ../../src/fsnotifywait "$event_mode" \
+        --quiet --timeout 5 --event "$event_mask" "$@" "$watchpath" \
+        >actual 2>error &
+    event_pid=$!
+    test_when_finished '
+        if test -n "$event_pid"; then
+            kill -CONT "$event_pid" 2>/dev/null
+            kill "$event_pid" 2>/dev/null
+            wait "$event_pid" 2>/dev/null
+        fi
+        :
+    ' &&
+    sleep 1 &&
+    kill -STOP "$event_pid" || return 1
+
+    case "$event_action" in
+        delete) rm -rf "$path" ;;
+        move) mv "$path" "$watchpath/renamed" ;;
+        create) touch "$path" ;;
+        create-delete) touch "$path" && rm "$path" ;;
+        close-delete) printf "data\n" >"$path" && rm "$path" ;;
+        *) return 1 ;;
+    esac &&
+    kill -CONT "$event_pid" || return 1
+    wait "$event_pid"
+    event_status=$?
+    event_pid=
+    test "$event_status" -eq 0 &&
+    test_must_be_empty error
+}
