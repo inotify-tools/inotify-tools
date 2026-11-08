@@ -142,3 +142,52 @@ cleanup_mounts() {
         rm -rf "$mnt" 2>/dev/null || true
     done
 }
+
+# Queue the event while the watcher is stopped, so path resolution happens
+# after the file has disappeared. This also covers a CREATE read after DELETE.
+run_event() {
+    mode=$1
+    name=$2
+    kind=$3
+    event=$4
+    action=$5
+    shift 5
+
+    rm -rf watched && mkdir watched &&
+    watchpath="$(realpath watched)" &&
+    path="$watchpath/$name" || return 1
+    case "$kind" in
+        file) touch "$path" ;;
+        directory) mkdir "$path" ;;
+        symlink) ln -s missing-target "$path" ;;
+        new) : ;;
+    esac || return 1
+
+    ../../src/fsnotifywait "$mode" \
+        --quiet --timeout 3 --event "$event" "$@" "$watchpath" \
+        >actual 2>error &
+    pid=$!
+    test_when_finished '
+        if test -n "$pid"; then
+            kill -CONT "$pid" 2>/dev/null
+            kill "$pid" 2>/dev/null
+            wait "$pid" 2>/dev/null
+        fi
+        :
+    ' &&
+    sleep 1 &&
+    kill -STOP "$pid" || return 1
+
+    case "$action" in
+        delete) rm -rf "$path" ;;
+        move) mv "$path" "$watchpath/renamed" ;;
+        create) touch "$path" ;;
+        create-delete) touch "$path" && rm "$path" ;;
+    esac &&
+    kill -CONT "$pid" || return 1
+    wait "$pid"
+    status=$?
+    pid=
+    test "$status" -eq 0 &&
+    test_must_be_empty error
+}
