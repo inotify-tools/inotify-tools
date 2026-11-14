@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ffi::{CStr, CString};
 use std::mem;
 use std::ptr;
+use std::time::{Duration, Instant};
 
 use libc::{
     c_char, c_int, c_long, c_uint, pid_t, EACCES, EINVAL, ELOOP, EMSGSIZE, ENOENT, ENOTDIR,
@@ -1359,6 +1360,7 @@ impl Inotifytools {
             return false;
         }
 
+        let started = Instant::now();
         loop {
             #[allow(unused_mut)]
             let mut event_pid: pid_t = 0;
@@ -1390,7 +1392,20 @@ impl Inotifytools {
             }
 
             if !buffered {
-                let ts = libc::timespec { tv_sec: timeout as _, tv_nsec: 0 };
+                let remaining = if timeout > 0 {
+                    let limit = Duration::from_secs(timeout as u64);
+                    let elapsed = started.elapsed();
+                    if elapsed >= limit {
+                        return false;
+                    }
+                    limit - elapsed
+                } else {
+                    Duration::ZERO
+                };
+                let ts = libc::timespec {
+                    tv_sec: remaining.as_secs() as _,
+                    tv_nsec: remaining.subsec_nanos() as _,
+                };
                 let mut pfd = libc::pollfd { fd: self.fd, events: libc::POLLIN, revents: 0 };
                 let tsp = if timeout < 0 { ptr::null() } else { &ts as *const libc::timespec };
                 let rc = unsafe { libc::ppoll(&mut pfd, 1, tsp, ptr::null()) };
@@ -2272,6 +2287,58 @@ mod tests {
         assert_eq!(lib.event_to_str_sep(IN_CLOSE_WRITE, b'.'), b"CLOSE_WRITE.CLOSE");
         assert_eq!(lib.event_to_str(0x1000), b"0x00001000");
         assert_eq!(lib.event_to_str(0), b"0x00000000");
+    }
+
+    fn filtered_events_timeout(inverted: bool) {
+        use std::sync::mpsc;
+        use std::thread;
+        use std::time::Duration;
+
+        let dir = std::env::temp_dir().join(format!(
+            "inotifytools_timeout_{}_{}",
+            std::process::id(),
+            inverted
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let mut lib = Inotifytools::new();
+        assert!(lib.initialize());
+        assert!(lib.watch_file(dir.to_str().unwrap().as_bytes(), IN_CLOSE_WRITE));
+        if inverted {
+            assert!(lib.ignore_events_by_inverted_regex(Some(b"/target$"), 0, 0));
+        } else {
+            assert!(lib.ignore_events_by_regex(Some(b"/noise$"), 0, 0));
+        }
+        let (stop, receiver) = mpsc::channel();
+        let noise = dir.join("noise");
+        let producer = thread::spawn(move || {
+            for _ in 0..25 {
+                if receiver.try_recv().is_ok() {
+                    return false;
+                }
+                std::fs::write(&noise, b"noise").unwrap();
+                thread::sleep(Duration::from_millis(100));
+            }
+            true
+        });
+        let event = lib.next_event(1);
+        let error = lib.error();
+        let _ = stop.send(());
+        let noise_finished = producer.join().unwrap();
+        lib.cleanup();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(event.is_none());
+        assert_eq!(error, 0);
+        assert!(!noise_finished, "timeout waited for the noise stream to finish");
+    }
+
+    #[test]
+    fn excluded_events_do_not_restart_timeout() {
+        filtered_events_timeout(false);
+    }
+
+    #[test]
+    fn included_events_do_not_restart_timeout() {
+        filtered_events_timeout(true);
     }
 
     #[test]
