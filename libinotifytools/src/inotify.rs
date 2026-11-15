@@ -1441,6 +1441,11 @@ impl Inotifytools {
                         self.error = errno();
                         return false;
                     }
+                    // A pause can overrun under load. Leave even a newly full
+                    // batch queued if the original deadline has expired.
+                    if timeout > 0 && time_left(started, timeout).is_none() {
+                        return false;
+                    }
                 }
                 if rc == -1 {
                     self.error = errno();
