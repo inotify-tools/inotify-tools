@@ -557,7 +557,10 @@ struct inotify_event * inotifytools_next_event( long int timeout );
  *                   @a num_events * sizeof(struct inotify_event).  Obviously
  *                   the larger this number is, the greater the latency between
  *                   when an event occurs and when you'll know about it.
- *                   May not be larger than 4096.
+ *                   May not be larger than 4096.  The wait for this byte count
+ *                   also respects @a timeout; an incomplete batch remains
+ *                   queued if the timeout expires.  A zero timeout never waits
+ *                   for more bytes to arrive.
  *
  * @return pointer to an inotify event, or NULL if function timed out before
  *         an event occurred or @a num_events < 1.  The event is located in

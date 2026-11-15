@@ -1393,12 +1393,10 @@ impl Inotifytools {
 
             if !buffered {
                 let remaining = if timeout > 0 {
-                    let limit = Duration::from_secs(timeout as u64);
-                    let elapsed = started.elapsed();
-                    if elapsed >= limit {
-                        return false;
+                    match time_left(started, timeout) {
+                        Some(left) => left,
+                        None => return false,
                     }
-                    limit - elapsed
                 } else {
                     Duration::ZERO
                 };
@@ -1417,13 +1415,36 @@ impl Inotifytools {
                     return false;
                 }
 
-                // wait until we have enough bytes to read
+                // Wait until we have enough bytes to read. The descriptor is
+                // already readable, so polling it again would return at once.
+                // Pause between size checks, retaining the original deadline
+                // and leaving a partial batch queued if the timeout expires.
                 let mut bytes_to_read: c_uint = 0;
                 let mut rc;
                 loop {
                     rc = unsafe { libc::ioctl(self.fd, libc::FIONREAD, &mut bytes_to_read) };
                     if rc != 0 || bytes_to_read as usize >= EVENT_SIZE * num_events as usize {
                         break;
+                    }
+                    if timeout == 0 {
+                        return false;
+                    }
+                    let mut pause = Duration::from_millis(10);
+                    if timeout > 0 {
+                        match time_left(started, timeout) {
+                            Some(left) => pause = pause.min(left),
+                            None => return false,
+                        }
+                    }
+                    let ts = libc::timespec { tv_sec: 0, tv_nsec: pause.as_nanos() as _ };
+                    if unsafe { libc::ppoll(ptr::null_mut(), 0, &ts, ptr::null()) } < 0 {
+                        self.error = errno();
+                        return false;
+                    }
+                    // A pause can overrun under load. Leave even a newly full
+                    // batch queued if the original deadline has expired.
+                    if timeout > 0 && time_left(started, timeout).is_none() {
+                        return false;
                     }
                 }
                 if rc == -1 {
@@ -2106,6 +2127,14 @@ impl Inotifytools {
     }
 }
 
+/// Time left of a positive `timeout` (seconds) that began at `started`, or
+/// `None` once it has run out.
+fn time_left(started: Instant, timeout: c_long) -> Option<Duration> {
+    Duration::from_secs(timeout as u64)
+        .checked_sub(started.elapsed())
+        .filter(|left| !left.is_zero())
+}
+
 /// `strncpy(&buf[ind], src, n)`: copy `src` and zero-fill up to `n` bytes.
 fn strncpy(buf: &mut [u8; MAX_STRLEN], ind: u32, src: &[u8], n: usize) {
     let start = ind as usize;
@@ -2338,6 +2367,57 @@ mod tests {
     #[test]
     fn included_events_do_not_restart_timeout() {
         filtered_events_timeout(true);
+    }
+
+    fn batched_events_timeout(timeout: c_long) {
+        use std::thread;
+
+        let dir = std::env::temp_dir().join(format!(
+            "inotifytools_batch_{}_{}",
+            std::process::id(),
+            timeout
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let mut lib = Inotifytools::new();
+        assert!(lib.initialize());
+        assert!(lib.watch_file(dir.to_str().unwrap().as_bytes(), IN_CREATE));
+        std::fs::write(dir.join("first"), b"").unwrap();
+
+        // One named event occupies 32 bytes, short of the requested 48.
+        // Release a broken batch wait too, so a regression fails instead of
+        // hanging the test process forever.
+        let second = dir.join("second");
+        let producer = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(1500));
+            std::fs::write(second, b"").unwrap();
+        });
+        let started = Instant::now();
+        let event = lib.next_events(timeout, 3);
+        let elapsed = started.elapsed();
+        let error = lib.error();
+        let first = lib.next_events(0, 1);
+        producer.join().unwrap();
+        let second = lib.next_events(0, 1);
+        lib.cleanup();
+        std::fs::remove_dir_all(&dir).unwrap();
+
+        assert!(event.is_none(), "an incomplete batch must respect its timeout");
+        assert_eq!(error, 0);
+        if timeout > 0 {
+            assert!(elapsed >= Duration::from_secs(timeout as u64));
+        }
+        assert_eq!(first.unwrap().name, b"first");
+        assert_eq!(second.unwrap().name, b"second");
+    }
+
+    #[test]
+    fn incomplete_batch_respects_positive_timeout() {
+        batched_events_timeout(1);
+    }
+
+    #[test]
+    fn incomplete_batch_respects_zero_timeout() {
+        batched_events_timeout(0);
     }
 
     #[test]
