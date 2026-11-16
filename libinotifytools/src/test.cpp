@@ -17,7 +17,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
+#include <initializer_list>
 
 #ifdef HAVE_MCHECK_H
 #include <mcheck.h>
@@ -326,6 +328,82 @@ void watch_limit() {
 	EXIT
 }
 
+struct batch_files {
+	char directory[64] = "/tmp/inotifytools_batch_XXXXXX";
+
+	bool create(char const* name) {
+		char path[128];
+		snprintf(path, sizeof(path), "%s/%s", directory, name);
+		int fd = creat(path, 0600);
+		return fd >= 0 && close(fd) == 0;
+	}
+
+	~batch_files() {
+		for (char const* name : {"first", "second"}) {
+			char path[128];
+			snprintf(path, sizeof(path), "%s/%s", directory, name);
+			unlink(path);
+		}
+		rmdir(directory);
+	}
+};
+
+void partial_batch_timeout(long timeout) {
+	ENTER
+	batch_files files;
+	verify(mkdtemp(files.directory) != NULL);
+	verify(files.create("first"));
+	verify(files.create("second"));
+	char first[128], second[128];
+	snprintf(first, sizeof(first), "%s/first", files.directory);
+	snprintf(second, sizeof(second), "%s/second", files.directory);
+	verify(inotifytools_initialize());
+	verify(inotifytools_watch_file(first, IN_ATTRIB));
+	verify(inotifytools_watch_file(second, IN_ATTRIB));
+	int first_wd = inotifytools_wd_from_filename(first);
+	int second_wd = inotifytools_wd_from_filename(second);
+	// File watches produce unnamed events: exactly one event header each,
+	// independent of the platform's padding for directory event names.
+	verify(chmod(first, 0400) == 0);
+
+	// Release an old implementation which ignores the batch timeout, so a
+	// regression fails instead of hanging the entire C ABI suite.
+	pid_t producer = fork();
+	verify(producer >= 0);
+	if (producer == 0) {
+		struct timespec delay = {timeout + 1, 0};
+		while (nanosleep(&delay, &delay) < 0) {
+			if (errno != EINTR)
+				_exit(1);
+		}
+		_exit(chmod(second, 0400) == 0 ? 0 : 1);
+	}
+
+	bool timed_out = inotifytools_next_events(timeout, 2) == NULL;
+	int error = inotifytools_error();
+	int status = 0;
+	pid_t waited;
+	do {
+		waited = waitpid(producer, &status, 0);
+	} while (waited < 0 && errno == EINTR);
+	verify(waited == producer && WIFEXITED(status) &&
+	       WEXITSTATUS(status) == 0);
+	verify(timed_out);
+	compare(error, 0);
+
+	// The timeout must not consume the partial batch. After the producer
+	// exits both events are queued; subsequent calls also cover the buffer.
+	struct inotify_event* event = inotifytools_next_events(0, 2);
+	verify(event && (event->mask & IN_ATTRIB));
+	compare(event->wd, first_wd);
+	event = inotifytools_next_events(0, 4096);
+	verify(event && (event->mask & IN_ATTRIB));
+	compare(event->wd, second_wd);
+	verify(inotifytools_next_events(0, 1) == NULL);
+	compare(inotifytools_error(), 0);
+	EXIT
+}
+
 void cleanup() {
 	compare(system("rm -rf " TEST_DIR), 0);
 	inotifytools_cleanup();
@@ -360,6 +438,11 @@ int main() {
 	cleanup();
 
 	basic_watch_info();
+	cleanup();
+
+	partial_batch_timeout(1);
+	cleanup();
+	partial_batch_timeout(0);
 	cleanup();
 
 	watch_limit();
