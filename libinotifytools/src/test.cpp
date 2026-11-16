@@ -11,7 +11,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <initializer_list>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <initializer_list>
 
 #ifdef HAVE_MCHECK_H
 #include <mcheck.h>
@@ -386,7 +386,8 @@ void partial_batch_timeout(long timeout) {
 	do {
 		waited = waitpid(producer, &status, 0);
 	} while (waited < 0 && errno == EINTR);
-	verify(waited == producer && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+	verify(waited == producer && WIFEXITED(status) &&
+	       WEXITSTATUS(status) == 0);
 	verify(timed_out);
 	compare(error, 0);
 
