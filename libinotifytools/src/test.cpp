@@ -11,6 +11,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +22,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <initializer_list>
+#include <string>
 
 #ifdef HAVE_MCHECK_H
 #include <mcheck.h>
@@ -331,22 +334,30 @@ void watch_limit() {
 struct batch_files {
 	char directory[64] = "/tmp/inotifytools_batch_XXXXXX";
 
+	std::string path(char const* name) const {
+		return std::string(directory) + "/" + name;
+	}
+
 	bool create(char const* name) {
-		char path[128];
-		snprintf(path, sizeof(path), "%s/%s", directory, name);
-		int fd = creat(path, 0600);
+		int fd = creat(path(name).c_str(), 0600);
 		return fd >= 0 && close(fd) == 0;
 	}
 
 	~batch_files() {
 		for (char const* name : {"first", "second"}) {
-			char path[128];
-			snprintf(path, sizeof(path), "%s/%s", directory, name);
-			unlink(path);
+			unlink(path(name).c_str());
 		}
 		rmdir(directory);
 	}
 };
+
+pid_t reap(pid_t pid, int* status) {
+	pid_t waited;
+	do {
+		waited = waitpid(pid, status, 0);
+	} while (waited < 0 && errno == EINTR);
+	return waited;
+}
 
 void partial_batch_timeout(long timeout) {
 	ENTER
@@ -354,17 +365,15 @@ void partial_batch_timeout(long timeout) {
 	verify(mkdtemp(files.directory) != NULL);
 	verify(files.create("first"));
 	verify(files.create("second"));
-	char first[128], second[128];
-	snprintf(first, sizeof(first), "%s/first", files.directory);
-	snprintf(second, sizeof(second), "%s/second", files.directory);
+	std::string first = files.path("first"), second = files.path("second");
 	verify(inotifytools_initialize());
-	verify(inotifytools_watch_file(first, IN_ATTRIB));
-	verify(inotifytools_watch_file(second, IN_ATTRIB));
-	int first_wd = inotifytools_wd_from_filename(first);
-	int second_wd = inotifytools_wd_from_filename(second);
+	verify(inotifytools_watch_file(first.c_str(), IN_ATTRIB));
+	verify(inotifytools_watch_file(second.c_str(), IN_ATTRIB));
+	int first_wd = inotifytools_wd_from_filename(first.c_str());
+	int second_wd = inotifytools_wd_from_filename(second.c_str());
 	// File watches produce unnamed events: exactly one event header each,
 	// independent of the platform's padding for directory event names.
-	verify(chmod(first, 0400) == 0);
+	verify(chmod(first.c_str(), 0400) == 0);
 
 	// Release an old implementation which ignores the batch timeout, so a
 	// regression fails instead of hanging the entire C ABI suite.
@@ -376,16 +385,13 @@ void partial_batch_timeout(long timeout) {
 			if (errno != EINTR)
 				_exit(1);
 		}
-		_exit(chmod(second, 0400) == 0 ? 0 : 1);
+		_exit(chmod(second.c_str(), 0400) == 0 ? 0 : 1);
 	}
 
 	bool timed_out = inotifytools_next_events(timeout, 2) == NULL;
 	int error = inotifytools_error();
 	int status = 0;
-	pid_t waited;
-	do {
-		waited = waitpid(producer, &status, 0);
-	} while (waited < 0 && errno == EINTR);
+	pid_t waited = reap(producer, &status);
 	verify(waited == producer && WIFEXITED(status) &&
 	       WEXITSTATUS(status) == 0);
 	verify(timed_out);
@@ -401,6 +407,63 @@ void partial_batch_timeout(long timeout) {
 	compare(event->wd, second_wd);
 	verify(inotifytools_next_events(0, 1) == NULL);
 	compare(inotifytools_error(), 0);
+	EXIT
+}
+
+void single_event_blocks() {
+	ENTER
+	batch_files files;
+	verify(mkdtemp(files.directory) != NULL);
+	verify(files.create("first"));
+	std::string first = files.path("first");
+	verify(inotifytools_initialize());
+	verify(inotifytools_watch_file(first.c_str(), IN_ATTRIB));
+	int wd = inotifytools_wd_from_filename(first.c_str());
+	int messages[2];
+	verify(pipe(messages) == 0);
+	pid_t waiter = fork();
+	if (waiter < 0) {
+		close(messages[0]);
+		close(messages[1]);
+	}
+	verify(waiter >= 0);
+	if (waiter == 0) {
+		close(messages[0]);
+		// Bound a regression which never wakes after the event, too.
+		alarm(5);
+		char message = 'R';
+		if (write(messages[1], &message, 1) != 1)
+			_exit(1);
+		struct inotify_event* event = inotifytools_next_event(0);
+		if (!event || event->wd != wd || !(event->mask & IN_ATTRIB) ||
+		    inotifytools_error() != 0)
+			_exit(2);
+		message = 'E';
+		_exit(write(messages[1], &message, 1) == 1 ? 0 : 3);
+	}
+	close(messages[1]);
+	struct pollfd result = {messages[0], POLLIN, 0};
+	char message = 0;
+	bool started = poll(&result, 1, 3000) > 0 &&
+		       read(messages[0], &message, 1) == 1 && message == 'R';
+	// No filesystem event exists yet: a zero-timeout single-event call
+	// must remain blocked, unlike next_events(0, num_events)'s poll.
+	bool blocked = started && poll(&result, 1, 200) == 0;
+	bool produced = blocked && chmod(first.c_str(), 0400) == 0;
+	bool delivered = produced && poll(&result, 1, 3000) > 0 &&
+			 read(messages[0], &message, 1) == 1 && message == 'E';
+	close(messages[0]);
+	// Always reap the waiter before assertions can return from the test.
+	if (!delivered)
+		kill(waiter, SIGKILL);
+	int status = 0;
+	pid_t waited = reap(waiter, &status);
+	verify(started);
+	verify(blocked);
+	verify(produced);
+	verify(delivered);
+	verify(waited == waiter && WIFEXITED(status) &&
+	       WEXITSTATUS(status) == 0);
 	EXIT
 }
 
@@ -438,6 +501,9 @@ int main() {
 	cleanup();
 
 	basic_watch_info();
+	cleanup();
+
+	single_event_blocks();
 	cleanup();
 
 	partial_batch_timeout(1);
