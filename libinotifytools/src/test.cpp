@@ -496,15 +496,13 @@ void single_event_idle_timeout() {
 		int error = inotifytools_error();
 		if (clock_gettime(CLOCK_MONOTONIC, &finish) != 0)
 			_exit(1);
-		bool waited = finish.tv_sec - start.tv_sec > 1 ||
-			      (finish.tv_sec - start.tv_sec == 1 &&
-			       finish.tv_nsec >= start.tv_nsec);
+		long long elapsed_ns =
+		    (finish.tv_sec - start.tv_sec) * 1000000000LL +
+		    (finish.tv_nsec - start.tv_nsec);
 		// Allow scheduling overhead, but reject a materially late
 		// timeout.
-		bool timely = finish.tv_sec - start.tv_sec < 3 ||
-			      (finish.tv_sec - start.tv_sec == 3 &&
-			       finish.tv_nsec < start.tv_nsec);
-		if (event || error != 0 || !waited || !timely)
+		if (event || error != 0 || elapsed_ns < 1000000000LL ||
+		    elapsed_ns >= 3000000000LL)
 			_exit(2);
 		// The expired wait must leave the watch usable for the next
 		// event.

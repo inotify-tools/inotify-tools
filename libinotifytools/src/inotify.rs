@@ -2321,7 +2321,7 @@ mod tests {
     #[test]
     fn single_event_zero_timeout_blocks_until_event() {
         use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
-        use std::process::Command;
+        use std::process::{Command, Stdio};
         use std::thread;
 
         const CHILD_DIR: &str = "INOTIFYTOOLS_SINGLE_EVENT_TEST_DIR";
@@ -2341,8 +2341,16 @@ mod tests {
             return;
         }
 
+        struct FixtureDirectory(std::path::PathBuf);
+        impl Drop for FixtureDirectory {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+
         let dir = std::env::temp_dir().join(format!("inotifytools_single_{}", std::process::id()));
         std::fs::create_dir(&dir).unwrap();
+        let _fixture = FixtureDirectory(dir.clone());
         let path = dir.join("event");
         std::fs::write(&path, b"").unwrap();
         // A subprocess bounds both premature returns and a waiter which never
@@ -2350,6 +2358,7 @@ mod tests {
         let mut waiter = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "inotify::tests::single_event_zero_timeout_blocks_until_event"])
             .env(CHILD_DIR, &dir)
+            .stdout(Stdio::null())
             .spawn()
             .unwrap();
         let started = Instant::now();
@@ -2379,9 +2388,6 @@ mod tests {
         // Always terminate and reap the child before assertions or cleanup.
         let _ = waiter.kill();
         let reaped = waiter.wait();
-        let _ = std::fs::remove_file(dir.join("ready"));
-        std::fs::remove_file(&path).unwrap();
-        std::fs::remove_dir(&dir).unwrap();
 
         assert!(ready, "the waiter did not finish watch setup");
         assert!(blocked, "next_event(0) returned before a filesystem event");
