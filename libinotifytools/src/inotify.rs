@@ -2318,6 +2318,84 @@ mod tests {
         assert_eq!(lib.event_to_str(0), b"0x00000000");
     }
 
+    #[test]
+    fn single_event_zero_timeout_blocks_until_event() {
+        use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
+        use std::process::{Command, Stdio};
+        use std::thread;
+
+        const CHILD_DIR: &str = "INOTIFYTOOLS_SINGLE_EVENT_TEST_DIR";
+        if let Some(dir) = std::env::var_os(CHILD_DIR) {
+            let dir = std::path::PathBuf::from(dir);
+            let path = dir.join("event");
+            let mut lib = Inotifytools::new();
+            assert!(lib.initialize());
+            assert!(lib.watch_file(path.as_os_str().as_bytes(), IN_ATTRIB));
+            let wd = lib.wd_from_filename(path.as_os_str().as_bytes());
+            std::fs::write(dir.join("ready"), b"").unwrap();
+            let event = lib.next_event(0).expect("next_event(0) did not return an event");
+            assert_eq!(event.wd, wd);
+            assert_ne!(event.mask & IN_ATTRIB as u32, 0);
+            assert_eq!(lib.error(), 0);
+            lib.cleanup();
+            return;
+        }
+
+        struct FixtureDirectory(std::path::PathBuf);
+        impl Drop for FixtureDirectory {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+
+        let dir = std::env::temp_dir().join(format!("inotifytools_single_{}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        let _fixture = FixtureDirectory(dir.clone());
+        let path = dir.join("event");
+        std::fs::write(&path, b"").unwrap();
+        // A subprocess bounds both premature returns and a waiter which never
+        // wakes, without leaving a blocked thread in the Rust test process.
+        let mut waiter = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "inotify::tests::single_event_zero_timeout_blocks_until_event"])
+            .env(CHILD_DIR, &dir)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let started = Instant::now();
+        while !dir.join("ready").exists() && started.elapsed() < Duration::from_secs(3) {
+            if !matches!(waiter.try_wait(), Ok(None)) {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        let ready = dir.join("ready").exists();
+        thread::sleep(Duration::from_millis(200));
+        let blocked = ready && matches!(waiter.try_wait(), Ok(None));
+        let produced = blocked
+            && std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o400)).is_ok();
+        let started = Instant::now();
+        let mut status = None;
+        while produced && started.elapsed() < Duration::from_secs(3) {
+            match waiter.try_wait() {
+                Ok(None) => thread::sleep(Duration::from_millis(10)),
+                Ok(result) => {
+                    status = result;
+                    break;
+                }
+                Err(_) => break,
+            }
+        }
+        // Always terminate and reap the child before assertions or cleanup.
+        let _ = waiter.kill();
+        let reaped = waiter.wait();
+
+        assert!(ready, "the waiter did not finish watch setup");
+        assert!(blocked, "next_event(0) returned before a filesystem event");
+        assert!(produced, "the event producer failed");
+        assert!(status.map_or(false, |s| s.success()), "next_event(0) did not deliver the event");
+        assert!(reaped.is_ok());
+    }
+
     fn filtered_events_timeout(inverted: bool) {
         use std::sync::mpsc;
         use std::thread;
