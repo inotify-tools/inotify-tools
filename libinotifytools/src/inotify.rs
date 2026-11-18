@@ -2320,7 +2320,7 @@ mod tests {
 
     #[test]
     fn single_event_zero_timeout_blocks_until_event() {
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
         use std::process::Command;
         use std::thread;
 
@@ -2330,8 +2330,8 @@ mod tests {
             let path = dir.join("event");
             let mut lib = Inotifytools::new();
             assert!(lib.initialize());
-            assert!(lib.watch_file(path.to_str().unwrap().as_bytes(), IN_ATTRIB));
-            let wd = lib.wd_from_filename(path.to_str().unwrap().as_bytes());
+            assert!(lib.watch_file(path.as_os_str().as_bytes(), IN_ATTRIB));
+            let wd = lib.wd_from_filename(path.as_os_str().as_bytes());
             std::fs::write(dir.join("ready"), b"").unwrap();
             let event = lib.next_event(0).expect("next_event(0) did not return an event");
             assert_eq!(event.wd, wd);

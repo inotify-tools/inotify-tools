@@ -481,7 +481,13 @@ void single_event_idle_timeout() {
 	if (waiter == 0) {
 		// An implementation which ignores the positive timeout must
 		// fail instead of hanging the rest of the shared/static C ABI
-		// suite.
+		// suite, even if its launcher blocked or ignored SIGALRM.
+		sigset_t alarms;
+		if (signal(SIGALRM, SIG_DFL) == SIG_ERR ||
+		    sigemptyset(&alarms) != 0 ||
+		    sigaddset(&alarms, SIGALRM) != 0 ||
+		    sigprocmask(SIG_UNBLOCK, &alarms, NULL) != 0)
+			_exit(1);
 		alarm(5);
 		struct timespec start, finish;
 		if (clock_gettime(CLOCK_MONOTONIC, &start) != 0)
@@ -493,7 +499,12 @@ void single_event_idle_timeout() {
 		bool waited = finish.tv_sec - start.tv_sec > 1 ||
 			      (finish.tv_sec - start.tv_sec == 1 &&
 			       finish.tv_nsec >= start.tv_nsec);
-		if (event || error != 0 || !waited)
+		// Allow scheduling overhead, but reject a materially late
+		// timeout.
+		bool timely = finish.tv_sec - start.tv_sec < 3 ||
+			      (finish.tv_sec - start.tv_sec == 3 &&
+			       finish.tv_nsec < start.tv_nsec);
+		if (event || error != 0 || !waited || !timely)
 			_exit(2);
 		// The expired wait must leave the watch usable for the next
 		// event.
