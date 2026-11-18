@@ -467,6 +467,54 @@ void single_event_blocks() {
 	EXIT
 }
 
+void single_event_idle_timeout() {
+	ENTER
+	batch_files files;
+	verify(mkdtemp(files.directory) != NULL);
+	verify(files.create("first"));
+	std::string first = files.path("first");
+	verify(inotifytools_initialize());
+	verify(inotifytools_watch_file(first.c_str(), IN_ATTRIB));
+	int wd = inotifytools_wd_from_filename(first.c_str());
+	pid_t waiter = fork();
+	verify(waiter >= 0);
+	if (waiter == 0) {
+		// An implementation which ignores the positive timeout must
+		// fail instead of hanging the rest of the shared/static C ABI
+		// suite.
+		alarm(5);
+		struct timespec start, finish;
+		if (clock_gettime(CLOCK_MONOTONIC, &start) != 0)
+			_exit(1);
+		struct inotify_event* event = inotifytools_next_event(1);
+		int error = inotifytools_error();
+		if (clock_gettime(CLOCK_MONOTONIC, &finish) != 0)
+			_exit(1);
+		bool waited = finish.tv_sec - start.tv_sec > 1 ||
+			      (finish.tv_sec - start.tv_sec == 1 &&
+			       finish.tv_nsec >= start.tv_nsec);
+		if (event || error != 0 || !waited)
+			_exit(2);
+		// The expired wait must leave the watch usable for the next
+		// event.
+		if (chmod(first.c_str(), 0400) != 0)
+			_exit(3);
+		event = inotifytools_next_event(1);
+		if (!event || event->wd != wd || !(event->mask & IN_ATTRIB) ||
+		    inotifytools_error() != 0)
+			_exit(4);
+		_exit(inotifytools_next_events(0, 1) == NULL &&
+			      inotifytools_error() == 0
+			  ? 0
+			  : 5);
+	}
+	int status = 0;
+	verify(reap(waiter, &status) == waiter);
+	verify(WIFEXITED(status));
+	compare(WEXITSTATUS(status), 0);
+	EXIT
+}
+
 void cleanup() {
 	compare(system("rm -rf " TEST_DIR), 0);
 	inotifytools_cleanup();
@@ -504,6 +552,8 @@ int main() {
 	cleanup();
 
 	single_event_blocks();
+	cleanup();
+	single_event_idle_timeout();
 	cleanup();
 
 	partial_batch_timeout(1);
